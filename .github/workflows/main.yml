@@ -18,10 +18,11 @@ jobs:
       with:
         node-version: '20'
 
-    - name: 3. 强行安装 Capacitor 核心依赖
+    - name: 3. 抹除 Windows 缓存并重装纯正 Linux 依赖 (核心修复)
       run: |
-        npm install @capacitor/core
-        npm install -D @capacitor/cli
+        rm -rf node_modules package-lock.json
+        npm install
+        npm install @capacitor/core @capacitor/cli
 
     - name: 4. 同步网页代码到安卓工程
       run: npx cap sync android
