@@ -13,7 +13,7 @@ jobs:
     - name: 1. 拉取代码
       uses: actions/checkout@v4
 
-    - name: 2. 配置 Node.js 环境 (升级到22以适配最新Capacitor)
+    - name: 2. 配置 Node.js 环境 (适配最新 Capacitor)
       uses: actions/setup-node@v4
       with:
         node-version: '22'
@@ -27,11 +27,11 @@ jobs:
     - name: 4. 同步网页代码到安卓工程
       run: npx cap sync android
 
-    - name: 5. 配置 Java 编译环境
+    - name: 5. 配置 Java 编译环境 (升级到21以适配安卓底层)
       uses: actions/setup-java@v4
       with:
         distribution: 'zulu'
-        java-version: '17'
+        java-version: '21'
 
     - name: 6. 赋予 Gradle 运行权限
       run: chmod +x ./android/gradlew
