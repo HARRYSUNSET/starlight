@@ -18,8 +18,10 @@ jobs:
       with:
         node-version: '20'
 
-    - name: 3. 安装依赖包
-      run: npm install
+    - name: 3. 强行安装 Capacitor 核心依赖
+      run: |
+        npm install @capacitor/core
+        npm install -D @capacitor/cli
 
     - name: 4. 同步网页代码到安卓工程
       run: npx cap sync android
