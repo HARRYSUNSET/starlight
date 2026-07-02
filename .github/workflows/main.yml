@@ -11,10 +11,10 @@ jobs:
 
     steps:
     - name: 1. 拉取代码
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: 2. 配置 Node.js 环境
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: '20'
 
@@ -25,7 +25,7 @@ jobs:
       run: npx cap sync android
 
     - name: 5. 配置 Java 编译环境
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         distribution: 'zulu'
         java-version: '17'
@@ -39,7 +39,7 @@ jobs:
         ./gradlew assembleDebug
 
     - name: 8. 提供 APK 下载链接
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Starlight-App-Debug
         path: android/app/build/outputs/apk/debug/app-debug.apk
