@@ -13,12 +13,12 @@ jobs:
     - name: 1. 拉取代码
       uses: actions/checkout@v4
 
-    - name: 2. 配置 Node.js 环境
+    - name: 2. 配置 Node.js 环境 (升级到22以适配最新Capacitor)
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '22'
 
-    - name: 3. 抹除 Windows 缓存并重装纯正 Linux 依赖 (核心修复)
+    - name: 3. 抹除 Windows 缓存并重装纯正 Linux 依赖
       run: |
         rm -rf node_modules package-lock.json
         npm install
