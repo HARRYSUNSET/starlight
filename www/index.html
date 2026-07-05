@@ -1005,7 +1005,7 @@
                         </select>
 
                         <label>📜 底层提示词（全局）</label>
-                        <textarea id="globalPromptInput" placeholder="输入全局提示词，所有智能体都会遵循的基础行为规则...">你是一个有帮助的、友好的AI助手。请用简洁清晰的语言回答用户的问题。如果用户的问题不明确，请主动询问澄清。</textarea>
+                        <textarea id="globalPromptInput" placeholder="输入全局提示词，所有智能体都会遵循的基础行为规则...">在此可以把你想让所有智能体都遵循的底层要求列写出来~想不出来也可以先空着~</textarea>
                         <div class="hint">底层提示词应用于所有智能体，定义基础行为规范</div>
                     </div>
                 </div>
@@ -1135,7 +1135,7 @@
                         appData.apiKey = parsed.apiKey || '';
                         appData.model = parsed.model || 'deepseek-chat';
                         appData.globalPrompt = parsed.globalPrompt ||
-                            '你是一个有帮助的、友好的AI助手。请用简洁清晰的语言回答用户的问题。如果用户的问题不明确，请主动询问澄清。';
+                            '快写入你的提示词吧~';
                         appData.agents = parsed.agents || [];
                         appData.currentAgentId = parsed.currentAgentId || null;
                     }
@@ -1145,8 +1145,8 @@
                 if (appData.agents.length === 0) {
                     const defaultAgent = {
                         id: generateId(),
-                        name: '通用助手',
-                        surfacePrompt: '你是一个通用AI助手，乐于回答各种问题。',
+                        name: '修改你的智能体名称',
+                        surfacePrompt: '在此处加入你的人设提示词，即表层提示词~',
                         conversations: [],
                         createdAt: Date.now(),
                     };
@@ -1608,7 +1608,7 @@
                             'Authorization': `Bearer ${appData.apiKey}`,
                         },
                         body: JSON.stringify({
-                            model: appData.model || 'deepseek-chat',
+                            model: appData.model,
                             messages: messages,
                             stream: true,
                             temperature: 0.8,
@@ -1672,7 +1672,7 @@
                 if (globalPrompt && surfacePrompt) {
                     return globalPrompt + '\n\n' + surfacePrompt;
                 }
-                return globalPrompt || surfacePrompt || '你是一个有帮助的AI助手。';
+                return globalPrompt || surfacePrompt || '啊吧啊吧';
             }
 
             function buildMessagesForAPI() {
@@ -1826,7 +1826,7 @@
                     showToast('当前对话已是空状态', 'info');
                     return;
                 }
-                if (!confirm('确定要清空当前智能体的所有对话历史吗？该操作不可撤销。')) return;
+                if (!confirm('确定要清空当前智能体的所有对话历史吗？对话历史真的回不来了！')) return;
                 agent.conversations = [];
                 saveData();
                 renderMessages();
@@ -1929,7 +1929,7 @@
             });
 
             init();
-            console.log('🚀 完美版 AI智能体聊天平台已就绪！');
+            console.log('🚀星陽之语聊天平台已就绪~');
         })();
     </script>
 </body>
