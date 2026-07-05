@@ -40,6 +40,21 @@
             --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Consolas', monospace;
         }
 
+        /* 深色模式变量 */
+        body.dark-theme {
+            --bg: #121212;
+            --card-bg: #1e1e2e;
+            --chat-bg: #181825;
+            --text-primary: #e0e0e0;
+            --text-secondary: #a0a0a0;
+            --border: #2a2a35;
+            --user-bubble: #2b2b40;
+            --user-bubble-text: #e0e0e0;
+            --ai-bubble: #1e1e2d;
+            --ai-bubble-text: #e0e0e0;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -83,6 +98,9 @@
             padding: 20px 18px 14px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.08);
             flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
         .sidebar-logo {
@@ -105,12 +123,34 @@
             font-size: 1.2rem;
             box-shadow: 0 4px 15px var(--accent-glow);
         }
+        
+        /* 主题切换按钮样式 */
+        .theme-toggle-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 5px 10px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .theme-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: scale(1.05);
+        }
+
         .sidebar-subtitle {
             font-size: 0.72rem;
             color: #888;
             margin-top: 2px;
             letter-spacing: 0.04em;
             text-transform: uppercase;
+            padding: 0 18px 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
         }
 
         .sidebar-scroll {
@@ -294,46 +334,62 @@
             color: #fff;
             font-weight: 600;
         }
-        .agent-delete {
-            opacity: 0;
-            width: 26px;
-            height: 26px;
-            border-radius: 50%;
+
+        /* 智能体操作子菜单 */
+        .agent-more-btn {
+            background: transparent;
             border: none;
-            background: rgba(255, 255, 255, 0.08);
-            color: #ccc;
+            color: #aaa;
             cursor: pointer;
-            font-size: 0.7rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            padding: 4px 8px;
+            font-size: 1.1rem;
+            line-height: 1;
+            border-radius: 4px;
             transition: all var(--transition);
-            flex-shrink: 0;
+            display: block;
         }
-        .agent-edit {
-            opacity: 0;
-            width: 26px;
-            height: 26px;
-            border-radius: 50%;
-            border: none;
-            background: rgba(255, 255, 255, 0.08);
-            color: #ccc;
-            cursor: pointer;
-            font-size: 0.8rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all var(--transition);
-            flex-shrink: 0;
-            margin-right: 2px;
-        }
-        .agent-item:hover .agent-delete {
-            opacity: 1;
-        }
-        .agent-delete:hover {
-            background: var(--danger);
+        .agent-item:hover .agent-more-btn {
             color: #fff;
         }
+        .agent-menu {
+            display: none;
+            position: absolute;
+            right: 12px;
+            top: 36px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-md);
+            z-index: 110;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 110px;
+        }
+        .agent-menu.show {
+            display: flex;
+        }
+        .agent-menu button {
+            background: transparent;
+            border: none;
+            padding: 10px 14px;
+            text-align: left;
+            font-size: 0.8rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            width: 100%;
+            transition: background var(--transition);
+        }
+        .agent-menu button:hover {
+            background: var(--bg);
+        }
+        .agent-menu button.delete-text {
+            color: var(--danger);
+            border-top: 1px solid var(--border);
+        }
+        .agent-menu button.delete-text:hover {
+            background: rgba(231, 76, 60, 0.1);
+        }
+
         .btn-create-agent {
             width: 100%;
             padding: 10px;
@@ -412,12 +468,12 @@
             padding: 7px 13px;
             border-radius: 20px;
             border: 1px solid var(--border);
-            background: #fff;
+            background: var(--card-bg);
             cursor: pointer;
             font-size: 0.78rem;
             font-weight: 500;
             transition: all var(--transition);
-            color: #555;
+            color: var(--text-secondary);
             white-space: nowrap;
             display: flex;
             align-items: center;
@@ -425,13 +481,12 @@
             letter-spacing: 0.01em;
         }
         .btn-toolbar:hover {
-            background: #f5f5f0;
-            border-color: #ccc;
-            color: #333;
+            background: var(--bg);
+            border-color: var(--text-muted);
+            color: var(--text-primary);
         }
         .btn-toolbar:active {
             transform: scale(0.96);
-            background: #eee;
         }
         .btn-toolbar.danger:hover {
             border-color: #fcc;
@@ -451,7 +506,8 @@
             height: 36px;
             border-radius: 50%;
             border: 1px solid var(--border);
-            background: #fff;
+            background: var(--card-bg);
+            color: var(--text-primary);
             cursor: pointer;
             font-size: 1.1rem;
             align-items: center;
@@ -460,7 +516,7 @@
             transition: all var(--transition);
         }
         .btn-hamburger:hover {
-            background: #f5f5f0;
+            background: var(--bg);
         }
 
         /* 消息区域 */
@@ -470,7 +526,7 @@
             padding: 20px 24px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 16px;
             scroll-behavior: smooth;
         }
         .messages-container::-webkit-scrollbar {
@@ -518,6 +574,7 @@
             display: flex;
             flex-direction: column;
             max-width: 82%;
+            position: relative;
             animation: fadeInUp 0.3s ease;
         }
         @keyframes fadeInUp {
@@ -558,17 +615,46 @@
             color: var(--ai-bubble-text);
             border-bottom-left-radius: 6px;
             box-shadow: var(--shadow-sm);
-            border: 1px solid #e8e8e0;
+            border: 1px solid var(--border);
         }
         .message-time {
             font-size: 0.62rem;
-            color: #bbb;
-            margin-top: 3px;
+            color: var(--text-muted);
+            margin-top: 5px;
             padding: 0 6px;
             letter-spacing: 0.03em;
         }
         .message-wrapper.user .message-time {
             text-align: right;
+        }
+
+        /* 复制按钮样式 */
+        .copy-btn {
+            position: absolute;
+            bottom: -14px;
+            right: 12px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.72rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            opacity: 0;
+            transition: opacity 0.2s, background 0.2s, color 0.2s;
+            box-shadow: var(--shadow-sm);
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+        .message-wrapper:hover .copy-btn {
+            opacity: 1;
+        }
+        .copy-btn:hover {
+            background: var(--bg);
+            color: var(--accent);
+            border-color: var(--accent-light);
         }
 
         /* 加载指示器 */
@@ -618,21 +704,22 @@
             flex: 1;
             padding: 12px 16px;
             border-radius: 24px;
-            border: 1.5px solid #ddd;
+            border: 1.5px solid var(--border);
             font-size: 0.88rem;
             font-family: var(--font-sans);
+            color: var(--text-primary);
             resize: none;
             outline: none;
             min-height: 46px;
             max-height: 140px;
             line-height: 1.5;
             transition: border-color var(--transition), box-shadow var(--transition);
-            background: #fafaf7;
+            background: var(--bg);
         }
         .input-area textarea:focus {
             border-color: var(--accent-light);
             box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.07);
-            background: #fff;
+            background: var(--card-bg);
         }
         .input-area textarea::placeholder {
             color: #c5c5bb;
@@ -697,12 +784,14 @@
             }
         }
         .modal {
-            background: #fff;
+            background: var(--card-bg);
+            color: var(--text-primary);
             border-radius: var(--radius-lg);
             padding: 28px 26px 22px;
             width: 440px;
             max-width: 92vw;
             box-shadow: var(--shadow-lg);
+            border: 1px solid var(--border);
             animation: scaleIn 0.25s ease;
         }
         @keyframes scaleIn {
@@ -725,7 +814,7 @@
             display: block;
             font-size: 0.75rem;
             font-weight: 600;
-            color: #666;
+            color: var(--text-secondary);
             margin: 10px 0 4px;
             letter-spacing: 0.03em;
             text-transform: uppercase;
@@ -735,7 +824,9 @@
             width: 100%;
             padding: 10px 13px;
             border-radius: 8px;
-            border: 1.5px solid #ddd;
+            border: 1.5px solid var(--border);
+            background: var(--bg);
+            color: var(--text-primary);
             font-size: 0.85rem;
             font-family: var(--font-sans);
             outline: none;
@@ -810,15 +901,9 @@
                 opacity: 1;
             }
         }
-        .toast.success {
-            background: #27ae60;
-        }
-        .toast.error {
-            background: #e74c3c;
-        }
-        .toast.info {
-            background: #5b6abf;
-        }
+        .toast.success { background: #27ae60; }
+        .toast.error { background: #e74c3c; }
+        .toast.info { background: #5b6abf; }
 
         /* 移动端遮罩 */
         .sidebar-overlay {
@@ -855,7 +940,7 @@
             }
             .messages-container {
                 padding: 14px 12px;
-                gap: 8px;
+                gap: 14px;
             }
             .message-wrapper {
                 max-width: 92%;
@@ -888,21 +973,19 @@
 </head>
 <body>
     <div class="app-container">
-        <!-- 移动端遮罩 -->
         <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-        <!-- ==================== 侧边栏 ==================== -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <div class="sidebar-logo">
                     <div class="logo-icon">✨</div>
                     <span>星陽之语</span>
                 </div>
-                <div class="sidebar-subtitle">DeepSeek API 驱动</div>
+                <button id="themeToggleBtn" class="theme-toggle-btn" title="切换主题">🌙</button>
             </div>
+            <div class="sidebar-subtitle">DeepSeek API 驱动</div>
 
             <div class="sidebar-scroll">
-                <!-- API设置 -->
                 <div class="settings-group" id="settingsGroup">
                     <div class="settings-group-header" id="settingsToggle">
                         ⚙️ API & 全局设置
@@ -927,14 +1010,12 @@
                     </div>
                 </div>
 
-                <!-- 智能体列表 -->
                 <div class="agents-section">
                     <div class="agents-section-title">
                         🤖 我的智能体
                     </div>
                     <div class="agents-list" id="agentsList">
-                        <!-- 动态渲染 -->
-                    </div>
+                        </div>
                     <button class="btn-create-agent" id="btnCreateAgent">+ 创建新智能体</button>
                 </div>
             </div>
@@ -944,9 +1025,7 @@
             </div>
         </aside>
 
-        <!-- ==================== 主聊天区 ==================== -->
         <main class="main-area">
-            <!-- 顶部工具栏 -->
             <div class="chat-topbar">
                 <button class="btn-hamburger" id="btnHamburger" title="菜单">☰</button>
                 <span class="current-agent-name" id="currentAgentName">选择智能体</span>
@@ -956,7 +1035,6 @@
                 <button class="btn-toolbar danger" id="btnRestart" title="清空当前对话" disabled>🗑️ 重启对话</button>
             </div>
 
-            <!-- 消息列表 -->
             <div class="messages-container" id="messagesContainer">
                 <div class="empty-state" id="emptyState">
                     <div class="empty-icon">💬</div>
@@ -965,7 +1043,6 @@
                 </div>
             </div>
 
-            <!-- 输入区域 -->
             <div class="input-area">
                 <textarea id="messageInput" placeholder="输入消息... (Enter发送，Shift+Enter换行)" rows="1" disabled></textarea>
                 <button class="btn-send" id="btnSend" disabled title="发送消息">➤</button>
@@ -973,7 +1050,6 @@
         </main>
     </div>
 
-    <!-- 创建智能体模态框 -->
     <div class="modal-overlay" id="modalOverlay" style="display:none;">
         <div class="modal">
             <h3>✨ 创建新智能体</h3>
@@ -988,7 +1064,6 @@
         </div>
     </div>
 
-    <!-- Toast容器 -->
     <div id="toastContainer"></div>
 
     <script>
@@ -1019,6 +1094,7 @@
             const $btnCancelModal = document.getElementById('btnCancelModal');
             const $btnConfirmCreate = document.getElementById('btnConfirmCreate');
             const $toastContainer = document.getElementById('toastContainer');
+            const $themeToggleBtn = document.getElementById('themeToggleBtn');
 
             // ==================== 状态 ====================
             const STORAGE_KEY = 'deepseek_chat_platform_v2';
@@ -1032,8 +1108,17 @@
 
             let isGenerating = false;
             let abortController = null;
+            let editingAgentId = null;
+            
+            // 安全读取本地主题配置，防止浏览器严格隐私模式拦截报错
+            let isDarkMode = false;
+            try {
+                isDarkMode = localStorage.getItem('theme') === 'dark';
+            } catch (e) {
+                console.warn('读取本地主题配置失败，可能是浏览器禁用了本地存储');
+            }
 
-            // ==================== 数据持久化 ====================
+            // ==================== 数据持久化与主题初始化 ====================
             function saveData() {
                 try {
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
@@ -1057,7 +1142,6 @@
                 } catch (e) {
                     console.warn('数据加载失败，使用默认配置');
                 }
-                // 确保至少有一个默认智能体
                 if (appData.agents.length === 0) {
                     const defaultAgent = {
                         id: generateId(),
@@ -1070,7 +1154,6 @@
                     appData.currentAgentId = defaultAgent.id;
                     saveData();
                 }
-                // 确保currentAgentId有效
                 if (appData.currentAgentId && !appData.agents.find(a => a.id === appData.currentAgentId)) {
                     appData.currentAgentId = appData.agents[0]?.id || null;
                     saveData();
@@ -1080,6 +1163,24 @@
                     saveData();
                 }
             }
+
+            function applyTheme() {
+                if (isDarkMode) {
+                    document.body.classList.add('dark-theme');
+                    $themeToggleBtn.textContent = '☀️';
+                } else {
+                    document.body.classList.remove('dark-theme');
+                    $themeToggleBtn.textContent = '🌙';
+                }
+            }
+
+            $themeToggleBtn.addEventListener('click', () => {
+                isDarkMode = !isDarkMode;
+                try {
+                    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+                } catch (e) {}
+                applyTheme();
+            });
 
             function generateId() {
                 return 'agent_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
@@ -1102,7 +1203,7 @@
                 }, 2200);
             }
 
-            // ==================== 侧边栏 ====================
+            // ==================== 侧边栏管理 ====================
             function toggleSidebar() {
                 $sidebar.classList.toggle('open');
                 if ($sidebar.classList.contains('open')) {
@@ -1119,17 +1220,40 @@
             $btnHamburger.addEventListener('click', toggleSidebar);
             $sidebarOverlay.addEventListener('click', closeSidebar);
 
-            // 设置面板折叠
             $settingsToggle.addEventListener('click', () => {
                 $settingsGroup.classList.toggle('collapsed');
             });
-            // 默认展开设置
             $settingsGroup.classList.remove('collapsed');
 
-            // ==================== 新增编辑状态 ====================
-            let editingAgentId = null;
+            // ==================== 智能体交互核心逻辑 ====================
+            function switchAgent(agentId) {
+                if (appData.currentAgentId === agentId) return;
+                appData.currentAgentId = agentId;
+                saveData();
+                renderAgentsList();
+                updateChatUI();
+                renderMessages();
+            }
 
-            // ==================== 渲染智能体列表 ====================
+            function deleteAgent(agentId) {
+                if (appData.agents.length <= 1) {
+                    showToast('至少需要保留一个智能体', 'error');
+                    return;
+                }
+                if (!confirm('确定要删除这个智能体及其所有对话记录吗？此操作不可恢复。')) return;
+
+                appData.agents = appData.agents.filter(a => a.id !== agentId);
+                if (appData.currentAgentId === agentId) {
+                    appData.currentAgentId = appData.agents[0].id;
+                }
+                saveData();
+                renderAgentsList();
+                updateChatUI();
+                renderMessages();
+                showToast('智能体已成功删除', 'success');
+            }
+
+            // ==================== 动态渲染智能体列表 ====================
             function renderAgentsList() {
                 $agentsList.innerHTML = appData.agents.map(agent => {
                     const isActive = agent.id === appData.currentAgentId;
@@ -1137,43 +1261,60 @@
                     <div class="agent-item ${isActive ? 'active' : ''}" data-agent-id="${agent.id}">
                       <span class="agent-dot"></span>
                       <span class="agent-name" title="${escapeHtml(agent.name)}">${escapeHtml(agent.name)}</span>
-                      <button class="agent-edit" data-edit-id="${agent.id}" title="编辑智能体">✎</button>
-                      <button class="agent-delete" data-delete-id="${agent.id}" title="删除智能体">×</button>
+                      <button class="agent-more-btn" title="选项">⋮</button>
+                      <div class="agent-menu" id="menu-${agent.id}">
+                        <button class="menu-edit" data-id="${agent.id}">✎ 编辑人设</button>
+                        <button class="menu-delete delete-text" data-id="${agent.id}">× 删除</button>
+                      </div>
                     </div>
                   `;
                 }).join('');
 
-                // 绑定点击事件（切换智能体）
-                $agentsList.querySelectorAll('.agent-item').forEach(item => {
-                    item.addEventListener('click', (e) => {
-                        // 如果点击的是编辑或删除按钮，则不触发切换
-                        if (e.target.closest('.agent-delete') || e.target.closest('.agent-edit')) return;
-                        const agentId = item.dataset.agentId;
-                        switchAgent(agentId);
-                        closeSidebar();
-                    });
-                });
+                const closeAllMenus = () => {
+                    document.querySelectorAll('.agent-menu').forEach(m => m.classList.remove('show'));
+                };
 
-                // 绑定编辑事件
-                $agentsList.querySelectorAll('.agent-edit').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
+                $agentsList.querySelectorAll('.agent-item').forEach(item => {
+                    const agentId = item.dataset.agentId;
+                    const moreBtn = item.querySelector('.agent-more-btn');
+                    const menu = item.querySelector('.agent-menu');
+                    const editBtn = item.querySelector('.menu-edit');
+                    const deleteBtn = item.querySelector('.menu-delete');
+
+                    item.addEventListener('click', (e) => {
+                        if (e.target.closest('.agent-more-btn') || e.target.closest('.agent-menu')) return;
+                        switchAgent(agentId);
+                        if (window.innerWidth <= 768) closeSidebar();
+                    });
+
+                    moreBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        const agentId = btn.dataset.editId;
+                        const isShown = menu.classList.contains('show');
+                        closeAllMenus();
+                        if (!isShown) menu.classList.add('show');
+                    });
+
+                    editBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        closeAllMenus();
                         openEditModal(agentId);
                     });
-                });
 
-                // 绑定删除事件
-                $agentsList.querySelectorAll('.agent-delete').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
+                    deleteBtn.addEventListener('click', (e) => {
                         e.stopPropagation();
-                        const agentId = btn.dataset.deleteId;
+                        closeAllMenus();
                         deleteAgent(agentId);
                     });
                 });
+
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('.agent-more-btn') && !e.target.closest('.agent-menu')) {
+                        closeAllMenus();
+                    }
+                });
             }
 
-            // ==================== 智能体模态框逻辑 (创建 & 编辑) ====================
+            // ==================== 智能体模态框逻辑 ====================
             function openCreateModal() {
                 editingAgentId = null;
                 document.querySelector('.modal h3').textContent = '✨ 创建新智能体';
@@ -1189,7 +1330,7 @@
                 const agent = appData.agents.find(a => a.id === agentId);
                 if (!agent) return;
                 
-                document.querySelector('.modal h3').textContent = '📝 编辑智能体';
+                document.querySelector('.modal h3').textContent = '📝 编辑智能体人设';
                 $btnConfirmCreate.textContent = '保存修改';
                 $newAgentName.value = agent.name;
                 $newAgentPrompt.value = agent.surfacePrompt;
@@ -1220,15 +1361,13 @@
                 }
 
                 if (editingAgentId) {
-                    // 【编辑模式】更新已有的智能体
                     const agent = appData.agents.find(a => a.id === editingAgentId);
                     if (agent) {
                         agent.name = name;
                         agent.surfacePrompt = surfacePrompt;
-                        showToast(`智能体「${name}」已更新！`, 'success');
+                        showToast(`智能体「${name}」已更新`, 'success');
                     }
                 } else {
-                    // 【创建模式】新增智能体
                     const newAgent = {
                         id: generateId(),
                         name,
@@ -1238,30 +1377,25 @@
                     };
                     appData.agents.push(newAgent);
                     appData.currentAgentId = newAgent.id;
-                    showToast(`智能体「${name}」创建成功！`, 'success');
+                    showToast(`智能体「${name}」创建成功`, 'success');
                 }
 
                 saveData();
                 renderAgentsList();
                 updateChatUI();
-                // 如果修改的是当前正在对话的智能体，刷新一下消息区域（可能需要更新名字等）
                 renderMessages(); 
                 updateToolbarButtons();
                 closeCreateModal();
             }
 
-            // ==================== 模态框事件绑定 ====================
             $btnCreateAgent.addEventListener('click', openCreateModal);
             $btnCancelModal.addEventListener('click', closeCreateModal);
-            
-            // 注意：这里将原来的 createAgent 替换成了 saveAgent
             $btnConfirmCreate.addEventListener('click', saveAgent);
             
             $modalOverlay.addEventListener('click', (e) => {
                 if (e.target === $modalOverlay) closeCreateModal();
             });
             
-            // 键盘关闭模态框
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && $modalOverlay.style.display === 'flex') {
                     closeCreateModal();
@@ -1291,8 +1425,7 @@
             function updateToolbarButtons() {
                 const agent = getCurrentAgent();
                 const hasConversation = agent && agent.conversations.length > 0;
-                const lastIsAssistant = hasConversation && agent.conversations[agent.conversations.length - 1]
-                    .role === 'assistant';
+                const lastIsAssistant = hasConversation && agent.conversations[agent.conversations.length - 1].role === 'assistant';
 
                 $btnRegenerate.disabled = !hasConversation || !lastIsAssistant || isGenerating;
                 $btnUndo.disabled = !hasConversation || isGenerating;
@@ -1333,7 +1466,10 @@
                         const wrapper = document.createElement('div');
                         wrapper.className = `message-wrapper ${msg.role}`;
                         wrapper.innerHTML = `
-                        <div class="message-bubble">${formatMessageContent(msg.content)}</div>
+                        <div class="message-bubble">
+                            ${formatMessageContent(msg.content)}
+                            <button class="copy-btn" title="复制正文" data-index="${index}">📋 复制</button>
+                        </div>
                         <div class="message-time">${msg.role === 'user' ? '你' : agent.name} · #${index + 1}</div>
                       `;
                         $messagesContainer.appendChild(wrapper);
@@ -1343,18 +1479,45 @@
                 updateToolbarButtons();
             }
 
+            $messagesContainer.addEventListener('click', async (e) => {
+                if (e.target.classList.contains('copy-btn')) {
+                    const agent = getCurrentAgent();
+                    if (!agent) return;
+                    const idx = parseInt(e.target.dataset.index, 10);
+                    const msg = agent.conversations[idx];
+                    if (!msg) return;
+
+                    try {
+                        await navigator.clipboard.writeText(msg.content);
+                        const originalText = e.target.innerHTML;
+                        e.target.innerHTML = '✅ 已复制';
+                        setTimeout(() => { e.target.innerHTML = '📋 复制'; }, 2000);
+                    } catch (err) {
+                        const textarea = document.createElement('textarea');
+                        textarea.value = msg.content;
+                        textarea.style.position = 'fixed';
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        try {
+                            document.execCommand('copy');
+                            e.target.innerHTML = '✅ 已复制';
+                            setTimeout(() => { e.target.innerHTML = '📋 复制'; }, 2000);
+                        } catch (e2) {
+                            showToast('复制失败，请手动选择文本进行复制', 'error');
+                        }
+                        document.body.removeChild(textarea);
+                    }
+                }
+            });
+
             function formatMessageContent(content) {
-                // 简单的Markdown处理：代码块和换行
                 let html = escapeHtml(content);
-                // 处理代码块 ```
                 html = html.replace(/```(\w*)\n?([\s\S]*?)```/g,
-                    '<pre style="background:#e8e8e0;border-radius:8px;padding:12px;overflow-x:auto;font-family:var(--font-mono);font-size:0.8rem;line-height:1.5;margin:6px 0;"><code>$2</code></pre>'
-                    );
-                // 处理行内代码 `
+                    '<pre style="background:var(--bg);color:var(--text-primary);border:1px solid var(--border);border-radius:8px;padding:12px;overflow-x:auto;font-family:var(--font-mono);font-size:0.8rem;line-height:1.5;margin:6px 0;"><code>$2</code></pre>'
+                );
                 html = html.replace(/`([^`]+)`/g,
-                    '<code style="background:#e8e8e0;padding:2px 6px;border-radius:4px;font-family:var(--font-mono);font-size:0.82rem;">$1</code>'
-                    );
-                // 换行
+                    '<code style="background:var(--bg);color:var(--accent);padding:2px 6px;border-radius:4px;font-family:var(--font-mono);font-size:0.82rem;">$1</code>'
+                );
                 html = html.replace(/\n/g, '<br>');
                 return html;
             }
@@ -1368,16 +1531,12 @@
             let isUserScrolledUp = false;
 
             $messagesContainer.addEventListener('scroll', () => {
-             // 距离底部 50px 以内都认为是“在底部”
                 const threshold = 50; 
                 const isNearBottom = $messagesContainer.scrollHeight - $messagesContainer.scrollTop - $messagesContainer.clientHeight <= threshold;
-    
-             // 如果不在底部，说明用户往上滑了
                 isUserScrolledUp = !isNearBottom;
             });
 
             function scrollToBottom(force = false) {
-             // 只有在用户没有往上滑，或者强制要求下滑时（如刚发送消息），才执行自动滚动
                 if (!isUserScrolledUp || force) {
                     requestAnimationFrame(() => {
                         $messagesContainer.scrollTop = $messagesContainer.scrollHeight;
@@ -1452,8 +1611,8 @@
                             model: appData.model || 'deepseek-chat',
                             messages: messages,
                             stream: true,
-                            temperature: 0.7,
-                            //max_tokens: 4096,
+                            temperature: 0.8,
+                            max_tokens:384000
                         }),
                         signal: abortController.signal,
                     });
@@ -1491,15 +1650,12 @@
                                     fullContent += delta;
                                     onChunk(fullContent);
                                 }
-                            } catch (parseErr) {
-                                // 忽略解析错误，继续处理
-                            }
+                            } catch (parseErr) {}
                         }
                     }
                     onDone(fullContent);
                 } catch (error) {
                     if (error.name === 'AbortError') {
-                        // 用户取消，不报错
                         onDone(null);
                         return;
                     }
@@ -1543,7 +1699,6 @@
                 }
                 if (!userContent.trim()) return;
 
-                // 添加用户消息
                 agent.conversations.push({ role: 'user', content: userContent.trim() });
                 saveData();
                 renderMessages();
@@ -1552,7 +1707,6 @@
                 $messageInput.style.height = 'auto';
                 $messageInput.focus();
 
-                // 开始生成
                 isGenerating = true;
                 updateSendButton();
                 updateToolbarButtons();
@@ -1561,14 +1715,11 @@
 
                 await callDeepSeekAPI(
                     messagesForAPI,
-                    (chunkContent) => {
-                        updateStreamingBubble(bubble, chunkContent);
-                    },
+                    (chunkContent) => { updateStreamingBubble(bubble, chunkContent); },
                     (fullContent) => {
                         isGenerating = false;
                         updateSendButton();
                         if (fullContent !== null && fullContent !== undefined) {
-                            // 正常完成
                             if (fullContent.trim()) {
                                 agent.conversations.push({ role: 'assistant', content: fullContent });
                             } else {
@@ -1579,7 +1730,6 @@
                             renderMessages();
                             scrollToBottom(true);
                         } else {
-                            // 被取消
                             removeStreamingMessage();
                             renderMessages();
                         }
@@ -1606,13 +1756,11 @@
                 const lastMsg = agent.conversations[agent.conversations.length - 1];
                 if (lastMsg.role !== 'assistant') return;
 
-                // 移除最后一条assistant消息
                 agent.conversations.pop();
                 saveData();
                 renderMessages();
                 updateToolbarButtons();
 
-                // 重新生成
                 isGenerating = true;
                 updateSendButton();
                 updateToolbarButtons();
@@ -1621,9 +1769,7 @@
 
                 await callDeepSeekAPI(
                     messagesForAPI,
-                    (chunkContent) => {
-                        updateStreamingBubble(bubble, chunkContent);
-                    },
+                    (chunkContent) => { updateStreamingBubble(bubble, chunkContent); },
                     (fullContent) => {
                         isGenerating = false;
                         updateSendButton();
@@ -1658,20 +1804,17 @@
 
                 const lastMsg = agent.conversations[agent.conversations.length - 1];
                 if (lastMsg.role === 'assistant') {
-                    // 撤回一轮对话（user + assistant）
-                    agent.conversations.pop(); // 移除assistant
-                    if (agent.conversations.length > 0 && agent.conversations[agent.conversations.length - 1].role ===
-                        'user') {
-                        agent.conversations.pop(); // 移除user
+                    agent.conversations.pop(); 
+                    if (agent.conversations.length > 0 && agent.conversations[agent.conversations.length - 1].role === 'user') {
+                        agent.conversations.pop(); 
                     }
                 } else if (lastMsg.role === 'user') {
-                    // 只移除最后的user消息
                     agent.conversations.pop();
                 }
                 saveData();
                 renderMessages();
                 updateToolbarButtons();
-                showToast('已撤回', 'info');
+                showToast('已完成撤回', 'info');
             }
 
             // ==================== 重启对话 ====================
@@ -1680,27 +1823,22 @@
                 const agent = getCurrentAgent();
                 if (!agent) return;
                 if (agent.conversations.length === 0) {
-                    showToast('对话已经是空的', 'info');
+                    showToast('当前对话已是空状态', 'info');
                     return;
                 }
-                if (!confirm('确定要清空当前对话的所有记录吗？此操作不可恢复。')) return;
+                if (!confirm('确定要清空当前智能体的所有对话历史吗？该操作不可撤销。')) return;
                 agent.conversations = [];
                 saveData();
                 renderMessages();
                 updateToolbarButtons();
-                showToast('对话已重启', 'success');
+                showToast('对话已成功重启', 'success');
             }
 
-            // ==================== 停止生成 ====================
             function stopGeneration() {
-                if (abortController) {
-                    abortController.abort();
-                    // 状态会在callDeepSeekAPI的finally中更新
-                }
+                if (abortController) abortController.abort();
             }
 
             // ==================== 事件绑定 ====================
-            // 发送按钮
             $btnSend.addEventListener('click', () => {
                 if (isGenerating) {
                     stopGeneration();
@@ -1710,7 +1848,6 @@
                 }
             });
 
-            // 输入框
             $messageInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -1723,18 +1860,15 @@
                 }
             });
 
-            // 自动调整输入框高度
             $messageInput.addEventListener('input', () => {
                 $messageInput.style.height = 'auto';
                 $messageInput.style.height = Math.min($messageInput.scrollHeight, 140) + 'px';
             });
 
-            // 工具栏按钮
             $btnRegenerate.addEventListener('click', regenerate);
             $btnUndo.addEventListener('click', undoMessage);
             $btnRestart.addEventListener('click', restartConversation);
 
-            // 设置变更监听
             $apiKeyInput.addEventListener('input', () => {
                 appData.apiKey = $apiKeyInput.value.trim();
                 saveData();
@@ -1757,25 +1891,22 @@
                     localStorage.setItem(testKey, '1');
                     localStorage.removeItem(testKey);
                 } catch (e) {
-                    showToast('⚠️ 浏览器存储不可用！设置和对话记录将无法保存。请检查隐私模式或存储权限。', 'error');
-                // 存储不可用时，使用内存中的默认数据，保证基本功能可用
+                    showToast('⚠️ 浏览器无存储权限，配置与对话将无法在关闭网页后留存。', 'error');
                 }
                 loadData();
-                // 同步UI
+                applyTheme(); 
+
                 $apiKeyInput.value = appData.apiKey;
                 $modelSelect.value = appData.model;
                 $globalPromptInput.value = appData.globalPrompt;
                 $modelBadge.textContent = appData.model;
+                
                 renderAgentsList();
                 updateChatUI();
                 renderMessages();
                 updateToolbarButtons();
                 updateSendButton();
-                // 如果API Key已设置，折叠设置面板
-                if (appData.apiKey) {
-                    // $settingsGroup.classList.add('collapsed');
-                }
-                // 聚焦输入框
+
                 if (appData.apiKey && getCurrentAgent()) {
                     setTimeout(() => $messageInput.focus(), 300);
                 }
@@ -1783,29 +1914,22 @@
 
             // ==================== 键盘快捷键 ====================
             document.addEventListener('keydown', (e) => {
-                // Ctrl+K 聚焦输入框
                 if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
                     e.preventDefault();
                     $messageInput.focus();
                 }
-                // Ctrl+Shift+R 重新生成
                 if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'R') {
                     e.preventDefault();
                     if (!$btnRegenerate.disabled) regenerate();
                 }
-                // Ctrl+Z 撤回（在输入框未聚焦时）
-                if ((e.ctrlKey || e.metaKey) && e.key === 'z' && document.activeElement !== $messageInput && document
-                    .activeElement !== $globalPromptInput && document.activeElement !== $apiKeyInput) {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z' && document.activeElement !== $messageInput && document.activeElement !== $globalPromptInput && document.activeElement !== $apiKeyInput) {
                     e.preventDefault();
                     if (!$btnUndo.disabled) undoMessage();
                 }
             });
 
-            // 启动应用
             init();
-            console.log('🚀 AI智能体聊天平台已就绪');
-            console.log('💡 提示：在侧边栏设置API Key后即可开始使用');
-            console.log('⌨️ 快捷键：Ctrl+K 聚焦输入框 | Ctrl+Shift+R 重新生成 | Ctrl+Z 撤回（输入框未聚焦时）');
+            console.log('🚀 完美版 AI智能体聊天平台已就绪！');
         })();
     </script>
 </body>
