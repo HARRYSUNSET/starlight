@@ -1530,11 +1530,19 @@
             
             let isUserScrolledUp = false;
 
+            function markUserInteraction() {
+                isUserScrolledUp = true;
+            }
+
             $messagesContainer.addEventListener('scroll', () => {
                 const threshold = 50; 
                 const isNearBottom = $messagesContainer.scrollHeight - $messagesContainer.scrollTop - $messagesContainer.clientHeight <= threshold;
                 isUserScrolledUp = !isNearBottom;
             });
+
+            $messagesContainer.addEventListener('touchstart', markUserInteraction, { passive: true });
+            $messagesContainer.addEventListener('touchmove', markUserInteraction, { passive: true });
+            $messagesContainer.addEventListener('pointerdown', markUserInteraction);
 
             function scrollToBottom(force = false) {
                 if (!isUserScrolledUp || force) {

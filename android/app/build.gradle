@@ -16,6 +16,14 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            storeFile file('my-upload-key.keystore')
+            storePassword 'Harrysunset072_~'
+            keyAlias 'my-key-alias'
+            keyPassword 'Harrysunset072_~'
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
