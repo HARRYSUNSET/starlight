@@ -206,7 +206,7 @@
         .settings-group-body {
             padding: 0 14px 14px;
             transition: max-height 0.35s ease, padding 0.35s ease;
-            max-height: 600px;
+            max-height: 1100px;
             overflow: hidden;
         }
         .settings-group.collapsed .settings-group-body {
@@ -265,6 +265,60 @@
             color: #777;
             margin-top: 3px;
             line-height: 1.4;
+        }
+        .settings-toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 11px;
+        }
+        .settings-toggle-row label {
+            margin: 0;
+            text-transform: none;
+            letter-spacing: normal;
+            color: #aaa;
+            line-height: 1.35;
+        }
+        .settings-toggle-row input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            padding: 0;
+            flex: 0 0 auto;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+        .memory-status {
+            margin-top: 9px;
+            padding: 8px 10px;
+            border: 1px solid rgba(108, 92, 231, 0.28);
+            border-radius: 6px;
+            background: rgba(108, 92, 231, 0.08);
+            color: #aaa;
+            font-size: 0.67rem;
+            line-height: 1.45;
+        }
+        .memory-status.busy {
+            color: #d7d0ff;
+            border-color: rgba(162, 155, 254, 0.55);
+        }
+        .style-prompt-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 5px;
+        }
+        .btn-reset-style {
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(255, 255, 255, 0.04);
+            color: #999;
+            border-radius: 5px;
+            padding: 5px 9px;
+            font-size: 0.67rem;
+            cursor: pointer;
+        }
+        .btn-reset-style:hover {
+            color: #ddd;
+            border-color: var(--accent-light);
         }
 
         /* 智能体列表 */
@@ -538,6 +592,21 @@
         .messages-container::-webkit-scrollbar-thumb {
             background: #d5d5cc;
             border-radius: 5px;
+        }
+        .load-earlier-btn {
+            align-self: center;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            border-radius: 999px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all var(--transition);
+        }
+        .load-earlier-btn:hover {
+            color: var(--accent);
+            border-color: var(--accent-light);
         }
 
         /* 空状态 */
@@ -998,11 +1067,44 @@
 
                         <label>🤖 模型选择</label>
                         <select id="modelSelect">
-                            <option value="deepseek-chat">deepseek-chat (V3)</option>
-                            <option value="deepseek-reasoner">deepseek-reasoner (R1)</option>
-                            <option value="deepseek-v4-flash">deepseek-v4-flash (V4 Flash)</option>
-                            <option value="deepseek-v4-pro">deepseek-v4-pro (V4 Pro)</option>
+                            <option value="deepseek-v4-flash">DeepSeek V4 Flash（快速、经济）</option>
+                            <option value="deepseek-v4-pro">DeepSeek V4 Pro（质量优先）</option>
                         </select>
+
+                        <label>🧠 思考方式</label>
+                        <select id="thinkingModeSelect">
+                            <option value="disabled">自然创作（推荐）</option>
+                            <option value="enabled">深度思考（推理任务）</option>
+                        </select>
+
+                        <label>📏 单次回复上限</label>
+                        <select id="maxOutputSelect">
+                            <option value="8000">约 8K tokens</option>
+                            <option value="16000">约 16K tokens（推荐）</option>
+                            <option value="32000">约 32K tokens</option>
+                            <option value="64000">约 64K tokens</option>
+                            <option value="128000">约 128K tokens</option>
+                            <option value="384000">约 384K tokens（极限，费用很高）</option>
+                        </select>
+
+                        <div class="settings-toggle-row">
+                            <label for="longMemoryToggle">自动长期记忆</label>
+                            <input type="checkbox" id="longMemoryToggle" checked>
+                        </div>
+                        <div class="settings-toggle-row">
+                            <label for="naturalStyleToggle">自然文风增强</label>
+                            <input type="checkbox" id="naturalStyleToggle" checked>
+                        </div>
+                        <label for="naturalStylePromptInput">✍️ 自然文风提示词（可编辑）</label>
+                        <textarea id="naturalStylePromptInput" style="min-height:180px" placeholder="开启自然文风增强后，这里的提示词会加入固定系统规则。可以按自己的文风要求修改。"></textarea>
+                        <div class="style-prompt-actions">
+                            <button type="button" class="btn-reset-style" id="btnResetStylePrompt">恢复默认文风</button>
+                        </div>
+                        <div class="memory-status" id="memoryStatus">长期记忆准备就绪</div>
+                        <div class="memory-status" id="storageStatus">正在读取本机存储配额…</div>
+                        <div class="style-prompt-actions">
+                            <button type="button" class="btn-reset-style" id="btnPersistStorage">申请持久存储保护</button>
+                        </div>
 
                         <label>📜 底层提示词（全局）</label>
                         <textarea id="globalPromptInput" placeholder="输入全局提示词，所有智能体都会遵循的基础行为规则...">在此可以把你想让所有智能体都遵循的底层要求列写出来~想不出来也可以先空着~</textarea>
@@ -1029,7 +1131,7 @@
             <div class="chat-topbar">
                 <button class="btn-hamburger" id="btnHamburger" title="菜单">☰</button>
                 <span class="current-agent-name" id="currentAgentName">选择智能体</span>
-                <span class="badge" id="modelBadge">deepseek-chat</span>
+                <span class="badge" id="modelBadge">deepseek-v4-flash</span>
                 <button class="btn-toolbar" id="btnRegenerate" title="重新生成最后一条回复" disabled>🔄 重新生成</button>
                 <button class="btn-toolbar" id="btnUndo" title="撤回最后一轮对话" disabled>↩️ 撤回</button>
                 <button class="btn-toolbar danger" id="btnRestart" title="清空当前对话" disabled>🗑️ 重启对话</button>
@@ -1066,6 +1168,7 @@
 
     <div id="toastContainer"></div>
 
+    <script src="memory.js"></script>
     <script>
         (function() {
             // ==================== DOM元素 ====================
@@ -1076,6 +1179,15 @@
             const $settingsGroup = document.getElementById('settingsGroup');
             const $apiKeyInput = document.getElementById('apiKeyInput');
             const $modelSelect = document.getElementById('modelSelect');
+            const $thinkingModeSelect = document.getElementById('thinkingModeSelect');
+            const $maxOutputSelect = document.getElementById('maxOutputSelect');
+            const $longMemoryToggle = document.getElementById('longMemoryToggle');
+            const $naturalStyleToggle = document.getElementById('naturalStyleToggle');
+            const $naturalStylePromptInput = document.getElementById('naturalStylePromptInput');
+            const $btnResetStylePrompt = document.getElementById('btnResetStylePrompt');
+            const $memoryStatus = document.getElementById('memoryStatus');
+            const $storageStatus = document.getElementById('storageStatus');
+            const $btnPersistStorage = document.getElementById('btnPersistStorage');
             const $globalPromptInput = document.getElementById('globalPromptInput');
             const $agentsList = document.getElementById('agentsList');
             const $btnCreateAgent = document.getElementById('btnCreateAgent');
@@ -1097,18 +1209,35 @@
             const $themeToggleBtn = document.getElementById('themeToggleBtn');
 
             // ==================== 状态 ====================
-            const STORAGE_KEY = 'deepseek_chat_platform_v2';
+            const Memory = window.StarlightMemory;
+            if (!Memory) throw new Error('长期记忆模块加载失败');
+
+            const LEGACY_STORAGE_KEY = 'deepseek_chat_platform_v2';
+            const SETTINGS_STORAGE_KEY = 'deepseek_chat_platform_v3_settings';
+            const FALLBACK_STORAGE_KEY = 'deepseek_chat_platform_v3_fallback';
+            const DATABASE_NAME = 'starlight_chat_database';
+            const DATABASE_VERSION = 1;
+            const DATABASE_STORE = 'state';
+            const DATABASE_STATE_KEY = 'appData';
             let appData = {
                 apiKey: '',
-                model: 'deepseek-chat',
+                model: 'deepseek-v4-flash',
                 globalPrompt: '你是一个有帮助的、友好的AI助手。请用简洁清晰的语言回答用户的问题。如果用户的问题不明确，请主动询问澄清。',
-                agents: [], // [{id, name, surfacePrompt, conversations: [{role, content}], createdAt}]
+                naturalStylePrompt: Memory.NATURAL_STYLE_GUIDE,
+                memorySettings: Memory.normalizeConfig(),
+                agents: [], // [{id, name, surfacePrompt, conversations, memory, createdAt}]
                 currentAgentId: null,
+                updatedAt: 0,
             };
 
             let isGenerating = false;
+            let isOrganizingMemory = false;
             let abortController = null;
             let editingAgentId = null;
+            let storageDb = null;
+            let saveQueue = Promise.resolve();
+            let saveTimer = null;
+            let renderedMessageLimit = 200;
             
             // 安全读取本地主题配置，防止浏览器严格隐私模式拦截报错
             let isDarkMode = false;
@@ -1118,36 +1247,210 @@
                 console.warn('读取本地主题配置失败，可能是浏览器禁用了本地存储');
             }
 
-            // ==================== 数据持久化与主题初始化 ====================
-            function saveData() {
+            // ==================== 大容量数据持久化与兼容迁移 ====================
+            function openDatabase() {
+                return new Promise((resolve, reject) => {
+                    if (!window.indexedDB) {
+                        reject(new Error('当前环境不支持 IndexedDB'));
+                        return;
+                    }
+                    const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
+                    request.onupgradeneeded = () => {
+                        const db = request.result;
+                        if (!db.objectStoreNames.contains(DATABASE_STORE)) {
+                            db.createObjectStore(DATABASE_STORE);
+                        }
+                    };
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error || new Error('打开本地数据库失败'));
+                });
+            }
+
+            function readDatabaseState() {
+                if (!storageDb) return Promise.resolve(null);
+                return new Promise((resolve, reject) => {
+                    const transaction = storageDb.transaction(DATABASE_STORE, 'readonly');
+                    const request = transaction.objectStore(DATABASE_STORE).get(DATABASE_STATE_KEY);
+                    request.onsuccess = () => resolve(request.result || null);
+                    request.onerror = () => reject(request.error || new Error('读取本地数据库失败'));
+                });
+            }
+
+            function writeDatabaseState(snapshot) {
+                if (!storageDb) return Promise.resolve();
+                return new Promise((resolve, reject) => {
+                    const transaction = storageDb.transaction(DATABASE_STORE, 'readwrite');
+                    transaction.objectStore(DATABASE_STORE).put(snapshot, DATABASE_STATE_KEY);
+                    transaction.oncomplete = () => resolve();
+                    transaction.onerror = () => reject(transaction.error || new Error('写入本地数据库失败'));
+                    transaction.onabort = () => reject(transaction.error || new Error('本地数据库写入被中止'));
+                });
+            }
+
+            function getSettingsSnapshot() {
+                return {
+                    apiKey: appData.apiKey,
+                    model: appData.model,
+                    globalPrompt: appData.globalPrompt,
+                    naturalStylePrompt: appData.naturalStylePrompt,
+                    memorySettings: appData.memorySettings,
+                    currentAgentId: appData.currentAgentId,
+                    updatedAt: appData.updatedAt,
+                };
+            }
+
+            function cloneAppData() {
+                return JSON.parse(JSON.stringify(appData));
+            }
+
+            function persistFullState() {
+                if (saveTimer) {
+                    clearTimeout(saveTimer);
+                    saveTimer = null;
+                }
+                const snapshot = cloneAppData();
+                if (storageDb) {
+                    saveQueue = saveQueue
+                        .catch(() => {})
+                        .then(() => writeDatabaseState(snapshot))
+                        .then(() => refreshStorageStatus())
+                        .catch((error) => {
+                            console.error('本地数据库保存失败:', error);
+                            showToast('本地数据库保存失败，请勿关闭页面并检查存储空间', 'error');
+                        });
+                    return;
+                }
+
                 try {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-                } catch (e) {
-                    showToast('存储空间不足，请清理对话历史', 'error');
+                    localStorage.setItem(FALLBACK_STORAGE_KEY, JSON.stringify(snapshot));
+                } catch (error) {
+                    showToast('本地存储空间不足；请启用正常浏览模式后重试', 'error');
                 }
             }
 
-            function loadData() {
-                try {
-                    const raw = localStorage.getItem(STORAGE_KEY);
-                    if (raw) {
-                        const parsed = JSON.parse(raw);
-                        appData.apiKey = parsed.apiKey || '';
-                        appData.model = parsed.model || 'deepseek-chat';
-                        appData.globalPrompt = parsed.globalPrompt ||
-                            '快写入你的提示词吧~';
-                        appData.agents = parsed.agents || [];
-                        appData.currentAgentId = parsed.currentAgentId || null;
-                    }
-                } catch (e) {
-                    console.warn('数据加载失败，使用默认配置');
+            function formatStorageBytes(bytes) {
+                const value = Number(bytes) || 0;
+                if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+                if (value < 1024 * 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`;
+                return `${(value / 1024 / 1024 / 1024).toFixed(1)} GB`;
+            }
+
+            async function refreshStorageStatus() {
+                if (!$storageStatus) return;
+                if (!navigator.storage?.estimate) {
+                    $storageStatus.textContent = '当前环境无法读取存储配额；数据仍会保存到本地数据库';
+                    $btnPersistStorage.style.display = 'none';
+                    return;
                 }
+                try {
+                    const estimate = await navigator.storage.estimate();
+                    const persistent = navigator.storage.persisted
+                        ? await navigator.storage.persisted()
+                        : false;
+                    const usage = Number(estimate.usage) || 0;
+                    const quota = Number(estimate.quota) || 0;
+                    const percent = quota > 0 ? Math.min(100, usage / quota * 100).toFixed(2) : '未知';
+                    $storageStatus.textContent = `本机存储：已用 ${formatStorageBytes(usage)} / 配额 ${formatStorageBytes(quota)}（${percent}%）· ${persistent ? '已获持久保护' : '浏览器普通保护'}`;
+                    $btnPersistStorage.style.display = persistent || !navigator.storage.persist ? 'none' : 'inline-block';
+                } catch (error) {
+                    $storageStatus.textContent = '读取本机存储配额失败，但不影响本次使用';
+                }
+            }
+
+            async function requestPersistentStorage() {
+                if (!navigator.storage?.persist) {
+                    showToast('当前环境不支持申请持久存储', 'info');
+                    return;
+                }
+                try {
+                    const granted = await navigator.storage.persist();
+                    showToast(granted ? '已获得持久存储保护' : '浏览器暂未授予持久存储；请保持足够剩余空间并定期备份', granted ? 'success' : 'info');
+                    await refreshStorageStatus();
+                } catch (error) {
+                    showToast('申请持久存储失败：' + error.message, 'error');
+                }
+            }
+
+            function saveData() {
+                appData.updatedAt = Date.now();
+                try {
+                    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(getSettingsSnapshot()));
+                } catch (error) {
+                    console.warn('设置备份失败:', error);
+                }
+                if (saveTimer) clearTimeout(saveTimer);
+                saveTimer = setTimeout(persistFullState, 160);
+            }
+
+            function normalizeLoadedData(parsed) {
+                if (!parsed || typeof parsed !== 'object') return;
+                appData.apiKey = parsed.apiKey || '';
+                appData.model = parsed.model || 'deepseek-v4-flash';
+                appData.globalPrompt = parsed.globalPrompt || '快写入你的提示词吧~';
+                appData.naturalStylePrompt = typeof parsed.naturalStylePrompt === 'string'
+                    ? parsed.naturalStylePrompt
+                    : Memory.NATURAL_STYLE_GUIDE;
+                appData.memorySettings = Memory.normalizeConfig(parsed.memorySettings);
+                appData.agents = Array.isArray(parsed.agents) ? parsed.agents : [];
+                appData.currentAgentId = parsed.currentAgentId || null;
+                appData.updatedAt = Number(parsed.updatedAt) || 0;
+
+                if (appData.model === 'deepseek-chat') {
+                    appData.model = 'deepseek-v4-flash';
+                    appData.memorySettings.thinkingMode = 'disabled';
+                } else if (appData.model === 'deepseek-reasoner') {
+                    appData.model = 'deepseek-v4-flash';
+                    appData.memorySettings.thinkingMode = 'enabled';
+                }
+
+                appData.agents.forEach(agent => {
+                    agent.conversations = Array.isArray(agent.conversations) ? agent.conversations : [];
+                    agent.memory = Memory.normalizeMemory(agent.memory, agent.conversations.length);
+                });
+            }
+
+            async function loadData() {
+                let loaded = null;
+                let settingsBackup = null;
+                try {
+                    storageDb = await openDatabase();
+                    loaded = await readDatabaseState();
+                } catch (error) {
+                    storageDb = null;
+                    console.warn('IndexedDB 不可用，将使用兼容存储:', error);
+                }
+
+                try {
+                    const settingsRaw = localStorage.getItem(SETTINGS_STORAGE_KEY);
+                    settingsBackup = settingsRaw ? JSON.parse(settingsRaw) : null;
+                    if (!loaded) {
+                        const fallbackRaw = localStorage.getItem(FALLBACK_STORAGE_KEY);
+                        const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+                        loaded = fallbackRaw ? JSON.parse(fallbackRaw) : (legacyRaw ? JSON.parse(legacyRaw) : null);
+                    }
+                } catch (error) {
+                    console.warn('兼容数据加载失败:', error);
+                }
+
+                normalizeLoadedData(loaded);
+                if (settingsBackup && Number(settingsBackup.updatedAt) > appData.updatedAt) {
+                    appData.apiKey = settingsBackup.apiKey || appData.apiKey;
+                    appData.model = settingsBackup.model || appData.model;
+                    appData.globalPrompt = settingsBackup.globalPrompt || appData.globalPrompt;
+                    if (typeof settingsBackup.naturalStylePrompt === 'string') {
+                        appData.naturalStylePrompt = settingsBackup.naturalStylePrompt;
+                    }
+                    appData.memorySettings = Memory.normalizeConfig(settingsBackup.memorySettings);
+                    appData.currentAgentId = settingsBackup.currentAgentId || appData.currentAgentId;
+                }
+
                 if (appData.agents.length === 0) {
                     const defaultAgent = {
                         id: generateId(),
                         name: '修改你的智能体名称',
                         surfacePrompt: '在此处加入你的人设提示词，即表层提示词~',
                         conversations: [],
+                        memory: Memory.createEmptyMemory(),
                         createdAt: Date.now(),
                     };
                     appData.agents = [defaultAgent];
@@ -1162,6 +1465,7 @@
                     appData.currentAgentId = appData.agents[0].id;
                     saveData();
                 }
+                if (loaded && storageDb) saveData();
             }
 
             function applyTheme() {
@@ -1229,6 +1533,7 @@
             function switchAgent(agentId) {
                 if (appData.currentAgentId === agentId) return;
                 appData.currentAgentId = agentId;
+                renderedMessageLimit = 200;
                 saveData();
                 renderAgentsList();
                 updateChatUI();
@@ -1373,6 +1678,7 @@
                         name,
                         surfacePrompt,
                         conversations: [],
+                        memory: Memory.createEmptyMemory(),
                         createdAt: Date.now(),
                     };
                     appData.agents.push(newAgent);
@@ -1407,19 +1713,44 @@
                 const agent = getCurrentAgent();
                 if (agent) {
                     $currentAgentName.textContent = agent.name;
-                    $modelBadge.textContent = appData.model || 'deepseek-chat';
+                    $modelBadge.textContent = appData.model || 'deepseek-v4-flash';
                     $messageInput.disabled = false;
                     $btnSend.disabled = false;
                     $emptyState.style.display = 'none';
                 } else {
                     $currentAgentName.textContent = '请选择或创建智能体';
-                    $modelBadge.textContent = appData.model || 'deepseek-chat';
+                    $modelBadge.textContent = appData.model || 'deepseek-v4-flash';
                     $messageInput.disabled = true;
                     $btnSend.disabled = true;
                     $emptyState.style.display = 'flex';
                 }
                 updateToolbarButtons();
                 updateSendButton();
+                updateMemoryStatus();
+            }
+
+            function updateMemoryStatus(message, busy = false) {
+                if (!$memoryStatus) return;
+                const agent = getCurrentAgent();
+                $memoryStatus.classList.toggle('busy', busy);
+                if (message) {
+                    $memoryStatus.textContent = message;
+                    return;
+                }
+                if (!appData.memorySettings.enabled) {
+                    $memoryStatus.textContent = '长期记忆已关闭；仍会保留完整聊天原文';
+                    return;
+                }
+                if (!agent) {
+                    $memoryStatus.textContent = '选择智能体后启用长期记忆';
+                    return;
+                }
+                const memory = Memory.normalizeMemory(agent.memory, agent.conversations.length);
+                if (memory.summarizedUntil > 0) {
+                    $memoryStatus.textContent = `长期记忆已整理 ${memory.summarizedUntil} 条旧消息，保留 ${memory.segments.length} 段可检索往事；原文仍完整保存`;
+                } else {
+                    $memoryStatus.textContent = '长期记忆准备就绪；对话变长后自动整理，原文不会删除';
+                }
             }
 
             function updateToolbarButtons() {
@@ -1462,7 +1793,16 @@
                     $emptyState.style.display = 'flex';
                 } else {
                     $emptyState.style.display = 'none';
-                    agent.conversations.forEach((msg, index) => {
+                    const startIndex = Math.max(0, agent.conversations.length - renderedMessageLimit);
+                    if (startIndex > 0) {
+                        const loadEarlierButton = document.createElement('button');
+                        loadEarlierButton.className = 'load-earlier-btn';
+                        loadEarlierButton.dataset.action = 'load-earlier';
+                        loadEarlierButton.textContent = `加载更早消息（还有 ${startIndex} 条）`;
+                        $messagesContainer.appendChild(loadEarlierButton);
+                    }
+                    agent.conversations.slice(startIndex).forEach((msg, relativeIndex) => {
+                        const index = startIndex + relativeIndex;
                         const wrapper = document.createElement('div');
                         wrapper.className = `message-wrapper ${msg.role}`;
                         wrapper.innerHTML = `
@@ -1480,6 +1820,16 @@
             }
 
             $messagesContainer.addEventListener('click', async (e) => {
+                if (e.target.dataset.action === 'load-earlier') {
+                    const previousHeight = $messagesContainer.scrollHeight;
+                    const previousTop = $messagesContainer.scrollTop;
+                    renderedMessageLimit += 200;
+                    renderMessages();
+                    requestAnimationFrame(() => {
+                        $messagesContainer.scrollTop = previousTop + ($messagesContainer.scrollHeight - previousHeight);
+                    });
+                    return;
+                }
                 if (e.target.classList.contains('copy-btn')) {
                     const agent = getCurrentAgent();
                     if (!agent) return;
@@ -1599,7 +1949,17 @@
                 if (el) el.remove();
             }
 
-            // ==================== API调用 ====================
+            // ==================== API调用与长期记忆整理 ====================
+            function getRequestOptions(overrides = {}) {
+                const settings = Memory.normalizeConfig(appData.memorySettings);
+                return {
+                    model: appData.model,
+                    temperature: overrides.temperature ?? 0.72,
+                    max_tokens: overrides.maxTokens ?? settings.maxOutputTokens,
+                    thinking: { type: overrides.thinkingMode || settings.thinkingMode },
+                };
+            }
+
             async function callDeepSeekAPI(messages, onChunk, onDone, onError) {
                 if (!appData.apiKey) {
                     onError(new Error('请先设置API Key'));
@@ -1607,6 +1967,7 @@
                 }
                 abortController = new AbortController();
                 const apiUrl = 'https://api.deepseek.com/v1/chat/completions';
+                const requestOptions = getRequestOptions();
 
                 try {
                     const response = await fetch(apiUrl, {
@@ -1616,11 +1977,9 @@
                             'Authorization': `Bearer ${appData.apiKey}`,
                         },
                         body: JSON.stringify({
-                            model: appData.model,
+                            ...requestOptions,
                             messages: messages,
                             stream: true,
-                            temperature: 0.8,
-                            max_tokens:384000
                         }),
                         signal: abortController.signal,
                     });
@@ -1639,6 +1998,8 @@
                     const decoder = new TextDecoder();
                     let fullContent = '';
                     let buffer = '';
+                    let finishReason = null;
+                    let usage = null;
 
                     while (true) {
                         const { done, value } = await reader.read();
@@ -1658,13 +2019,15 @@
                                     fullContent += delta;
                                     onChunk(fullContent);
                                 }
+                                if (parsed.choices?.[0]?.finish_reason) finishReason = parsed.choices[0].finish_reason;
+                                if (parsed.usage) usage = parsed.usage;
                             } catch (parseErr) {}
                         }
                     }
-                    onDone(fullContent);
+                    onDone(fullContent, { finishReason, usage });
                 } catch (error) {
                     if (error.name === 'AbortError') {
-                        onDone(null);
+                        onDone(null, { aborted: true });
                         return;
                     }
                     onError(error);
@@ -1673,23 +2036,148 @@
                 }
             }
 
+            function parseJsonResponse(content) {
+                const text = String(content || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+                try {
+                    return JSON.parse(text);
+                } catch (error) {
+                    const start = text.indexOf('{');
+                    const end = text.lastIndexOf('}');
+                    if (start >= 0 && end > start) return JSON.parse(text.slice(start, end + 1));
+                    throw error;
+                }
+            }
+
+            async function callDeepSeekJSON(messages) {
+                if (!appData.apiKey) throw new Error('请先设置 API Key');
+                abortController = new AbortController();
+                try {
+                    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${appData.apiKey}`,
+                        },
+                        body: JSON.stringify({
+                            ...getRequestOptions({ temperature: 0.1, maxTokens: 8000, thinkingMode: 'disabled' }),
+                            messages,
+                            stream: false,
+                            response_format: { type: 'json_object' },
+                        }),
+                        signal: abortController.signal,
+                    });
+                    if (!response.ok) {
+                        const errorBody = await response.text();
+                        let errorMessage = `长期记忆整理请求失败 (${response.status})`;
+                        try {
+                            errorMessage = JSON.parse(errorBody).error?.message || errorMessage;
+                        } catch (error) {}
+                        throw new Error(errorMessage);
+                    }
+                    const result = await response.json();
+                    const content = result.choices?.[0]?.message?.content;
+                    if (!content) throw new Error('长期记忆整理返回了空内容');
+                    return parseJsonResponse(content);
+                } finally {
+                    abortController = null;
+                }
+            }
+
+            async function summarizeMemoryChunk(agent, chunk) {
+                const memory = Memory.normalizeMemory(agent.memory, agent.conversations.length);
+                const summarySystemPrompt = [
+                    '你是长期对话的记忆整理器。只提取给定记录中明确出现的事实，严禁推测或补写。',
+                    '你必须输出合法 json 对象，且只输出 json。格式：',
+                    '{"core_memory":"持续有效的角色状态、关系、世界规则、承诺、偏好、关键事实与未解决事项","episode_summary":"按发生顺序保留这一段独有事件、关键对话、因果与情绪变化，保留专名和必要细节","keywords":["用于以后检索的专名或主题"]}',
+                    'core_memory 必须在旧核心记忆基础上做保守更新：保留仍有效的重要信息，明确记录被更正或已失效的状态，不得因篇幅删除身份、关系、承诺和未解决线索。',
+                    'episode_summary 要信息密集、忠于原文，不评价文笔，不把提示词写入故事记忆。',
+                ].join('\n');
+                const summaryUserPrompt = [
+                    '请把下面内容整理为 json 长期记忆。',
+                    '\n【旧核心记忆】\n' + (memory.core || '（尚无）'),
+                    '\n【本次新增原始记录】\n' + Memory.formatMessagesForSummary(chunk.messages, chunk.startIndex),
+                ].join('\n');
+                const result = await callDeepSeekJSON([
+                    { role: 'system', content: summarySystemPrompt },
+                    { role: 'user', content: summaryUserPrompt },
+                ]);
+
+                const core = typeof result.core_memory === 'string' ? result.core_memory.trim() : '';
+                const episode = typeof result.episode_summary === 'string' ? result.episode_summary.trim() : '';
+                if (!core || !episode) throw new Error('长期记忆整理结果缺少必要字段');
+
+                memory.core = core.slice(0, 36000);
+                memory.segments.push({
+                    id: `memory_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                    startIndex: chunk.startIndex,
+                    endIndex: chunk.endIndex,
+                    summary: episode.slice(0, 16000),
+                    keywords: Array.isArray(result.keywords) ? result.keywords.map(String).slice(0, 40) : [],
+                    createdAt: Date.now(),
+                });
+                memory.summarizedUntil = chunk.endIndex;
+                memory.updatedAt = Date.now();
+                agent.memory = memory;
+                saveData();
+            }
+
+            async function ensureLongTermMemory(agent) {
+                const settings = Memory.normalizeConfig(appData.memorySettings);
+                if (!settings.enabled) return;
+                let rounds = 0;
+                let chunk = Memory.findSummaryChunk(agent.conversations, agent.memory, settings);
+                if (!chunk) return;
+
+                isOrganizingMemory = true;
+                try {
+                    while (chunk && rounds < 6) {
+                        rounds += 1;
+                        updateMemoryStatus(`正在整理长期记忆：旧消息 #${chunk.startIndex + 1}—#${chunk.endIndex}…`, true);
+                        await summarizeMemoryChunk(agent, chunk);
+                        chunk = Memory.findSummaryChunk(agent.conversations, agent.memory, settings);
+                    }
+                    if (chunk) {
+                        throw new Error('待整理的旧对话过多，请再次发送以继续整理（原文已安全保留）');
+                    }
+                } finally {
+                    isOrganizingMemory = false;
+                    updateMemoryStatus();
+                }
+            }
+
             function buildSystemPrompt() {
                 const agent = getCurrentAgent();
                 const globalPrompt = appData.globalPrompt.trim();
                 const surfacePrompt = agent?.surfacePrompt?.trim() || '';
-                if (globalPrompt && surfacePrompt) {
-                    return globalPrompt + '\n\n' + surfacePrompt;
-                }
-                return globalPrompt || surfacePrompt || '啊吧啊吧';
+                return Memory.buildSystemPrompt(globalPrompt, surfacePrompt, appData.memorySettings.naturalStyle, appData.naturalStylePrompt);
             }
 
             function buildMessagesForAPI() {
                 const agent = getCurrentAgent();
                 const systemPrompt = buildSystemPrompt();
                 const messages = [{ role: 'system', content: systemPrompt }];
-                if (agent && agent.conversations.length > 0) {
-                    messages.push(...agent.conversations);
+                if (!agent || agent.conversations.length === 0) return messages;
+
+                const settings = Memory.normalizeConfig(appData.memorySettings);
+                const memory = Memory.normalizeMemory(agent.memory, agent.conversations.length);
+                const latestUserMessage = [...agent.conversations].reverse().find(message => message.role === 'user');
+                const memoryContext = settings.enabled
+                    ? Memory.buildMemoryContext(memory, latestUserMessage?.content || '', settings)
+                    : '';
+                if (memoryContext) {
+                    messages.push({ role: 'system', content: memoryContext });
                 }
+
+                const historyStart = settings.enabled ? memory.summarizedUntil : 0;
+                const recentHistory = agent.conversations.slice(historyStart);
+                const latestMessage = recentHistory[recentHistory.length - 1];
+                const earlierMessages = recentHistory.slice(0, -1);
+                messages.push(...earlierMessages);
+                messages.push({
+                    role: 'system',
+                    content: Memory.buildTurnReminder(appData.globalPrompt, agent.surfacePrompt, settings.naturalStyle, appData.naturalStylePrompt),
+                });
+                if (latestMessage) messages.push(latestMessage);
                 return messages;
             }
 
@@ -1718,13 +2206,26 @@
                 isGenerating = true;
                 updateSendButton();
                 updateToolbarButtons();
-                const bubble = createStreamingMessage();
+                let bubble = null;
+                try {
+                    await ensureLongTermMemory(agent);
+                    if (!isGenerating) return;
+                } catch (error) {
+                    isGenerating = false;
+                    updateSendButton();
+                    updateToolbarButtons();
+                    if (error.name !== 'AbortError') {
+                        showToast('长期记忆整理未完成：' + error.message, 'error');
+                    }
+                    return;
+                }
+                bubble = createStreamingMessage();
                 const messagesForAPI = buildMessagesForAPI();
 
                 await callDeepSeekAPI(
                     messagesForAPI,
                     (chunkContent) => { updateStreamingBubble(bubble, chunkContent); },
-                    (fullContent) => {
+                    (fullContent, metadata = {}) => {
                         isGenerating = false;
                         updateSendButton();
                         if (fullContent !== null && fullContent !== undefined) {
@@ -1743,6 +2244,9 @@
                         }
                         updateToolbarButtons();
                         scrollToBottom();
+                        if (metadata.finishReason === 'length') {
+                            showToast('回复已达到长度上限，可发送“继续”接着写', 'info');
+                        }
                     },
                     (error) => {
                         isGenerating = false;
@@ -1772,13 +2276,26 @@
                 isGenerating = true;
                 updateSendButton();
                 updateToolbarButtons();
-                const bubble = createStreamingMessage();
+                let bubble = null;
+                try {
+                    await ensureLongTermMemory(agent);
+                    if (!isGenerating) return;
+                } catch (error) {
+                    isGenerating = false;
+                    updateSendButton();
+                    updateToolbarButtons();
+                    if (error.name !== 'AbortError') {
+                        showToast('长期记忆整理未完成：' + error.message, 'error');
+                    }
+                    return;
+                }
+                bubble = createStreamingMessage();
                 const messagesForAPI = buildMessagesForAPI();
 
                 await callDeepSeekAPI(
                     messagesForAPI,
                     (chunkContent) => { updateStreamingBubble(bubble, chunkContent); },
-                    (fullContent) => {
+                    (fullContent, metadata = {}) => {
                         isGenerating = false;
                         updateSendButton();
                         if (fullContent !== null && fullContent !== undefined) {
@@ -1792,6 +2309,9 @@
                             renderMessages();
                         }
                         updateToolbarButtons();
+                        if (metadata.finishReason === 'length') {
+                            showToast('回复已达到长度上限，可发送“继续”接着写', 'info');
+                        }
                     },
                     (error) => {
                         isGenerating = false;
@@ -1836,9 +2356,12 @@
                 }
                 if (!confirm('确定要清空当前智能体的所有对话历史吗？对话历史真的回不来了！')) return;
                 agent.conversations = [];
+                agent.memory = Memory.createEmptyMemory();
+                renderedMessageLimit = 200;
                 saveData();
                 renderMessages();
                 updateToolbarButtons();
+                updateMemoryStatus();
                 showToast('对话已成功重启', 'success');
             }
 
@@ -1887,13 +2410,49 @@
                 saveData();
                 $modelBadge.textContent = appData.model;
             });
+            $thinkingModeSelect.addEventListener('change', () => {
+                appData.memorySettings.thinkingMode = $thinkingModeSelect.value;
+                saveData();
+            });
+            $maxOutputSelect.addEventListener('change', () => {
+                appData.memorySettings.maxOutputTokens = Number($maxOutputSelect.value);
+                saveData();
+            });
+            $longMemoryToggle.addEventListener('change', () => {
+                appData.memorySettings.enabled = $longMemoryToggle.checked;
+                saveData();
+                updateMemoryStatus();
+                showToast($longMemoryToggle.checked ? '自动长期记忆已开启' : '自动长期记忆已关闭', 'info');
+            });
+            $naturalStyleToggle.addEventListener('change', () => {
+                appData.memorySettings.naturalStyle = $naturalStyleToggle.checked;
+                saveData();
+                showToast($naturalStyleToggle.checked ? '自然文风增强已开启' : '自然文风增强已关闭', 'info');
+            });
+            $naturalStylePromptInput.addEventListener('input', () => {
+                appData.naturalStylePrompt = $naturalStylePromptInput.value;
+                saveData();
+            });
+            $btnResetStylePrompt.addEventListener('click', () => {
+                appData.naturalStylePrompt = Memory.NATURAL_STYLE_GUIDE;
+                $naturalStylePromptInput.value = appData.naturalStylePrompt;
+                saveData();
+                showToast('已恢复默认自然文风提示词', 'success');
+            });
+            $btnPersistStorage.addEventListener('click', requestPersistentStorage);
             $globalPromptInput.addEventListener('input', () => {
                 appData.globalPrompt = $globalPromptInput.value;
                 saveData();
             });
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden' && saveTimer) persistFullState();
+            });
+            window.addEventListener('pagehide', () => {
+                if (saveTimer) persistFullState();
+            });
 
             // ==================== 初始化 ====================
-            function init() {
+            async function init() {
                 try {
                     const testKey = '__storage_test__';
                     localStorage.setItem(testKey, '1');
@@ -1901,11 +2460,17 @@
                 } catch (e) {
                     showToast('⚠️ 浏览器无存储权限，配置与对话将无法在关闭网页后留存。', 'error');
                 }
-                loadData();
+                await loadData();
                 applyTheme(); 
 
                 $apiKeyInput.value = appData.apiKey;
                 $modelSelect.value = appData.model;
+                $thinkingModeSelect.value = appData.memorySettings.thinkingMode;
+                $maxOutputSelect.value = String(appData.memorySettings.maxOutputTokens);
+                if (!$maxOutputSelect.value) $maxOutputSelect.value = '16000';
+                $longMemoryToggle.checked = appData.memorySettings.enabled;
+                $naturalStyleToggle.checked = appData.memorySettings.naturalStyle;
+                $naturalStylePromptInput.value = appData.naturalStylePrompt;
                 $globalPromptInput.value = appData.globalPrompt;
                 $modelBadge.textContent = appData.model;
                 
@@ -1914,6 +2479,8 @@
                 renderMessages();
                 updateToolbarButtons();
                 updateSendButton();
+                updateMemoryStatus();
+                await refreshStorageStatus();
 
                 if (appData.apiKey && getCurrentAgent()) {
                     setTimeout(() => $messageInput.focus(), 300);
@@ -1936,7 +2503,10 @@
                 }
             });
 
-            init();
+            init().catch(error => {
+                console.error('初始化失败:', error);
+                showToast('初始化失败：' + error.message, 'error');
+            });
             console.log('🚀星陽之语聊天平台已就绪~');
         })();
     </script>
