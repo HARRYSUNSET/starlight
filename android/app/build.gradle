@@ -1,5 +1,17 @@
 apply plugin: 'com.android.application'
 
+def releaseKeystorePath = System.getenv('ANDROID_KEYSTORE_PATH')
+def releaseKeystorePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD')
+def releaseKeyAlias = System.getenv('ANDROID_KEY_ALIAS')
+def releaseKeyPassword = System.getenv('ANDROID_KEY_PASSWORD')
+def signDebugWithRelease = System.getenv('SIGN_DEBUG_WITH_RELEASE') == 'true'
+def releaseSigningConfigured = releaseKeystorePath && releaseKeystorePassword && releaseKeyAlias && releaseKeyPassword
+def releaseTaskRequested = gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }
+
+if (releaseTaskRequested && !releaseSigningConfigured) {
+    throw new GradleException('Release signing secrets are missing. Configure the ANDROID_KEYSTORE_* environment variables.')
+}
+
 android {
     namespace = "com.starlight.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -18,14 +30,25 @@ android {
     }
     signingConfigs {
         release {
-            storeFile file('my-upload-key.keystore')
-            storePassword 'Harrysunset072_~'
-            keyAlias 'my-key-alias'
-            keyPassword 'Harrysunset072_~'
+            if (releaseSigningConfigured) {
+                storeFile file(releaseKeystorePath)
+                storePassword releaseKeystorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
         }
     }
     buildTypes {
+        debug {
+            // This is only used by the one-time data migration build in GitHub Actions.
+            if (releaseSigningConfigured && signDebugWithRelease) {
+                signingConfig signingConfigs.release
+            }
+        }
         release {
+            if (releaseSigningConfigured) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
