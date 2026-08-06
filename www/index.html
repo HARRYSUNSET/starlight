@@ -1038,6 +1038,376 @@
                 font-size: 1rem;
             }
         }
+        /* ==================== 房间模式 ==================== */
+        .mode-switcher {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            margin: 12px 14px 8px;
+            padding: 4px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.07);
+        }
+        .mode-switch-btn {
+            border: 0;
+            border-radius: 9px;
+            padding: 9px 7px;
+            background: transparent;
+            color: var(--sidebar-text);
+            cursor: pointer;
+            font-size: 0.78rem;
+            opacity: 0.72;
+            transition: all var(--transition);
+        }
+        .mode-switch-btn.active {
+            background: var(--accent);
+            color: #fff;
+            opacity: 1;
+            box-shadow: 0 4px 14px rgba(108, 92, 231, 0.26);
+        }
+        .general-only-setting[hidden],
+        .room-mode-section[hidden],
+        .room-context-bar[hidden],
+        .room-input-tools[hidden] {
+            display: none !important;
+        }
+        .room-item {
+            min-height: 48px;
+        }
+        .room-item-main {
+            min-width: 0;
+            display: flex;
+            flex: 1;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .room-item-meta {
+            color: var(--text-muted);
+            font-size: 0.62rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .room-kind-badge {
+            font-size: 0.58rem;
+            padding: 2px 6px;
+            border-radius: 999px;
+            background: rgba(108, 92, 231, 0.14);
+            color: var(--accent-light);
+            flex-shrink: 0;
+        }
+        .room-context-bar {
+            flex-shrink: 0;
+            padding: 8px 18px;
+            border-bottom: 1px solid var(--border);
+            background: var(--card-bg);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .room-participants-strip {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            min-width: 0;
+            flex: 1;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .room-participants-strip::-webkit-scrollbar { display: none; }
+        .room-participant-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text-secondary);
+            border-radius: 999px;
+            padding: 4px 9px 4px 5px;
+            font-size: 0.68rem;
+            white-space: nowrap;
+        }
+        .room-participant-chip.muted { opacity: 0.42; }
+        .room-avatar,
+        .room-avatar-fallback {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            object-fit: cover;
+            flex-shrink: 0;
+        }
+        .room-avatar-fallback {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .intimacy-panel {
+            min-width: 190px;
+            max-width: 260px;
+            flex: 0 1 260px;
+        }
+        .intimacy-label-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: var(--text-secondary);
+            font-size: 0.68rem;
+            margin-bottom: 4px;
+        }
+        .intimacy-number { color: #e05d86; font-weight: 700; }
+        .intimacy-track {
+            height: 7px;
+            border-radius: 999px;
+            background: var(--border);
+            overflow: hidden;
+        }
+        .intimacy-fill {
+            height: 100%;
+            width: 0;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #c65d7b, #ff88a7);
+            transition: width 0.5s ease;
+        }
+        .intimacy-delta {
+            margin-left: 5px;
+            font-size: 0.64rem;
+            font-weight: 700;
+        }
+        .intimacy-delta.positive { color: #2a9d8f; }
+        .intimacy-delta.negative { color: var(--danger); }
+        .room-message-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 9px;
+            max-width: 86%;
+            align-self: flex-start;
+            animation: fadeInUp 0.3s ease;
+        }
+        .room-message-row.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        .room-message-body { min-width: 0; }
+        .room-speaker-name {
+            font-size: 0.67rem;
+            color: var(--text-muted);
+            margin: 0 8px 4px;
+        }
+        .room-message-row.user .room-speaker-name { text-align: right; }
+        .room-message-row:hover .copy-btn { opacity: 1; }
+        .room-message-row .message-bubble {
+            background: color-mix(in srgb, var(--ai-bubble) 94%, transparent);
+            color: var(--ai-bubble-text);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+            border-bottom-left-radius: 6px;
+            backdrop-filter: blur(4px);
+        }
+        .room-message-row.user .message-bubble {
+            background: color-mix(in srgb, var(--user-bubble) 94%, transparent);
+            color: var(--user-bubble-text);
+            border: 0;
+            border-bottom-left-radius: var(--radius-xl);
+            border-bottom-right-radius: 6px;
+        }
+        .room-system-event {
+            align-self: center;
+            max-width: 82%;
+            padding: 7px 12px;
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--card-bg) 86%, transparent);
+            border: 1px dashed var(--border);
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            line-height: 1.5;
+            text-align: center;
+            backdrop-filter: blur(4px);
+        }
+        .room-input-tools {
+            width: 100%;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            overflow-x: auto;
+        }
+        .room-input-tools select,
+        .room-input-tools button {
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text-secondary);
+            border-radius: 9px;
+            padding: 7px 10px;
+            font-size: 0.7rem;
+            white-space: nowrap;
+        }
+        .room-input-tools button { cursor: pointer; }
+        .message-entry-row {
+            width: 100%;
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+        .input-area.room-active {
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+        }
+        .input-area:not(.room-active) .message-entry-row { width: 100%; }
+        .modal.room-modal {
+            position: relative;
+            width: 780px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .room-type-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        .room-type-option {
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            background: var(--bg);
+            color: var(--text-secondary);
+            cursor: pointer;
+            text-align: left;
+        }
+        .room-type-option.active {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+            color: var(--accent);
+        }
+        .room-form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 13px;
+        }
+        .room-form-grid .full { grid-column: 1 / -1; }
+        .room-form-section {
+            border-top: 1px solid var(--border);
+            margin-top: 18px;
+            padding-top: 16px;
+        }
+        .room-form-section h4 {
+            margin: 0 0 12px;
+            font-size: 0.88rem;
+            color: var(--text-primary);
+        }
+        .room-form-hint {
+            color: var(--text-muted);
+            font-size: 0.67rem;
+            line-height: 1.5;
+            margin: -5px 0 10px;
+        }
+        .participant-editor {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--bg);
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        .participant-editor summary {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 10px 12px;
+            cursor: pointer;
+            font-size: 0.78rem;
+            color: var(--text-primary);
+        }
+        .participant-editor summary::-webkit-details-marker { display: none; }
+        .participant-editor-body {
+            padding: 0 12px 12px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .participant-editor-body .full { grid-column: 1 / -1; }
+        .participant-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-left: auto;
+        }
+        .mini-action-btn {
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            border-radius: 8px;
+            padding: 5px 8px;
+            cursor: pointer;
+            font-size: 0.67rem;
+        }
+        .mini-action-btn.danger { color: var(--danger); }
+        .image-upload-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .image-preview {
+            width: 76px;
+            height: 76px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            object-fit: cover;
+        }
+        .image-preview.background-preview { width: 150px; height: 84px; }
+        .intimacy-node-row {
+            display: grid;
+            grid-template-columns: 86px 1fr auto;
+            gap: 8px;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .intimacy-status-card {
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--bg);
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            margin-bottom: 10px;
+        }
+        .intimacy-status-card.ready { border-color: rgba(42, 157, 143, 0.5); color: #2a9d8f; }
+        .modal-loading {
+            position: absolute;
+            inset: 0;
+            background: color-mix(in srgb, var(--card-bg) 92%, transparent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 4;
+            border-radius: inherit;
+            color: var(--text-secondary);
+        }
+        .modal-loading[hidden] { display: none; }
+        .room-background-active {
+            background-position: center;
+            background-size: cover;
+            background-attachment: local;
+        }
+        @media (max-width: 768px) {
+            .room-context-bar { padding: 7px 10px; gap: 7px; }
+            .intimacy-panel { min-width: 150px; flex-basis: 190px; }
+            .room-message-row { max-width: 94%; }
+            .modal.room-modal { width: 94vw; padding: 20px 16px; }
+            .room-form-grid,
+            .participant-editor-body { grid-template-columns: 1fr; }
+            .room-form-grid .full,
+            .participant-editor-body .full { grid-column: auto; }
+            .intimacy-node-row { grid-template-columns: 72px 1fr auto; }
+        }
     </style>
 </head>
 <body>
@@ -1053,11 +1423,15 @@
                 <button id="themeToggleBtn" class="theme-toggle-btn" title="切换主题">🌙</button>
             </div>
             <div class="sidebar-subtitle">DeepSeek API 驱动</div>
+            <div class="mode-switcher" aria-label="对话模式">
+                <button type="button" class="mode-switch-btn active" id="btnGeneralMode">💬 通用模式</button>
+                <button type="button" class="mode-switch-btn" id="btnRoomMode">🎭 房间模式</button>
+            </div>
 
             <div class="sidebar-scroll">
                 <div class="settings-group" id="settingsGroup">
                     <div class="settings-group-header" id="settingsToggle">
-                        ⚙️ API & 全局设置
+                        ⚙️ API & 生成设置
                         <span class="arrow">▼</span>
                     </div>
                     <div class="settings-group-body">
@@ -1091,14 +1465,16 @@
                             <label for="longMemoryToggle">自动长期记忆</label>
                             <input type="checkbox" id="longMemoryToggle" checked>
                         </div>
-                        <div class="settings-toggle-row">
-                            <label for="naturalStyleToggle">自然文风增强</label>
-                            <input type="checkbox" id="naturalStyleToggle" checked>
-                        </div>
-                        <label for="naturalStylePromptInput">✍️ 自然文风提示词（可编辑）</label>
-                        <textarea id="naturalStylePromptInput" style="min-height:180px" placeholder="开启自然文风增强后，这里的提示词会加入固定系统规则。可以按自己的文风要求修改。"></textarea>
-                        <div class="style-prompt-actions">
-                            <button type="button" class="btn-reset-style" id="btnResetStylePrompt">恢复默认文风</button>
+                        <div class="general-only-setting" id="generalStyleSettings">
+                            <div class="settings-toggle-row">
+                                <label for="naturalStyleToggle">自然文风增强</label>
+                                <input type="checkbox" id="naturalStyleToggle" checked>
+                            </div>
+                            <label for="naturalStylePromptInput">✍️ 自然文风提示词（可编辑）</label>
+                            <textarea id="naturalStylePromptInput" style="min-height:180px" placeholder="开启自然文风增强后，这里的提示词会加入固定系统规则。可以按自己的文风要求修改。"></textarea>
+                            <div class="style-prompt-actions">
+                                <button type="button" class="btn-reset-style" id="btnResetStylePrompt">恢复默认文风</button>
+                            </div>
                         </div>
                         <div class="memory-status" id="memoryStatus">长期记忆准备就绪</div>
                         <div class="memory-status" id="storageStatus">正在读取本机存储配额…</div>
@@ -1106,19 +1482,29 @@
                             <button type="button" class="btn-reset-style" id="btnPersistStorage">申请持久存储保护</button>
                         </div>
 
-                        <label>📜 底层提示词（全局）</label>
-                        <textarea id="globalPromptInput" placeholder="输入全局提示词，所有智能体都会遵循的基础行为规则...">在此可以把你想让所有智能体都遵循的底层要求列写出来~想不出来也可以先空着~</textarea>
-                        <div class="hint">底层提示词应用于所有智能体，定义基础行为规范</div>
+                        <div class="general-only-setting" id="generalPromptSettings">
+                            <label>📜 底层提示词（通用模式）</label>
+                            <textarea id="globalPromptInput" placeholder="输入底层提示词，通用模式中的所有智能体都会遵循...">在此可以把你想让所有智能体都遵循的底层要求列写出来~想不出来也可以先空着~</textarea>
+                            <div class="hint">只应用于通用模式，不会影响房间模式</div>
+                        </div>
                     </div>
                 </div>
 
-                <div class="agents-section">
+                <div class="agents-section" id="generalModeSection">
                     <div class="agents-section-title">
                         🤖 我的智能体
                     </div>
                     <div class="agents-list" id="agentsList">
                         </div>
                     <button class="btn-create-agent" id="btnCreateAgent">+ 创建新智能体</button>
+                </div>
+
+                <div class="agents-section room-mode-section" id="roomModeSection" hidden>
+                    <div class="agents-section-title">
+                        🎭 我的房间
+                    </div>
+                    <div class="agents-list" id="roomsList"></div>
+                    <button class="btn-create-agent" id="btnCreateRoom">+ 创建双人/多人房间</button>
                 </div>
             </div>
 
@@ -1131,10 +1517,23 @@
             <div class="chat-topbar">
                 <button class="btn-hamburger" id="btnHamburger" title="菜单">☰</button>
                 <span class="current-agent-name" id="currentAgentName">选择智能体</span>
+                <span class="room-kind-badge" id="roomTypeBadge" hidden>双人房间</span>
                 <span class="badge" id="modelBadge">deepseek-v4-flash</span>
+                <button class="btn-toolbar" id="btnEditRoom" title="编辑当前房间" hidden>⚙️ 房间设置</button>
                 <button class="btn-toolbar" id="btnRegenerate" title="重新生成最后一条回复" disabled>🔄 重新生成</button>
                 <button class="btn-toolbar" id="btnUndo" title="撤回最后一轮对话" disabled>↩️ 撤回</button>
                 <button class="btn-toolbar danger" id="btnRestart" title="清空当前对话" disabled>🗑️ 重启对话</button>
+            </div>
+
+            <div class="room-context-bar" id="roomContextBar" hidden>
+                <div class="room-participants-strip" id="roomParticipantsStrip"></div>
+                <div class="intimacy-panel" id="intimacyPanel" hidden>
+                    <div class="intimacy-label-row">
+                        <span>💗 亲密度</span>
+                        <span><span class="intimacy-number" id="intimacyNumber">0 / 200</span><span class="intimacy-delta" id="intimacyDelta"></span></span>
+                    </div>
+                    <div class="intimacy-track"><div class="intimacy-fill" id="intimacyFill"></div></div>
+                </div>
             </div>
 
             <div class="messages-container" id="messagesContainer">
@@ -1145,9 +1544,17 @@
                 </div>
             </div>
 
-            <div class="input-area">
-                <textarea id="messageInput" placeholder="输入消息... (Enter发送，Shift+Enter换行)" rows="1" disabled></textarea>
-                <button class="btn-send" id="btnSend" disabled title="发送消息">➤</button>
+            <div class="input-area" id="inputArea">
+                <div class="room-input-tools" id="roomInputTools" hidden>
+                    <select id="roomTargetSelect" title="指定本轮发言角色">
+                        <option value="">智能选择发言者</option>
+                    </select>
+                    <button type="button" id="btnContinueScene">▶ 让场景继续</button>
+                </div>
+                <div class="message-entry-row">
+                    <textarea id="messageInput" placeholder="输入消息... (Enter发送，Shift+Enter换行)" rows="1" disabled></textarea>
+                    <button class="btn-send" id="btnSend" disabled title="发送消息">➤</button>
+                </div>
             </div>
         </main>
     </div>
@@ -1166,9 +1573,129 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="roomModalOverlay" style="display:none;">
+        <div class="modal room-modal" id="roomModal">
+            <div class="modal-loading" id="roomModalLoading" hidden>
+                <div class="typing-indicator"><span></span><span></span><span></span></div>
+                <div id="roomModalLoadingText">正在保存房间……</div>
+            </div>
+            <h3 id="roomModalTitle">🎭 创建房间</h3>
+
+            <label>房间类型</label>
+            <div class="room-type-selector" id="roomTypeSelector">
+                <button type="button" class="room-type-option active" data-room-type="double">
+                    <strong>💗 双人房间</strong><br><span class="room-form-hint">用户与一名角色，启用亲密度攻略</span>
+                </button>
+                <button type="button" class="room-type-option" data-room-type="group">
+                    <strong>🎭 多人房间</strong><br><span class="room-form-hint">多名角色参与，支持智能发言调度</span>
+                </button>
+            </div>
+
+            <div class="room-form-grid">
+                <div>
+                    <label for="roomNameInput">房间名称</label>
+                    <input type="text" id="roomNameInput" placeholder="例如：雨夜旅店">
+                </div>
+                <div>
+                    <label for="roomNarrationToggle">旁白</label>
+                    <select id="roomNarrationToggle">
+                        <option value="off">关闭旁白</option>
+                        <option value="on">允许必要的场景旁白</option>
+                    </select>
+                </div>
+                <div class="full">
+                    <label for="roomBasePromptInput">房间底层规则</label>
+                    <textarea id="roomBasePromptInput" style="min-height:130px" placeholder="所有参与角色必须遵循的固定规则"></textarea>
+                </div>
+                <div>
+                    <label for="roomWorldPromptInput">世界观设定</label>
+                    <textarea id="roomWorldPromptInput" style="min-height:130px" placeholder="时代、地点、规则、组织、力量体系等"></textarea>
+                </div>
+                <div>
+                    <label for="roomScenePromptInput">当前场景</label>
+                    <textarea id="roomScenePromptInput" style="min-height:130px" placeholder="当前时间、地点、人物处境和开场状态"></textarea>
+                </div>
+                <div class="full">
+                    <label for="roomUserPersonaInput">用户所扮演的角色设定</label>
+                    <textarea id="roomUserPersonaInput" style="min-height:150px" placeholder="填写用户在本房间中的姓名、身份、性格、能力、外貌、与其他人物的关系，以及角色知道或不知道的事情"></textarea>
+                    <div class="room-form-hint">这是房间独立设定，不会影响其他房间或通用模式。</div>
+                </div>
+                <div class="full">
+                    <label>聊天背景</label>
+                    <div class="image-upload-row">
+                        <img class="image-preview background-preview" id="roomBackgroundPreview" alt="房间背景预览">
+                        <input type="file" id="roomBackgroundFile" accept="image/*">
+                        <button type="button" class="mini-action-btn" id="btnRemoveRoomBackground">移除背景</button>
+                    </div>
+                    <div class="room-form-hint">图片只保存在本机 IndexedDB 中；上传时会自动压缩，原图不会上传到服务器。</div>
+                </div>
+            </div>
+
+            <div class="room-form-section">
+                <h4>👤 参与角色</h4>
+                <div class="room-form-hint">双人房间必须有且只有一名AI角色；多人房间至少两名，最多八名。</div>
+                <div id="roomParticipantsEditor"></div>
+                <div class="image-upload-row" id="participantAddActions">
+                    <button type="button" class="mini-action-btn" id="btnAddRoomParticipant">＋ 创建空白角色</button>
+                    <select id="importAgentSelect"><option value="">从通用模式选择智能体……</option></select>
+                    <button type="button" class="mini-action-btn" id="btnImportAgent">复制到房间</button>
+                </div>
+            </div>
+
+            <div class="room-form-section" id="groupRoomOptions" hidden>
+                <h4>🗣️ 发言调度</h4>
+                <div class="room-form-grid">
+                    <div>
+                        <label for="roomTurnModeSelect">默认发言方式</label>
+                        <select id="roomTurnModeSelect">
+                            <option value="smart">智能调度（推荐）</option>
+                            <option value="mention">仅指定角色</option>
+                            <option value="all">全员一轮</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="roomMaxSpeakersSelect">智能调度单轮上限</label>
+                        <select id="roomMaxSpeakersSelect">
+                            <option value="1">最多1人</option>
+                            <option value="2" selected>最多2人</option>
+                            <option value="3">最多3人</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="room-form-section" id="doubleRoomOptions">
+                <h4>💗 亲密度攻略</h4>
+                <div class="intimacy-status-card" id="intimacyRulesStatus">保存角色设定后，将自动生成隐藏判定条件。</div>
+                <button type="button" class="mini-action-btn" id="btnRegenerateIntimacyRules" hidden>重新生成隐藏判定</button>
+                <label for="initialIntimacyInput">当前/重启后的初始亲密度（0—200）</label>
+                <input type="number" id="initialIntimacyInput" min="0" max="200" value="0">
+                <label>自定义亲密度节点</label>
+                <div class="room-form-hint">达到节点后，对应互动将进入可用范围；数值降低到节点以下时会暂时重新锁定。</div>
+                <div id="intimacyNodesEditor"></div>
+                <button type="button" class="mini-action-btn" id="btnAddIntimacyNode">＋ 添加节点</button>
+            </div>
+
+            <div class="room-form-section">
+                <h4>✍️ 房间文风</h4>
+                <div class="settings-toggle-row">
+                    <label for="roomStyleToggle">自然文风增强</label>
+                    <input type="checkbox" id="roomStyleToggle" checked>
+                </div>
+                <textarea id="roomStylePromptInput" style="min-height:150px" placeholder="只在当前房间使用的自然表达规则"></textarea>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" id="btnCancelRoomModal">取消</button>
+                <button class="btn-confirm" id="btnConfirmRoom">创建房间</button>
+            </div>
+        </div>
+    </div>
+
     <div id="toastContainer"></div>
 
     <script src="memory.js"></script>
+    <script src="rooms.js"></script>
     <script>
         (function() {
             // ==================== DOM元素 ====================
@@ -1207,10 +1734,62 @@
             const $btnConfirmCreate = document.getElementById('btnConfirmCreate');
             const $toastContainer = document.getElementById('toastContainer');
             const $themeToggleBtn = document.getElementById('themeToggleBtn');
+            const $btnGeneralMode = document.getElementById('btnGeneralMode');
+            const $btnRoomMode = document.getElementById('btnRoomMode');
+            const $generalModeSection = document.getElementById('generalModeSection');
+            const $roomModeSection = document.getElementById('roomModeSection');
+            const $roomsList = document.getElementById('roomsList');
+            const $btnCreateRoom = document.getElementById('btnCreateRoom');
+            const $roomTypeBadge = document.getElementById('roomTypeBadge');
+            const $btnEditRoom = document.getElementById('btnEditRoom');
+            const $roomContextBar = document.getElementById('roomContextBar');
+            const $roomParticipantsStrip = document.getElementById('roomParticipantsStrip');
+            const $intimacyPanel = document.getElementById('intimacyPanel');
+            const $intimacyNumber = document.getElementById('intimacyNumber');
+            const $intimacyFill = document.getElementById('intimacyFill');
+            const $intimacyDelta = document.getElementById('intimacyDelta');
+            const $inputArea = document.getElementById('inputArea');
+            const $roomInputTools = document.getElementById('roomInputTools');
+            const $roomTargetSelect = document.getElementById('roomTargetSelect');
+            const $btnContinueScene = document.getElementById('btnContinueScene');
+            const $roomModalOverlay = document.getElementById('roomModalOverlay');
+            const $roomModalTitle = document.getElementById('roomModalTitle');
+            const $roomModalLoading = document.getElementById('roomModalLoading');
+            const $roomModalLoadingText = document.getElementById('roomModalLoadingText');
+            const $roomTypeSelector = document.getElementById('roomTypeSelector');
+            const $roomNameInput = document.getElementById('roomNameInput');
+            const $roomNarrationToggle = document.getElementById('roomNarrationToggle');
+            const $roomBasePromptInput = document.getElementById('roomBasePromptInput');
+            const $roomWorldPromptInput = document.getElementById('roomWorldPromptInput');
+            const $roomScenePromptInput = document.getElementById('roomScenePromptInput');
+            const $roomUserPersonaInput = document.getElementById('roomUserPersonaInput');
+            const $roomBackgroundPreview = document.getElementById('roomBackgroundPreview');
+            const $roomBackgroundFile = document.getElementById('roomBackgroundFile');
+            const $btnRemoveRoomBackground = document.getElementById('btnRemoveRoomBackground');
+            const $roomParticipantsEditor = document.getElementById('roomParticipantsEditor');
+            const $participantAddActions = document.getElementById('participantAddActions');
+            const $btnAddRoomParticipant = document.getElementById('btnAddRoomParticipant');
+            const $importAgentSelect = document.getElementById('importAgentSelect');
+            const $btnImportAgent = document.getElementById('btnImportAgent');
+            const $groupRoomOptions = document.getElementById('groupRoomOptions');
+            const $roomTurnModeSelect = document.getElementById('roomTurnModeSelect');
+            const $roomMaxSpeakersSelect = document.getElementById('roomMaxSpeakersSelect');
+            const $doubleRoomOptions = document.getElementById('doubleRoomOptions');
+            const $intimacyRulesStatus = document.getElementById('intimacyRulesStatus');
+            const $btnRegenerateIntimacyRules = document.getElementById('btnRegenerateIntimacyRules');
+            const $initialIntimacyInput = document.getElementById('initialIntimacyInput');
+            const $intimacyNodesEditor = document.getElementById('intimacyNodesEditor');
+            const $btnAddIntimacyNode = document.getElementById('btnAddIntimacyNode');
+            const $roomStyleToggle = document.getElementById('roomStyleToggle');
+            const $roomStylePromptInput = document.getElementById('roomStylePromptInput');
+            const $btnCancelRoomModal = document.getElementById('btnCancelRoomModal');
+            const $btnConfirmRoom = document.getElementById('btnConfirmRoom');
 
             // ==================== 状态 ====================
             const Memory = window.StarlightMemory;
             if (!Memory) throw new Error('长期记忆模块加载失败');
+            const Rooms = window.StarlightRooms;
+            if (!Rooms) throw new Error('房间模式模块加载失败');
 
             const LEGACY_STORAGE_KEY = 'deepseek_chat_platform_v2';
             const SETTINGS_STORAGE_KEY = 'deepseek_chat_platform_v3_settings';
@@ -1227,6 +1806,9 @@
                 memorySettings: Memory.normalizeConfig(),
                 agents: [], // [{id, name, surfacePrompt, conversations, memory, createdAt}]
                 currentAgentId: null,
+                activeMode: 'general',
+                rooms: [],
+                currentRoomId: null,
                 updatedAt: 0,
             };
 
@@ -1234,6 +1816,12 @@
             let isOrganizingMemory = false;
             let abortController = null;
             let editingAgentId = null;
+            let editingRoomId = null;
+            let roomDraftType = 'double';
+            let roomDraftParticipants = [];
+            let roomDraftBackground = '';
+            let roomDraftNodes = [];
+            let lastIntimacyDelta = null;
             let storageDb = null;
             let saveQueue = Promise.resolve();
             let saveTimer = null;
@@ -1295,6 +1883,8 @@
                     naturalStylePrompt: appData.naturalStylePrompt,
                     memorySettings: appData.memorySettings,
                     currentAgentId: appData.currentAgentId,
+                    activeMode: appData.activeMode,
+                    currentRoomId: appData.currentRoomId,
                     updatedAt: appData.updatedAt,
                 };
             }
@@ -1393,6 +1983,10 @@
                 appData.memorySettings = Memory.normalizeConfig(parsed.memorySettings);
                 appData.agents = Array.isArray(parsed.agents) ? parsed.agents : [];
                 appData.currentAgentId = parsed.currentAgentId || null;
+                appData.activeMode = parsed.activeMode === 'room' ? 'room' : 'general';
+                appData.rooms = (Array.isArray(parsed.rooms) ? parsed.rooms : [])
+                    .map(room => Rooms.normalizeRoom(room, Memory, Memory.NATURAL_STYLE_GUIDE));
+                appData.currentRoomId = parsed.currentRoomId || null;
                 appData.updatedAt = Number(parsed.updatedAt) || 0;
 
                 if (appData.model === 'deepseek-chat') {
@@ -1442,6 +2036,8 @@
                     }
                     appData.memorySettings = Memory.normalizeConfig(settingsBackup.memorySettings);
                     appData.currentAgentId = settingsBackup.currentAgentId || appData.currentAgentId;
+                    appData.activeMode = settingsBackup.activeMode === 'room' ? 'room' : appData.activeMode;
+                    appData.currentRoomId = settingsBackup.currentRoomId || appData.currentRoomId;
                 }
 
                 if (appData.agents.length === 0) {
@@ -1465,6 +2061,14 @@
                     appData.currentAgentId = appData.agents[0].id;
                     saveData();
                 }
+                if (appData.currentRoomId && !appData.rooms.find(room => room.id === appData.currentRoomId)) {
+                    appData.currentRoomId = appData.rooms[0]?.id || null;
+                    saveData();
+                }
+                if (!appData.currentRoomId && appData.rooms.length > 0) {
+                    appData.currentRoomId = appData.rooms[0].id;
+                    saveData();
+                }
                 if (loaded && storageDb) saveData();
             }
 
@@ -1476,6 +2080,7 @@
                     document.body.classList.remove('dark-theme');
                     $themeToggleBtn.textContent = '🌙';
                 }
+                if (appData.activeMode === 'room') applyRoomBackground(getCurrentRoom());
             }
 
             $themeToggleBtn.addEventListener('click', () => {
@@ -1493,6 +2098,607 @@
             function getCurrentAgent() {
                 return appData.agents.find(a => a.id === appData.currentAgentId) || null;
             }
+
+            function getCurrentRoom() {
+                return appData.rooms.find(room => room.id === appData.currentRoomId) || null;
+            }
+
+            function getIntimacyRulesSignature(room) {
+                const member = room?.participants?.[0];
+                return JSON.stringify([
+                    room?.worldPrompt || '',
+                    room?.scenePrompt || '',
+                    room?.userPersona || '',
+                    member?.name || '',
+                    member?.personaPrompt || '',
+                    member?.speakingStyle || '',
+                    member?.privateGoal || '',
+                ]);
+            }
+
+            function setActiveMode(mode) {
+                const nextMode = mode === 'room' ? 'room' : 'general';
+                if (isGenerating) {
+                    showToast('请先停止当前生成，再切换模式', 'info');
+                    return;
+                }
+                appData.activeMode = nextMode;
+                renderedMessageLimit = 200;
+                saveData();
+                updateModeUI();
+                renderMessages();
+                if (window.innerWidth <= 768) closeSidebar();
+            }
+
+            function updateModeUI() {
+                const isRoomMode = appData.activeMode === 'room';
+                $btnGeneralMode.classList.toggle('active', !isRoomMode);
+                $btnRoomMode.classList.toggle('active', isRoomMode);
+                $generalModeSection.hidden = isRoomMode;
+                $roomModeSection.hidden = !isRoomMode;
+                document.querySelectorAll('.general-only-setting').forEach(element => {
+                    element.hidden = isRoomMode;
+                });
+                $roomTypeBadge.hidden = !isRoomMode;
+                $btnEditRoom.hidden = !isRoomMode || !getCurrentRoom();
+                $roomContextBar.hidden = !isRoomMode || !getCurrentRoom();
+                $roomInputTools.hidden = !isRoomMode || !getCurrentRoom();
+                $inputArea.classList.toggle('room-active', isRoomMode);
+                if (isRoomMode) {
+                    renderRoomsList();
+                    renderRoomContext();
+                } else {
+                    renderAgentsList();
+                    clearRoomBackground();
+                }
+                updateChatUI();
+            }
+
+            function switchRoom(roomId) {
+                if (appData.currentRoomId === roomId) return;
+                if (isGenerating) {
+                    showToast('请先停止当前生成', 'info');
+                    return;
+                }
+                appData.currentRoomId = roomId;
+                renderedMessageLimit = 200;
+                lastIntimacyDelta = null;
+                saveData();
+                renderRoomsList();
+                renderRoomContext();
+                updateChatUI();
+                renderMessages();
+            }
+
+            function deleteRoom(roomId) {
+                const room = appData.rooms.find(item => item.id === roomId);
+                if (!room) return;
+                if (!confirm(`确定删除房间“${room.name}”及其全部对话、记忆和图片吗？此操作不可恢复。`)) return;
+                appData.rooms = appData.rooms.filter(item => item.id !== roomId);
+                if (appData.currentRoomId === roomId) appData.currentRoomId = appData.rooms[0]?.id || null;
+                saveData();
+                renderRoomsList();
+                renderRoomContext();
+                updateChatUI();
+                renderMessages();
+                showToast('房间已删除', 'success');
+            }
+
+            function renderRoomsList() {
+                if (!$roomsList) return;
+                if (appData.rooms.length === 0) {
+                    $roomsList.innerHTML = '<div class="hint" style="padding:10px 4px">尚未创建房间</div>';
+                    return;
+                }
+                $roomsList.innerHTML = appData.rooms.map(room => {
+                    const active = room.id === appData.currentRoomId;
+                    const names = room.participants.map(member => member.name).join('、') || '未添加角色';
+                    return `
+                        <div class="agent-item room-item ${active ? 'active' : ''}" data-room-id="${escapeHtml(room.id)}">
+                            <span class="agent-dot"></span>
+                            <span class="room-item-main">
+                                <span class="agent-name" title="${escapeHtml(room.name)}">${escapeHtml(room.name)}</span>
+                                <span class="room-item-meta" title="${escapeHtml(names)}">${escapeHtml(names)}</span>
+                            </span>
+                            <span class="room-kind-badge">${room.roomType === 'double' ? '双人' : '多人'}</span>
+                            <button class="agent-more-btn" title="选项">⋮</button>
+                            <div class="agent-menu">
+                                <button class="menu-edit">✎ 编辑房间</button>
+                                <button class="menu-delete delete-text">× 删除</button>
+                            </div>
+                        </div>`;
+                }).join('');
+                $roomsList.querySelectorAll('.room-item').forEach(item => {
+                    const roomId = item.dataset.roomId;
+                    const menu = item.querySelector('.agent-menu');
+                    item.addEventListener('click', event => {
+                        if (event.target.closest('.agent-more-btn') || event.target.closest('.agent-menu')) return;
+                        switchRoom(roomId);
+                        if (window.innerWidth <= 768) closeSidebar();
+                    });
+                    item.querySelector('.agent-more-btn').addEventListener('click', event => {
+                        event.stopPropagation();
+                        $roomsList.querySelectorAll('.agent-menu').forEach(other => {
+                            if (other !== menu) other.classList.remove('show');
+                        });
+                        menu.classList.toggle('show');
+                    });
+                    item.querySelector('.menu-edit').addEventListener('click', event => {
+                        event.stopPropagation();
+                        menu.classList.remove('show');
+                        openRoomModal(roomId);
+                    });
+                    item.querySelector('.menu-delete').addEventListener('click', event => {
+                        event.stopPropagation();
+                        menu.classList.remove('show');
+                        deleteRoom(roomId);
+                    });
+                });
+            }
+
+            function avatarMarkup(member, className = '') {
+                if (member?.avatar) {
+                    return `<img class="room-avatar ${className}" src="${member.avatar}" alt="${escapeHtml(member.name)}">`;
+                }
+                const initial = escapeHtml((member?.name || '?').slice(0, 1));
+                return `<span class="room-avatar-fallback ${className}" style="background:${member?.color || '#7c5cff'}">${initial}</span>`;
+            }
+
+            function renderRoomContext() {
+                const room = getCurrentRoom();
+                if (!room || appData.activeMode !== 'room') {
+                    $roomContextBar.hidden = true;
+                    clearRoomBackground();
+                    return;
+                }
+                $roomContextBar.hidden = false;
+                $roomParticipantsStrip.innerHTML = room.participants.map(member => `
+                    <span class="room-participant-chip ${member.enabled ? '' : 'muted'}" title="${escapeHtml(member.publicProfile || member.personaPrompt || member.name)}">
+                        ${avatarMarkup(member)}<span>${escapeHtml(member.name)}</span>
+                    </span>`).join('');
+                const isDouble = room.roomType === 'double';
+                $intimacyPanel.hidden = !isDouble;
+                if (isDouble) updateIntimacyUI(room);
+                updateRoomTargetSelect(room);
+                applyRoomBackground(room);
+            }
+
+            function updateIntimacyUI(room) {
+                const value = room?.intimacy?.value || 0;
+                $intimacyNumber.textContent = `${value} / ${Rooms.MAX_INTIMACY}`;
+                $intimacyFill.style.width = `${value / Rooms.MAX_INTIMACY * 100}%`;
+                $intimacyDelta.textContent = '';
+                $intimacyDelta.className = 'intimacy-delta';
+                if (lastIntimacyDelta && lastIntimacyDelta.roomId === room.id) {
+                    const delta = lastIntimacyDelta.delta;
+                    if (delta !== 0) {
+                        $intimacyDelta.textContent = delta > 0 ? `+${delta}` : String(delta);
+                        $intimacyDelta.classList.add(delta > 0 ? 'positive' : 'negative');
+                    }
+                }
+            }
+
+            function updateRoomTargetSelect(room) {
+                const previous = $roomTargetSelect.value;
+                const firstOption = room.roomType === 'group' && room.turnMode === 'mention'
+                    ? '<option value="">请选择发言角色</option>'
+                    : '<option value="">智能选择发言者</option>';
+                $roomTargetSelect.innerHTML = firstOption + Rooms.getActiveMembers(room)
+                    .map(member => `<option value="${escapeHtml(member.id)}">@ ${escapeHtml(member.name)}</option>`).join('');
+                if ([...$roomTargetSelect.options].some(option => option.value === previous)) {
+                    $roomTargetSelect.value = previous;
+                }
+            }
+
+            function applyRoomBackground(room) {
+                if (!room?.backgroundImage) {
+                    clearRoomBackground();
+                    return;
+                }
+                const overlay = isDarkMode ? 'rgba(24,24,37,.76)' : 'rgba(250,250,247,.78)';
+                $messagesContainer.classList.add('room-background-active');
+                $messagesContainer.style.backgroundImage = `linear-gradient(${overlay}, ${overlay}), url("${room.backgroundImage}")`;
+            }
+
+            function clearRoomBackground() {
+                $messagesContainer.classList.remove('room-background-active');
+                $messagesContainer.style.backgroundImage = '';
+            }
+
+            function setRoomModalLoading(loading, text) {
+                $roomModalLoading.hidden = !loading;
+                $roomModalLoadingText.textContent = text || '正在保存房间……';
+                $btnConfirmRoom.disabled = loading;
+                $btnCancelRoomModal.disabled = loading;
+            }
+
+            function setRoomDraftType(type) {
+                roomDraftType = type === 'group' ? 'group' : 'double';
+                $roomTypeSelector.querySelectorAll('.room-type-option').forEach(button => {
+                    button.classList.toggle('active', button.dataset.roomType === roomDraftType);
+                });
+                $groupRoomOptions.hidden = roomDraftType !== 'group';
+                $doubleRoomOptions.hidden = roomDraftType !== 'double';
+                if (roomDraftType === 'double' && roomDraftParticipants.length > 1) {
+                    roomDraftParticipants = roomDraftParticipants.slice(0, 1);
+                    renderRoomParticipantsEditor();
+                    showToast('双人房间只保留一名AI角色', 'info');
+                }
+                $participantAddActions.hidden = roomDraftType === 'double' && roomDraftParticipants.length >= 1;
+            }
+
+            function openRoomModal(roomId = null) {
+                editingRoomId = roomId;
+                const room = roomId ? appData.rooms.find(item => item.id === roomId) : null;
+                $roomModalTitle.textContent = room ? '📝 编辑房间' : '🎭 创建房间';
+                $btnConfirmRoom.textContent = room ? '保存修改' : '创建房间';
+                roomDraftType = room?.roomType || 'double';
+                roomDraftParticipants = room
+                    ? room.participants.map(member => JSON.parse(JSON.stringify(member)))
+                    : [];
+                roomDraftBackground = room?.backgroundImage || '';
+                roomDraftNodes = room?.intimacy?.nodes?.map(node => ({ ...node })) || [];
+                $roomNameInput.value = room?.name || '';
+                $roomNarrationToggle.value = room?.narrationEnabled ? 'on' : 'off';
+                $roomBasePromptInput.value = room?.basePrompt || Rooms.DEFAULT_ROOM_PROMPT;
+                $roomWorldPromptInput.value = room?.worldPrompt || '';
+                $roomScenePromptInput.value = room?.scenePrompt || '';
+                $roomUserPersonaInput.value = room?.userPersona || '';
+                $roomTurnModeSelect.value = room?.turnMode || 'smart';
+                $roomMaxSpeakersSelect.value = String(room?.maxSpeakers || 2);
+                $initialIntimacyInput.value = String(room?.intimacy?.value || 0);
+                $roomStyleToggle.checked = room?.styleEnabled !== false;
+                $roomStylePromptInput.value = room?.stylePrompt || Memory.NATURAL_STYLE_GUIDE;
+                $roomBackgroundPreview.src = roomDraftBackground || '';
+                $roomBackgroundPreview.style.visibility = roomDraftBackground ? 'visible' : 'hidden';
+                $roomBackgroundFile.value = '';
+                refreshImportAgentSelect();
+                renderRoomParticipantsEditor();
+                renderIntimacyNodesEditor();
+                updateIntimacyRulesStatus(room);
+                setRoomDraftType(roomDraftType);
+                $roomTypeSelector.querySelectorAll('.room-type-option').forEach(button => {
+                    button.disabled = !!room;
+                    button.title = room ? '房间创建后不可更换类型，以保护既有对话和记忆' : '';
+                    button.style.opacity = room ? '0.72' : '';
+                    button.style.cursor = room ? 'not-allowed' : '';
+                });
+                setRoomModalLoading(false);
+                $roomModalOverlay.style.display = 'flex';
+                setTimeout(() => $roomNameInput.focus(), 100);
+            }
+
+            function closeRoomModal(force = false) {
+                if (!$roomModalLoading.hidden && !force) return;
+                $roomModalOverlay.style.display = 'none';
+                editingRoomId = null;
+                roomDraftParticipants = [];
+                roomDraftNodes = [];
+                roomDraftBackground = '';
+            }
+
+            function refreshImportAgentSelect() {
+                $importAgentSelect.innerHTML = '<option value="">从通用模式选择智能体……</option>' + appData.agents
+                    .map(agent => `<option value="${escapeHtml(agent.id)}">${escapeHtml(agent.name)}</option>`).join('');
+            }
+
+            function addDraftParticipant(member) {
+                if (roomDraftType === 'double' && roomDraftParticipants.length >= 1) {
+                    showToast('双人房间只能添加一名AI角色', 'info');
+                    return;
+                }
+                if (roomDraftParticipants.length >= Rooms.MAX_GROUP_MEMBERS) {
+                    showToast(`每个房间最多${Rooms.MAX_GROUP_MEMBERS}名角色`, 'info');
+                    return;
+                }
+                roomDraftParticipants.push(Rooms.normalizeMember(member || {
+                    name: `角色${roomDraftParticipants.length + 1}`,
+                    personaPrompt: '',
+                    publicProfile: '',
+                    speakingStyle: '',
+                    privateGoal: '',
+                    color: Rooms.memberColor(roomDraftParticipants.length),
+                }, roomDraftParticipants.length));
+                renderRoomParticipantsEditor();
+                $participantAddActions.hidden = roomDraftType === 'double' && roomDraftParticipants.length >= 1;
+            }
+
+            function renderRoomParticipantsEditor() {
+                if (roomDraftParticipants.length === 0) {
+                    $roomParticipantsEditor.innerHTML = '<div class="room-form-hint">请创建角色，或从通用模式复制一个智能体。</div>';
+                    return;
+                }
+                $roomParticipantsEditor.innerHTML = roomDraftParticipants.map((member, index) => `
+                    <details class="participant-editor" data-member-id="${escapeHtml(member.id)}" ${index === 0 ? 'open' : ''}>
+                        <summary>
+                            ${avatarMarkup(member)}
+                            <strong>${escapeHtml(member.name || `角色${index + 1}`)}</strong>
+                            <div class="participant-actions">
+                                <label class="mini-action-btn" title="是否参与发言"><input type="checkbox" class="member-enabled" ${member.enabled ? 'checked' : ''}> 在场</label>
+                                <button type="button" class="mini-action-btn danger member-remove">删除</button>
+                            </div>
+                        </summary>
+                        <div class="participant-editor-body">
+                            <div>
+                                <label>角色名称</label>
+                                <input class="member-name" value="${escapeHtml(member.name)}" placeholder="角色名称">
+                            </div>
+                            <div>
+                                <label>识别颜色</label>
+                                <input type="color" class="member-color" value="${member.color}">
+                            </div>
+                            <div class="full">
+                                <label>角色头像</label>
+                                <div class="image-upload-row">
+                                    ${member.avatar ? `<img class="image-preview member-avatar-preview" src="${member.avatar}" alt="头像预览">` : '<div class="image-preview member-avatar-preview"></div>'}
+                                    <input type="file" class="member-avatar-file" accept="image/*">
+                                    <button type="button" class="mini-action-btn member-avatar-remove">移除头像</button>
+                                </div>
+                            </div>
+                            <div class="full">
+                                <label>完整角色人设</label>
+                                <textarea class="member-persona" style="min-height:150px" placeholder="身份、性格、经历、价值观、关系、边界、秘密等">${escapeHtml(member.personaPrompt)}</textarea>
+                            </div>
+                            <div class="full">
+                                <label>公开身份</label>
+                                <textarea class="member-public" style="min-height:80px" placeholder="其他角色可以知道的公开信息">${escapeHtml(member.publicProfile)}</textarea>
+                            </div>
+                            <div>
+                                <label>说话与行动风格</label>
+                                <textarea class="member-style" style="min-height:100px">${escapeHtml(member.speakingStyle)}</textarea>
+                            </div>
+                            <div>
+                                <label>私人目标</label>
+                                <textarea class="member-goal" style="min-height:100px">${escapeHtml(member.privateGoal)}</textarea>
+                            </div>
+                        </div>
+                    </details>`).join('');
+                $roomParticipantsEditor.querySelectorAll('.participant-editor').forEach(editor => {
+                    const member = roomDraftParticipants.find(item => item.id === editor.dataset.memberId);
+                    if (!member) return;
+                    const bind = (selector, key, eventName = 'input') => {
+                        editor.querySelector(selector).addEventListener(eventName, event => {
+                            member[key] = event.target.type === 'checkbox' ? event.target.checked : event.target.value;
+                            if (key === 'name') editor.querySelector('summary strong').textContent = member.name || '未命名角色';
+                        });
+                    };
+                    bind('.member-name', 'name');
+                    bind('.member-color', 'color');
+                    bind('.member-enabled', 'enabled', 'change');
+                    bind('.member-persona', 'personaPrompt');
+                    bind('.member-public', 'publicProfile');
+                    bind('.member-style', 'speakingStyle');
+                    bind('.member-goal', 'privateGoal');
+                    editor.querySelector('.member-remove').addEventListener('click', event => {
+                        event.preventDefault();
+                        roomDraftParticipants = roomDraftParticipants.filter(item => item.id !== member.id);
+                        renderRoomParticipantsEditor();
+                        $participantAddActions.hidden = roomDraftType === 'double' && roomDraftParticipants.length >= 1;
+                    });
+                    editor.querySelector('.member-avatar-file').addEventListener('change', async event => {
+                        const file = event.target.files?.[0];
+                        if (!file) return;
+                        try {
+                            member.avatar = await Rooms.compressImageFile(file, { maxWidth: 420, maxHeight: 420, quality: 0.84, square: true });
+                            renderRoomParticipantsEditor();
+                        } catch (error) {
+                            showToast(error.message, 'error');
+                        }
+                    });
+                    editor.querySelector('.member-avatar-remove').addEventListener('click', event => {
+                        event.preventDefault();
+                        member.avatar = '';
+                        renderRoomParticipantsEditor();
+                    });
+                });
+            }
+
+            function renderIntimacyNodesEditor() {
+                if (roomDraftNodes.length === 0) {
+                    $intimacyNodesEditor.innerHTML = '<div class="room-form-hint">尚未添加节点，例如：40｜愿意主动分享私事。</div>';
+                    return;
+                }
+                $intimacyNodesEditor.innerHTML = roomDraftNodes.map(node => `
+                    <div class="intimacy-node-row" data-node-id="${escapeHtml(node.id)}">
+                        <input type="number" class="node-value" min="1" max="200" value="${node.value}" aria-label="节点数值">
+                        <input type="text" class="node-description" value="${escapeHtml(node.description)}" placeholder="达到后可以发生什么">
+                        <button type="button" class="mini-action-btn danger node-remove">删除</button>
+                    </div>`).join('');
+                $intimacyNodesEditor.querySelectorAll('.intimacy-node-row').forEach(row => {
+                    const node = roomDraftNodes.find(item => item.id === row.dataset.nodeId);
+                    row.querySelector('.node-value').addEventListener('input', event => node.value = Number(event.target.value));
+                    row.querySelector('.node-description').addEventListener('input', event => node.description = event.target.value);
+                    row.querySelector('.node-remove').addEventListener('click', () => {
+                        roomDraftNodes = roomDraftNodes.filter(item => item.id !== node.id);
+                        renderIntimacyNodesEditor();
+                    });
+                });
+            }
+
+            function updateIntimacyRulesStatus(room) {
+                const ready = room?.roomType === 'double' && room?.intimacy?.rulesReady;
+                $intimacyRulesStatus.classList.toggle('ready', !!ready);
+                $intimacyRulesStatus.textContent = ready
+                    ? '✓ 隐藏判定已启用。规则内容不会显示给用户。'
+                    : '保存角色设定后，将自动生成隐藏判定条件。';
+                $btnRegenerateIntimacyRules.hidden = !ready;
+            }
+
+            function collectRoomDraft(existingRoom) {
+                const participants = roomDraftParticipants.map((member, index) => Rooms.normalizeMember(member, index));
+                const input = {
+                    roomType: roomDraftType,
+                    name: $roomNameInput.value.trim(),
+                    basePrompt: $roomBasePromptInput.value.trim(),
+                    worldPrompt: $roomWorldPromptInput.value.trim(),
+                    scenePrompt: $roomScenePromptInput.value.trim(),
+                    userPersona: $roomUserPersonaInput.value.trim(),
+                    styleEnabled: $roomStyleToggle.checked,
+                    stylePrompt: $roomStylePromptInput.value.trim(),
+                    narrationEnabled: $roomNarrationToggle.value === 'on',
+                    turnMode: $roomTurnModeSelect.value,
+                    maxSpeakers: Number($roomMaxSpeakersSelect.value),
+                    backgroundImage: roomDraftBackground,
+                    participants,
+                };
+                let room;
+                if (existingRoom) {
+                    room = Rooms.normalizeRoom({
+                        ...existingRoom,
+                        ...input,
+                        intimacy: roomDraftType === 'double' ? {
+                            ...(existingRoom.intimacy || {}),
+                            value: Number($initialIntimacyInput.value),
+                            initialValue: Number($initialIntimacyInput.value),
+                            nodes: Rooms.normalizeNodes(roomDraftNodes),
+                        } : null,
+                    }, Memory, Memory.NATURAL_STYLE_GUIDE);
+                } else {
+                    room = Rooms.createRoom({
+                        ...input,
+                        intimacy: roomDraftType === 'double' ? {
+                            value: Number($initialIntimacyInput.value),
+                            initialValue: Number($initialIntimacyInput.value),
+                            nodes: Rooms.normalizeNodes(roomDraftNodes),
+                        } : null,
+                    }, Memory, Memory.NATURAL_STYLE_GUIDE);
+                }
+                return room;
+            }
+
+            function validateRoomDraft(room) {
+                if (!room.name) throw new Error('请输入房间名称');
+                if (!room.userPersona) throw new Error('请填写用户所扮演的角色设定');
+                if (room.roomType === 'double' && room.participants.length !== 1) throw new Error('双人房间必须有且只有一名AI角色');
+                if (room.roomType === 'group' && room.participants.length < 2) throw new Error('多人房间至少需要两名AI角色');
+                const invalid = room.participants.find(member => !member.name || !member.personaPrompt);
+                if (invalid) throw new Error('每名角色都必须填写名称和完整人设');
+                if (room.roomType === 'double' && !appData.apiKey) throw new Error('请先在侧边栏填写API Key，以生成亲密度隐藏判定');
+            }
+
+            async function generateIntimacyRules(room) {
+                const rules = await callDeepSeekJSON(Rooms.buildIntimacyRulesMessages(room), { maxTokens: 3000 });
+                if (!rules || !Array.isArray(rules.positive_signals) || !Array.isArray(rules.negative_signals)) {
+                    throw new Error('亲密度判定返回格式不完整，请重试');
+                }
+                room.intimacy.rules = rules;
+                room.intimacy.rulesReady = true;
+                room.intimacy.rulesSignature = getIntimacyRulesSignature(room);
+                room.intimacy.updatedAt = Date.now();
+            }
+
+            async function saveRoomFromModal() {
+                if (!$roomModalLoading.hidden) return;
+                const existing = editingRoomId ? appData.rooms.find(room => room.id === editingRoomId) : null;
+                let room;
+                try {
+                    room = collectRoomDraft(existing);
+                    validateRoomDraft(room);
+                } catch (error) {
+                    showToast(error.message, 'error');
+                    return;
+                }
+                const signatureChanged = room.roomType === 'double'
+                    && room.intimacy.rulesSignature !== getIntimacyRulesSignature(room);
+                try {
+                    if (room.roomType === 'double' && (!room.intimacy.rulesReady || signatureChanged)) {
+                        setRoomModalLoading(true, '正在根据人物设定生成隐藏亲密度判定……');
+                        await generateIntimacyRules(room);
+                    }
+                    room.updatedAt = Date.now();
+                    if (existing) {
+                        const index = appData.rooms.findIndex(item => item.id === existing.id);
+                        appData.rooms[index] = room;
+                    } else {
+                        appData.rooms.push(room);
+                    }
+                    appData.currentRoomId = room.id;
+                    appData.activeMode = 'room';
+                    saveData();
+                    closeRoomModal(true);
+                    updateModeUI();
+                    renderMessages();
+                    showToast(room.roomType === 'double' ? '判定已启用，可进行攻略' : '多人房间已创建', 'success');
+                } catch (error) {
+                    showToast('房间保存失败：' + error.message, 'error');
+                } finally {
+                    setRoomModalLoading(false);
+                }
+            }
+
+            $btnGeneralMode.addEventListener('click', () => setActiveMode('general'));
+            $btnRoomMode.addEventListener('click', () => setActiveMode('room'));
+            $btnCreateRoom.addEventListener('click', () => openRoomModal());
+            $btnEditRoom.addEventListener('click', () => {
+                const room = getCurrentRoom();
+                if (room) openRoomModal(room.id);
+            });
+            $roomTypeSelector.addEventListener('click', event => {
+                const button = event.target.closest('.room-type-option');
+                if (button) setRoomDraftType(button.dataset.roomType);
+            });
+            $btnAddRoomParticipant.addEventListener('click', () => addDraftParticipant());
+            $btnImportAgent.addEventListener('click', () => {
+                const agent = appData.agents.find(item => item.id === $importAgentSelect.value);
+                if (!agent) {
+                    showToast('请先选择要复制的智能体', 'info');
+                    return;
+                }
+                addDraftParticipant({
+                    name: agent.name,
+                    personaPrompt: agent.surfacePrompt,
+                    publicProfile: '',
+                    speakingStyle: '',
+                    privateGoal: '',
+                });
+                $importAgentSelect.value = '';
+            });
+            $btnAddIntimacyNode.addEventListener('click', () => {
+                roomDraftNodes.push({ id: Rooms.createId('node'), value: Math.min(200, (roomDraftNodes.length + 1) * 40), description: '' });
+                renderIntimacyNodesEditor();
+            });
+            $roomBackgroundFile.addEventListener('change', async event => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                try {
+                    roomDraftBackground = await Rooms.compressImageFile(file, { maxWidth: 1600, maxHeight: 1100, quality: 0.78 });
+                    $roomBackgroundPreview.src = roomDraftBackground;
+                    $roomBackgroundPreview.style.visibility = 'visible';
+                } catch (error) {
+                    showToast(error.message, 'error');
+                }
+            });
+            $btnRemoveRoomBackground.addEventListener('click', () => {
+                roomDraftBackground = '';
+                $roomBackgroundFile.value = '';
+                $roomBackgroundPreview.src = '';
+                $roomBackgroundPreview.style.visibility = 'hidden';
+            });
+            $btnCancelRoomModal.addEventListener('click', closeRoomModal);
+            $btnConfirmRoom.addEventListener('click', saveRoomFromModal);
+            $roomModalOverlay.addEventListener('click', event => {
+                if (event.target === $roomModalOverlay) closeRoomModal();
+            });
+            $btnRegenerateIntimacyRules.addEventListener('click', async () => {
+                const existing = editingRoomId ? appData.rooms.find(room => room.id === editingRoomId) : null;
+                if (!existing) return;
+                let draft;
+                try {
+                    draft = collectRoomDraft(existing);
+                    validateRoomDraft(draft);
+                    setRoomModalLoading(true, '正在重新生成隐藏亲密度判定……');
+                    await generateIntimacyRules(draft);
+                    const index = appData.rooms.findIndex(room => room.id === existing.id);
+                    appData.rooms[index] = draft;
+                    saveData();
+                    updateIntimacyRulesStatus(draft);
+                    showToast('判定已启用，可进行攻略', 'success');
+                } catch (error) {
+                    showToast('重新生成失败：' + error.message, 'error');
+                } finally {
+                    setRoomModalLoading(false);
+                }
+            });
 
             // ==================== Toast ====================
             function showToast(msg, type = 'info') {
@@ -1536,7 +2742,8 @@
                 renderedMessageLimit = 200;
                 saveData();
                 renderAgentsList();
-                updateChatUI();
+                renderRoomsList();
+                updateModeUI();
                 renderMessages();
             }
 
@@ -1706,10 +2913,32 @@
                 if (e.key === 'Escape' && $modalOverlay.style.display === 'flex') {
                     closeCreateModal();
                 }
+                if (e.key === 'Escape' && $roomModalOverlay.style.display === 'flex') {
+                    closeRoomModal();
+                }
             });
 
             // ==================== 聊天UI更新 ====================
             function updateChatUI() {
+                if (appData.activeMode === 'room') {
+                    const room = getCurrentRoom();
+                    $currentAgentName.textContent = room?.name || '请选择或创建房间';
+                    $modelBadge.textContent = appData.model || 'deepseek-v4-flash';
+                    $roomTypeBadge.textContent = room?.roomType === 'group' ? '多人房间' : '双人房间';
+                    $roomTypeBadge.hidden = !room;
+                    $btnEditRoom.hidden = !room;
+                    const intimacyReady = room?.roomType !== 'double' || room?.intimacy?.rulesReady;
+                    $messageInput.disabled = !room || !intimacyReady;
+                    $btnSend.disabled = !room || !appData.apiKey || !intimacyReady;
+                    $messageInput.placeholder = room?.roomType === 'double' && !intimacyReady
+                        ? '亲密度判定尚未启用，请打开房间设置重试'
+                        : '输入房间消息…（可使用@角色名指定发言）';
+                    renderRoomContext();
+                    updateToolbarButtons();
+                    updateSendButton();
+                    updateMemoryStatus();
+                    return;
+                }
                 const agent = getCurrentAgent();
                 if (agent) {
                     $currentAgentName.textContent = agent.name;
@@ -1731,7 +2960,6 @@
 
             function updateMemoryStatus(message, busy = false) {
                 if (!$memoryStatus) return;
-                const agent = getCurrentAgent();
                 $memoryStatus.classList.toggle('busy', busy);
                 if (message) {
                     $memoryStatus.textContent = message;
@@ -1741,6 +2969,21 @@
                     $memoryStatus.textContent = '长期记忆已关闭；仍会保留完整聊天原文';
                     return;
                 }
+                if (appData.activeMode === 'room') {
+                    const room = getCurrentRoom();
+                    if (!room) {
+                        $memoryStatus.textContent = '选择房间后启用房间长期记忆';
+                        return;
+                    }
+                    const memory = Memory.normalizeMemory(room.sharedMemory, room.messages.length);
+                    if (memory.summarizedUntil > 0) {
+                        $memoryStatus.textContent = `房间记忆已整理 ${memory.summarizedUntil} 条旧消息，保留 ${memory.segments.length} 段公共往事；各角色另有独立记忆`;
+                    } else {
+                        $memoryStatus.textContent = '房间长期记忆准备就绪；公共记忆与角色独立记忆互相隔离';
+                    }
+                    return;
+                }
+                const agent = getCurrentAgent();
                 if (!agent) {
                     $memoryStatus.textContent = '选择智能体后启用长期记忆';
                     return;
@@ -1754,6 +2997,18 @@
             }
 
             function updateToolbarButtons() {
+                if (appData.activeMode === 'room') {
+                    const room = getCurrentRoom();
+                    const hasConversation = !!room?.messages?.length;
+                    const lastConversational = hasConversation
+                        ? [...room.messages].reverse().find(message => message.role === 'assistant' || message.role === 'user')
+                        : null;
+                    const lastIsAssistant = lastConversational?.role === 'assistant';
+                    $btnRegenerate.disabled = !hasConversation || !lastIsAssistant || isGenerating;
+                    $btnUndo.disabled = !hasConversation || isGenerating;
+                    $btnRestart.disabled = !hasConversation || isGenerating;
+                    return;
+                }
                 const agent = getCurrentAgent();
                 const hasConversation = agent && agent.conversations.length > 0;
                 const lastIsAssistant = hasConversation && agent.conversations[agent.conversations.length - 1].role === 'assistant';
@@ -1773,13 +3028,23 @@
                     $btnSend.classList.remove('stop-mode');
                     $btnSend.textContent = '➤';
                     $btnSend.title = '发送消息';
-                    const agent = getCurrentAgent();
-                    $btnSend.disabled = !agent || !appData.apiKey;
+                    if (appData.activeMode === 'room') {
+                        const room = getCurrentRoom();
+                        const intimacyReady = room?.roomType !== 'double' || room?.intimacy?.rulesReady;
+                        $btnSend.disabled = !room || !appData.apiKey || !intimacyReady;
+                    } else {
+                        const agent = getCurrentAgent();
+                        $btnSend.disabled = !agent || !appData.apiKey;
+                    }
                 }
             }
 
             // ==================== 消息渲染 ====================
             function renderMessages() {
+                if (appData.activeMode === 'room') {
+                    renderRoomMessages();
+                    return;
+                }
                 const agent = getCurrentAgent();
                 $messagesContainer.innerHTML = '';
 
@@ -1819,6 +3084,60 @@
                 updateToolbarButtons();
             }
 
+            function renderRoomMessages() {
+                const room = getCurrentRoom();
+                $messagesContainer.innerHTML = '';
+                if (!room || room.messages.length === 0) {
+                    $messagesContainer.innerHTML = `
+                        <div class="empty-state">
+                            <div class="empty-icon">🎭</div>
+                            <h3>${room ? `进入「${escapeHtml(room.name)}」` : '创建你的第一个房间'}</h3>
+                            <p>${room
+                                ? (room.roomType === 'double' ? '隐藏亲密度判定已经准备好，可以开始攻略。' : '发送消息后，系统会按照房间规则调度角色发言。')
+                                : '在左侧创建双人房间或多人房间。'}</p>
+                        </div>`;
+                    applyRoomBackground(room);
+                    updateToolbarButtons();
+                    return;
+                }
+                const startIndex = Math.max(0, room.messages.length - renderedMessageLimit);
+                if (startIndex > 0) {
+                    const button = document.createElement('button');
+                    button.className = 'load-earlier-btn';
+                    button.dataset.action = 'load-earlier';
+                    button.textContent = `加载更早消息（还有 ${startIndex} 条）`;
+                    $messagesContainer.appendChild(button);
+                }
+                room.messages.slice(startIndex).forEach((message, relativeIndex) => {
+                    const index = startIndex + relativeIndex;
+                    if (message.role === 'system') {
+                        const event = document.createElement('div');
+                        event.className = 'room-system-event';
+                        event.innerHTML = formatMessageContent(message.content);
+                        $messagesContainer.appendChild(event);
+                        return;
+                    }
+                    const isUser = message.role === 'user';
+                    const member = isUser ? null : Rooms.getMember(room, message.speakerId);
+                    const row = document.createElement('div');
+                    row.className = `room-message-row ${isUser ? 'user' : 'assistant'}`;
+                    const userAvatar = '<span class="room-avatar-fallback" style="background:#5d6475">你</span>';
+                    row.innerHTML = `
+                        ${isUser ? userAvatar : avatarMarkup(member)}
+                        <div class="room-message-body">
+                            <div class="room-speaker-name">${isUser ? '你' : escapeHtml(member?.name || '角色')} · #${index + 1}</div>
+                            <div class="message-bubble" ${member ? `style="border-left:3px solid ${member.color}"` : ''}>
+                                ${formatMessageContent(message.content)}
+                                <button class="copy-btn" title="复制正文" data-index="${index}">📋 复制</button>
+                            </div>
+                        </div>`;
+                    $messagesContainer.appendChild(row);
+                });
+                applyRoomBackground(room);
+                scrollToBottom();
+                updateToolbarButtons();
+            }
+
             $messagesContainer.addEventListener('click', async (e) => {
                 if (e.target.dataset.action === 'load-earlier') {
                     const previousHeight = $messagesContainer.scrollHeight;
@@ -1831,10 +3150,10 @@
                     return;
                 }
                 if (e.target.classList.contains('copy-btn')) {
-                    const agent = getCurrentAgent();
-                    if (!agent) return;
                     const idx = parseInt(e.target.dataset.index, 10);
-                    const msg = agent.conversations[idx];
+                    const msg = appData.activeMode === 'room'
+                        ? getCurrentRoom()?.messages?.[idx]
+                        : getCurrentAgent()?.conversations?.[idx];
                     if (!msg) return;
 
                     try {
@@ -1949,6 +3268,46 @@
                 if (el) el.remove();
             }
 
+            function createRoomStreamingMessage(member, queueIndex, queueTotal) {
+                removeRoomStreamingMessage();
+                const row = document.createElement('div');
+                row.className = 'room-message-row assistant';
+                row.id = 'roomStreamingMessage';
+                row.innerHTML = `
+                    ${avatarMarkup(member)}
+                    <div class="room-message-body">
+                        <div class="room-speaker-name">${escapeHtml(member.name)} · 正在发言 ${queueIndex}/${queueTotal}</div>
+                        <div class="message-bubble" style="border-left:3px solid ${member.color}">
+                            <span class="typing-indicator"><span></span><span></span><span></span></span>
+                        </div>
+                    </div>`;
+                $messagesContainer.appendChild(row);
+                scrollToBottom();
+                return row.querySelector('.message-bubble');
+            }
+
+            function updateRoomStreamingBubble(bubble, content) {
+                if (!bubble) return;
+                bubble.innerHTML = formatMessageContent(content);
+                scrollToBottom();
+            }
+
+            function removeRoomStreamingMessage() {
+                document.getElementById('roomStreamingMessage')?.remove();
+            }
+
+            function callDeepSeekStreamPromise(messages, bubble, overrides = {}) {
+                return new Promise((resolve, reject) => {
+                    callDeepSeekAPI(
+                        messages,
+                        content => updateRoomStreamingBubble(bubble, content),
+                        (content, metadata) => resolve({ content, metadata: metadata || {} }),
+                        reject,
+                        overrides
+                    );
+                });
+            }
+
             // ==================== API调用与长期记忆整理 ====================
             function getRequestOptions(overrides = {}) {
                 const settings = Memory.normalizeConfig(appData.memorySettings);
@@ -1960,14 +3319,14 @@
                 };
             }
 
-            async function callDeepSeekAPI(messages, onChunk, onDone, onError) {
+            async function callDeepSeekAPI(messages, onChunk, onDone, onError, overrides = {}) {
                 if (!appData.apiKey) {
                     onError(new Error('请先设置API Key'));
                     return;
                 }
                 abortController = new AbortController();
                 const apiUrl = 'https://api.deepseek.com/v1/chat/completions';
-                const requestOptions = getRequestOptions();
+                const requestOptions = getRequestOptions(overrides);
 
                 try {
                     const response = await fetch(apiUrl, {
@@ -2048,7 +3407,7 @@
                 }
             }
 
-            async function callDeepSeekJSON(messages) {
+            async function callDeepSeekJSON(messages, overrides = {}) {
                 if (!appData.apiKey) throw new Error('请先设置 API Key');
                 abortController = new AbortController();
                 try {
@@ -2059,7 +3418,11 @@
                             'Authorization': `Bearer ${appData.apiKey}`,
                         },
                         body: JSON.stringify({
-                            ...getRequestOptions({ temperature: 0.1, maxTokens: 8000, thinkingMode: 'disabled' }),
+                            ...getRequestOptions({
+                                temperature: overrides.temperature ?? 0.1,
+                                maxTokens: overrides.maxTokens ?? 8000,
+                                thinkingMode: 'disabled',
+                            }),
                             messages,
                             stream: false,
                             response_format: { type: 'json_object' },
@@ -2068,7 +3431,7 @@
                     });
                     if (!response.ok) {
                         const errorBody = await response.text();
-                        let errorMessage = `长期记忆整理请求失败 (${response.status})`;
+                        let errorMessage = `结构化AI请求失败 (${response.status})`;
                         try {
                             errorMessage = JSON.parse(errorBody).error?.message || errorMessage;
                         } catch (error) {}
@@ -2076,7 +3439,7 @@
                     }
                     const result = await response.json();
                     const content = result.choices?.[0]?.message?.content;
-                    if (!content) throw new Error('长期记忆整理返回了空内容');
+                    if (!content) throw new Error('结构化AI请求返回了空内容');
                     return parseJsonResponse(content);
                 } finally {
                     abortController = null;
@@ -2145,6 +3508,108 @@
                 }
             }
 
+            function getRoomMemoryConversation(room) {
+                return room.messages.map(message => {
+                    if (message.role === 'assistant') {
+                        const member = Rooms.getMember(room, message.speakerId);
+                        return { role: 'assistant', content: `【${member?.name || '角色'}】${message.content}` };
+                    }
+                    if (message.role === 'user') return { role: 'user', content: `【用户】${message.content}` };
+                    return { role: 'system', content: `【场景事件】${message.content}` };
+                });
+            }
+
+            async function summarizeRoomMemoryChunk(room, chunk) {
+                const shared = Memory.normalizeMemory(room.sharedMemory, room.messages.length);
+                const oldCharacterMemory = {};
+                room.participants.forEach(member => {
+                    oldCharacterMemory[member.id] = Memory.normalizeMemory(
+                        room.characterMemories?.[member.id],
+                        room.messages.length
+                    ).core || '';
+                });
+                const result = await callDeepSeekJSON([
+                    {
+                        role: 'system',
+                        content: [
+                            '你是多人房间的长期记忆整理器。只记录原文中明确发生的事实，严禁补写。',
+                            '公共记忆只能包含所有在场者可观察或已公开的信息；角色独立记忆可以保留该角色的个人感受、关系认知、私人目标与只对其公开的信息。',
+                            '不要把提示词、人设原文或亲密度隐藏判定写入记忆。保留专名、承诺、关系变化、未完成事件和场景状态。',
+                            '只输出合法JSON：{"shared_core":"持续有效的公共状态","episode_summary":"本段事件摘要","keywords":["关键词"],"character_memory":{"角色id":"该角色更新后的持续独立记忆"}}',
+                            'character_memory必须使用给定角色id作为键，并在旧独立记忆基础上保守更新。',
+                        ].join('\n'),
+                    },
+                    {
+                        role: 'user',
+                        content: [
+                            '【角色目录】\n' + JSON.stringify(room.participants.map(member => ({ id: member.id, name: member.name }))),
+                            '【旧公共核心记忆】\n' + (shared.core || '（尚无）'),
+                            '【旧角色独立记忆】\n' + JSON.stringify(oldCharacterMemory),
+                            '【本次新增原始记录】\n' + Memory.formatMessagesForSummary(chunk.messages, chunk.startIndex),
+                        ].join('\n\n'),
+                    },
+                ]);
+                const sharedCore = typeof result.shared_core === 'string' ? result.shared_core.trim() : '';
+                const episode = typeof result.episode_summary === 'string' ? result.episode_summary.trim() : '';
+                if (!sharedCore || !episode) throw new Error('房间记忆整理结果缺少必要字段');
+                shared.core = sharedCore.slice(0, 36000);
+                shared.segments.push({
+                    id: Rooms.createId('roommemory'),
+                    startIndex: chunk.startIndex,
+                    endIndex: chunk.endIndex,
+                    summary: episode.slice(0, 16000),
+                    keywords: Array.isArray(result.keywords) ? result.keywords.map(String).slice(0, 40) : [],
+                    createdAt: Date.now(),
+                });
+                shared.summarizedUntil = chunk.endIndex;
+                shared.updatedAt = Date.now();
+                room.sharedMemory = shared;
+                room.characterMemories = room.characterMemories || {};
+                room.participants.forEach(member => {
+                    const state = Memory.normalizeMemory(room.characterMemories[member.id], room.messages.length);
+                    const nextCore = result.character_memory?.[member.id];
+                    if (typeof nextCore === 'string' && nextCore.trim()) state.core = nextCore.trim().slice(0, 24000);
+                    state.summarizedUntil = chunk.endIndex;
+                    state.updatedAt = Date.now();
+                    room.characterMemories[member.id] = state;
+                });
+                room.updatedAt = Date.now();
+                saveData();
+            }
+
+            async function ensureRoomLongTermMemory(room) {
+                const settings = Memory.normalizeConfig(appData.memorySettings);
+                if (!settings.enabled) return;
+                let rounds = 0;
+                const conversation = getRoomMemoryConversation(room);
+                let chunk = Memory.findSummaryChunk(conversation, room.sharedMemory, settings);
+                if (!chunk) return;
+                isOrganizingMemory = true;
+                try {
+                    while (chunk && rounds < 4) {
+                        rounds += 1;
+                        updateMemoryStatus(`正在整理房间长期记忆：消息 #${chunk.startIndex + 1}—#${chunk.endIndex}…`, true);
+                        await summarizeRoomMemoryChunk(room, chunk);
+                        chunk = Memory.findSummaryChunk(conversation, room.sharedMemory, settings);
+                    }
+                    if (chunk) throw new Error('待整理的房间旧对话较多，请再次发送以继续整理（原文仍完整保存）');
+                } finally {
+                    isOrganizingMemory = false;
+                    updateMemoryStatus();
+                }
+            }
+
+            function getRoomMemoryContexts(room, memberId, query) {
+                const settings = Memory.normalizeConfig(appData.memorySettings);
+                if (!settings.enabled) return { sharedMemory: '', characterMemory: '' };
+                const sharedMemory = Memory.buildMemoryContext(room.sharedMemory, query || '', settings);
+                const characterState = Memory.normalizeMemory(room.characterMemories?.[memberId], room.messages.length);
+                return {
+                    sharedMemory,
+                    characterMemory: characterState.core || '',
+                };
+            }
+
             function buildSystemPrompt() {
                 const agent = getCurrentAgent();
                 const globalPrompt = appData.globalPrompt.trim();
@@ -2182,7 +3647,192 @@
             }
 
             // ==================== 发送消息 ====================
+            async function selectRoomSpeakers(room, userContent, forcedMemberId, allowSmartFallback = false) {
+                const active = Rooms.getActiveMembers(room);
+                if (active.length === 0) throw new Error('当前房间没有处于“在场”状态的角色');
+                if (forcedMemberId && active.some(member => member.id === forcedMemberId)) {
+                    return { speakerIds: [forcedMemberId], narrationNeeded: false, narrationHint: '' };
+                }
+                const mentioned = Rooms.detectMentionedMembers(room, userContent);
+                if (mentioned.length) {
+                    return {
+                        speakerIds: mentioned.slice(0, room.roomType === 'group' ? room.maxSpeakers : 1).map(member => member.id),
+                        narrationNeeded: false,
+                        narrationHint: '',
+                    };
+                }
+                if (room.roomType === 'double' || active.length === 1) {
+                    return { speakerIds: [active[0].id], narrationNeeded: false, narrationHint: '' };
+                }
+                if (room.turnMode === 'all') {
+                    return { speakerIds: active.map(member => member.id), narrationNeeded: false, narrationHint: '' };
+                }
+                if (room.turnMode === 'mention' && !allowSmartFallback) {
+                    throw new Error('当前房间设置为“仅指定角色”，请使用下方菜单或@角色名');
+                }
+                const decision = await callDeepSeekJSON(Rooms.buildDirectorMessages(room, userContent), { maxTokens: 800 });
+                const speakerIds = Rooms.sanitizeSpeakerIds(room, decision?.speakers);
+                return {
+                    speakerIds: speakerIds.length ? speakerIds : [active[0].id],
+                    narrationNeeded: room.narrationEnabled && decision?.narration_needed === true,
+                    narrationHint: typeof decision?.narration_hint === 'string' ? decision.narration_hint : '',
+                };
+            }
+
+            async function evaluateRoomIntimacy(room, turnId) {
+                if (room.roomType !== 'double' || !room.intimacy?.rulesReady) return;
+                const turnMessages = room.messages.filter(message => message.turnId === turnId);
+                if (!turnMessages.some(message => message.role === 'user') || !turnMessages.some(message => message.role === 'assistant')) return;
+                updateMemoryStatus('正在进行隐藏亲密度判定…', true);
+                const result = await callDeepSeekJSON(Rooms.buildIntimacyJudgeMessages(room, turnMessages), { maxTokens: 600 });
+                const applied = Rooms.applyIntimacyResult(room, result);
+                room.turnEffects = room.turnEffects || {};
+                room.turnEffects[turnId] = { intimacyDelta: applied.delta };
+                lastIntimacyDelta = { roomId: room.id, delta: applied.delta };
+                applied.unlocked.forEach(node => {
+                    room.messages.push({
+                        id: Rooms.createId('roommsg'),
+                        role: 'system',
+                        speakerId: null,
+                        content: `💗 已达到关系节点：${node.description}`,
+                        turnId,
+                        kind: 'intimacy-node',
+                        createdAt: Date.now(),
+                    });
+                    showToast(`已达到关系节点：${node.description}`, 'success');
+                });
+                applied.relocked.forEach(node => {
+                    room.messages.push({
+                        id: Rooms.createId('roommsg'),
+                        role: 'system',
+                        speakerId: null,
+                        content: `关系发生变化，节点暂时锁定：${node.description}`,
+                        turnId,
+                        kind: 'intimacy-node',
+                        createdAt: Date.now(),
+                    });
+                });
+                saveData();
+                renderRoomContext();
+            }
+
+            async function sendRoomMessage(userContent, options = {}) {
+                if (isGenerating) return;
+                if (!appData.apiKey) {
+                    showToast('请先在侧边栏设置API Key', 'error');
+                    return;
+                }
+                const room = getCurrentRoom();
+                if (!room) {
+                    showToast('请先选择或创建房间', 'error');
+                    return;
+                }
+                if (room.roomType === 'double' && !room.intimacy?.rulesReady) {
+                    showToast('亲密度判定尚未启用，请打开房间设置重试', 'error');
+                    return;
+                }
+                const isContinue = options.continueScene === true;
+                const content = isContinue ? '让当前场景在不替用户行动的前提下自然继续。' : String(userContent || '').trim();
+                if (!content) return;
+                const turnId = Rooms.createId('turn');
+                room.messages.push({
+                    id: Rooms.createId('roommsg'),
+                    role: isContinue ? 'system' : 'user',
+                    speakerId: null,
+                    content: isContinue ? '▶ 用户选择让场景继续' : content,
+                    turnId,
+                    kind: isContinue ? 'control' : 'message',
+                    createdAt: Date.now(),
+                });
+                room.updatedAt = Date.now();
+                saveData();
+                renderMessages();
+                $messageInput.value = '';
+                $messageInput.style.height = 'auto';
+                const forcedMemberId = $roomTargetSelect.value;
+                $roomTargetSelect.value = '';
+                isGenerating = true;
+                updateSendButton();
+                updateToolbarButtons();
+                let generatedCount = 0;
+                try {
+                    await ensureRoomLongTermMemory(room);
+                    if (!isGenerating) return;
+                    updateMemoryStatus('正在判断本轮发言角色…', true);
+                    const selection = await selectRoomSpeakers(room, content, forcedMemberId, isContinue);
+                    if (selection.narrationNeeded && isGenerating) {
+                        updateMemoryStatus('正在生成必要的场景衔接…', true);
+                        const narration = await callDeepSeekStreamPromise(Rooms.buildNarrationMessages(room, selection.narrationHint), null, { maxTokens: 800 });
+                        if (narration.content?.trim()) {
+                            room.messages.push({
+                                id: Rooms.createId('roommsg'),
+                                role: 'system',
+                                speakerId: null,
+                                content: narration.content.trim(),
+                                turnId,
+                                kind: 'narration',
+                                createdAt: Date.now(),
+                            });
+                            saveData();
+                            renderRoomMessages();
+                        }
+                    }
+                    for (let index = 0; index < selection.speakerIds.length; index += 1) {
+                        if (!isGenerating) break;
+                        const memberId = selection.speakerIds[index];
+                        const member = Rooms.getMember(room, memberId);
+                        if (!member) continue;
+                        updateMemoryStatus(`${member.name}正在组织回应（${index + 1}/${selection.speakerIds.length}）…`, true);
+                        const contexts = getRoomMemoryContexts(room, memberId, content);
+                        const messages = Rooms.buildCharacterMessages(room, memberId, contexts, 100);
+                        const bubble = createRoomStreamingMessage(member, index + 1, selection.speakerIds.length);
+                        const response = await callDeepSeekStreamPromise(messages, bubble);
+                        removeRoomStreamingMessage();
+                        if (response.content === null || response.content === undefined || !isGenerating) break;
+                        const responseText = response.content.trim() || '（没有作出回应）';
+                        room.messages.push({
+                            id: Rooms.createId('roommsg'),
+                            role: 'assistant',
+                            speakerId: memberId,
+                            content: responseText,
+                            turnId,
+                            kind: 'message',
+                            createdAt: Date.now(),
+                        });
+                        generatedCount += 1;
+                        room.updatedAt = Date.now();
+                        saveData();
+                        renderRoomMessages();
+                        scrollToBottom(true);
+                        if (response.metadata?.finishReason === 'length') {
+                            showToast(`${member.name}的回复达到长度上限`, 'info');
+                        }
+                    }
+                    if (generatedCount > 0 && !isContinue && room.roomType === 'double' && isGenerating) {
+                        try {
+                            await evaluateRoomIntimacy(room, turnId);
+                        } catch (error) {
+                            console.error('亲密度判定失败:', error);
+                            showToast('本轮亲密度判定暂未完成：' + error.message, 'error');
+                        }
+                    }
+                } catch (error) {
+                    if (error.name !== 'AbortError') showToast('房间生成失败：' + error.message, 'error');
+                } finally {
+                    removeRoomStreamingMessage();
+                    isGenerating = false;
+                    updateSendButton();
+                    updateToolbarButtons();
+                    updateMemoryStatus();
+                    renderRoomMessages();
+                }
+            }
+
             async function sendMessage(userContent) {
+                if (appData.activeMode === 'room') {
+                    await sendRoomMessage(userContent);
+                    return;
+                }
                 if (isGenerating) return;
                 if (!appData.apiKey) {
                     showToast('请先在侧边栏设置API Key', 'error');
@@ -2261,8 +3911,61 @@
             }
 
             // ==================== 重新生成 ====================
+            async function regenerateRoomLastMessage() {
+                if (isGenerating) return;
+                const room = getCurrentRoom();
+                if (!room?.messages?.length) return;
+                let messageIndex = -1;
+                for (let index = room.messages.length - 1; index >= 0; index -= 1) {
+                    if (room.messages[index].role === 'assistant' || room.messages[index].role === 'user') {
+                        messageIndex = index;
+                        break;
+                    }
+                }
+                if (messageIndex < 0) return;
+                const oldMessage = room.messages[messageIndex];
+                if (oldMessage.role !== 'assistant') return;
+                const member = Rooms.getMember(room, oldMessage.speakerId);
+                if (!member) return;
+                room.messages.splice(messageIndex, 1);
+                saveData();
+                renderRoomMessages();
+                isGenerating = true;
+                updateSendButton();
+                updateToolbarButtons();
+                let replacementSaved = false;
+                try {
+                    const latestUser = [...room.messages].reverse().find(message => message.role === 'user');
+                    const contexts = getRoomMemoryContexts(room, member.id, latestUser?.content || '');
+                    const messages = Rooms.buildCharacterMessages(room, member.id, contexts, 100);
+                    const bubble = createRoomStreamingMessage(member, 1, 1);
+                    const response = await callDeepSeekStreamPromise(messages, bubble);
+                    removeRoomStreamingMessage();
+                    if (response.content !== null && response.content !== undefined && isGenerating) {
+                        room.messages.splice(messageIndex, 0, { ...oldMessage, id: Rooms.createId('roommsg'), content: response.content.trim() || '（没有作出回应）', createdAt: Date.now() });
+                        replacementSaved = true;
+                        saveData();
+                    }
+                } catch (error) {
+                    if (error.name !== 'AbortError') showToast('重新生成失败：' + error.message, 'error');
+                } finally {
+                    if (!replacementSaved) room.messages.splice(messageIndex, 0, oldMessage);
+                    removeRoomStreamingMessage();
+                    isGenerating = false;
+                    saveData();
+                    renderRoomMessages();
+                    updateSendButton();
+                    updateToolbarButtons();
+                    updateMemoryStatus();
+                }
+            }
+
             async function regenerate() {
                 if (isGenerating) return;
+                if (appData.activeMode === 'room') {
+                    await regenerateRoomLastMessage();
+                    return;
+                }
                 const agent = getCurrentAgent();
                 if (!agent || agent.conversations.length === 0) return;
                 const lastMsg = agent.conversations[agent.conversations.length - 1];
@@ -2327,6 +4030,30 @@
             // ==================== 撤回消息 ====================
             function undoMessage() {
                 if (isGenerating) return;
+                if (appData.activeMode === 'room') {
+                    const room = getCurrentRoom();
+                    if (!room?.messages?.length) return;
+                    const turnId = [...room.messages].reverse().find(message => message.turnId)?.turnId;
+                    if (!turnId) {
+                        room.messages.pop();
+                    } else {
+                        room.messages = room.messages.filter(message => message.turnId !== turnId);
+                        const effect = room.turnEffects?.[turnId];
+                        if (effect && room.intimacy) {
+                            room.intimacy.value = Math.max(0, Math.min(Rooms.MAX_INTIMACY, room.intimacy.value - (Number(effect.intimacyDelta) || 0)));
+                            const deltaIndex = room.intimacy.recentDeltas.lastIndexOf(Number(effect.intimacyDelta) || 0);
+                            if (deltaIndex >= 0) room.intimacy.recentDeltas.splice(deltaIndex, 1);
+                            delete room.turnEffects[turnId];
+                            lastIntimacyDelta = null;
+                        }
+                    }
+                    saveData();
+                    renderRoomContext();
+                    renderRoomMessages();
+                    updateToolbarButtons();
+                    showToast('已撤回上一整轮房间对话', 'info');
+                    return;
+                }
                 const agent = getCurrentAgent();
                 if (!agent || agent.conversations.length === 0) return;
 
@@ -2348,6 +4075,35 @@
             // ==================== 重启对话 ====================
             function restartConversation() {
                 if (isGenerating) return;
+                if (appData.activeMode === 'room') {
+                    const room = getCurrentRoom();
+                    if (!room) return;
+                    if (!room.messages.length) {
+                        showToast('当前房间对话已是空状态', 'info');
+                        return;
+                    }
+                    const intimacyText = room.roomType === 'double' ? '亲密度将回到房间设定的初始值；' : '';
+                    if (!confirm(`确定清空当前房间的全部对话和记忆吗？${intimacyText}角色与场景设定会保留。`)) return;
+                    room.messages = [];
+                    room.sharedMemory = Memory.createEmptyMemory();
+                    room.characterMemories = {};
+                    room.participants.forEach(member => room.characterMemories[member.id] = Memory.createEmptyMemory());
+                    room.turnEffects = {};
+                    if (room.intimacy) {
+                        room.intimacy.value = room.intimacy.initialValue || 0;
+                        room.intimacy.recentDeltas = [];
+                        room.intimacy.lastReason = '';
+                    }
+                    lastIntimacyDelta = null;
+                    renderedMessageLimit = 200;
+                    saveData();
+                    renderRoomContext();
+                    renderRoomMessages();
+                    updateToolbarButtons();
+                    updateMemoryStatus();
+                    showToast('房间对话已重新开始', 'success');
+                    return;
+                }
                 const agent = getCurrentAgent();
                 if (!agent) return;
                 if (agent.conversations.length === 0) {
@@ -2399,6 +4155,10 @@
             $btnRegenerate.addEventListener('click', regenerate);
             $btnUndo.addEventListener('click', undoMessage);
             $btnRestart.addEventListener('click', restartConversation);
+            $btnContinueScene.addEventListener('click', () => {
+                if (isGenerating) stopGeneration();
+                else sendRoomMessage('', { continueScene: true });
+            });
 
             $apiKeyInput.addEventListener('input', () => {
                 appData.apiKey = $apiKeyInput.value.trim();
@@ -2482,7 +4242,8 @@
                 updateMemoryStatus();
                 await refreshStorageStatus();
 
-                if (appData.apiKey && getCurrentAgent()) {
+                const currentTarget = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
+                if (appData.apiKey && currentTarget) {
                     setTimeout(() => $messageInput.focus(), 300);
                 }
             }
