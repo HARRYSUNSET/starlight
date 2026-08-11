@@ -1393,9 +1393,11 @@
         }
         .modal-loading[hidden] { display: none; }
         .room-background-active {
-            background-position: center;
-            background-size: cover;
-            background-attachment: local;
+            background-position: center, center;
+            background-size: 100% 100%, cover;
+            background-repeat: no-repeat, no-repeat;
+            /* scroll 以可见聊天框为画幅；local 会按全部滚动内容高度重新计算，长对话重开后会把图片异常拉伸 */
+            background-attachment: scroll, scroll;
         }
         @media (max-width: 768px) {
             .room-context-bar { padding: 7px 10px; gap: 7px; }
@@ -3119,6 +3121,8 @@
                     }
                     const isUser = message.role === 'user';
                     const member = isUser ? null : Rooms.getMember(room, message.speakerId);
+                    const displayContent = isUser ? message.content : Rooms.cleanCharacterOutput(message.content, member?.name || '');
+                    if (!isUser && !Rooms.hasSubstantiveContent(displayContent)) return;
                     const row = document.createElement('div');
                     row.className = `room-message-row ${isUser ? 'user' : 'assistant'}`;
                     const userAvatar = '<span class="room-avatar-fallback" style="background:#5d6475">你</span>';
@@ -3127,7 +3131,7 @@
                         <div class="room-message-body">
                             <div class="room-speaker-name">${isUser ? '你' : escapeHtml(member?.name || '角色')} · #${index + 1}</div>
                             <div class="message-bubble" ${member ? `style="border-left:3px solid ${member.color}"` : ''}>
-                                ${formatMessageContent(message.content)}
+                                ${formatMessageContent(displayContent)}
                                 <button class="copy-btn" title="复制正文" data-index="${index}">📋 复制</button>
                             </div>
                         </div>`;
@@ -3283,12 +3287,17 @@
                     </div>`;
                 $messagesContainer.appendChild(row);
                 scrollToBottom();
-                return row.querySelector('.message-bubble');
+                const bubble = row.querySelector('.message-bubble');
+                bubble.dataset.memberName = member.name;
+                return bubble;
             }
 
             function updateRoomStreamingBubble(bubble, content) {
                 if (!bubble) return;
-                bubble.innerHTML = formatMessageContent(content);
+                const cleaned = Rooms.cleanCharacterOutput(content, bubble.dataset.memberName || '');
+                bubble.innerHTML = cleaned
+                    ? formatMessageContent(cleaned)
+                    : '<span class="typing-indicator"><span></span><span></span><span></span></span>';
                 scrollToBottom();
             }
 
@@ -3306,6 +3315,35 @@
                         overrides
                     );
                 });
+            }
+
+            async function generateValidRoomResponse(messages, member, queueIndex, queueTotal) {
+                let requestMessages = messages;
+                let lastMetadata = {};
+                for (let attempt = 0; attempt < 2; attempt += 1) {
+                    const bubble = createRoomStreamingMessage(member, queueIndex, queueTotal);
+                    const response = await callDeepSeekStreamPromise(requestMessages, bubble);
+                    removeRoomStreamingMessage();
+                    lastMetadata = response.metadata || {};
+                    if (response.content === null || response.content === undefined || !isGenerating) return response;
+                    const cleaned = Rooms.cleanCharacterOutput(response.content, member.name);
+                    if (Rooms.hasSubstantiveContent(cleaned)) {
+                        return { content: cleaned, metadata: lastMetadata };
+                    }
+                    if (attempt === 0) {
+                        updateMemoryStatus(`${member.name}的首次输出只有空行或姓名标签，正在自动重试…`, true);
+                        const retryInstruction = [
+                            '【本轮自动重试】',
+                            '上一候选输出只有重复姓名标签、标题或空行，已被判定为无效。',
+                            '请从头重新回答用户的最新消息，第一行就写有实际意义的角色语言或动作。',
+                            '不要输出姓名标签；短对话只需一句或一小段，不要为了凑格式写成三段。',
+                        ].join('\n');
+                        requestMessages = requestMessages.map((message, index) => index === 0
+                            ? { ...message, content: `${message.content}\n\n${retryInstruction}` }
+                            : message);
+                    }
+                }
+                return { content: '', metadata: lastMetadata };
             }
 
             // ==================== API调用与长期记忆整理 ====================
@@ -3512,11 +3550,13 @@
                 return room.messages.map(message => {
                     if (message.role === 'assistant') {
                         const member = Rooms.getMember(room, message.speakerId);
-                        return { role: 'assistant', content: `【${member?.name || '角色'}】${message.content}` };
+                        const cleaned = Rooms.cleanCharacterOutput(message.content, member?.name || '');
+                        if (!Rooms.hasSubstantiveContent(cleaned)) return null;
+                        return { role: 'assistant', content: `${member?.name || '角色'}的发言或行动：${cleaned}` };
                     }
-                    if (message.role === 'user') return { role: 'user', content: `【用户】${message.content}` };
-                    return { role: 'system', content: `【场景事件】${message.content}` };
-                });
+                    if (message.role === 'user') return { role: 'user', content: `用户的发言或行动：${message.content}` };
+                    return { role: 'system', content: `场景事件：${message.content}` };
+                }).filter(Boolean);
             }
 
             async function summarizeRoomMemoryChunk(room, chunk) {
@@ -3785,11 +3825,13 @@
                         updateMemoryStatus(`${member.name}正在组织回应（${index + 1}/${selection.speakerIds.length}）…`, true);
                         const contexts = getRoomMemoryContexts(room, memberId, content);
                         const messages = Rooms.buildCharacterMessages(room, memberId, contexts, 100);
-                        const bubble = createRoomStreamingMessage(member, index + 1, selection.speakerIds.length);
-                        const response = await callDeepSeekStreamPromise(messages, bubble);
-                        removeRoomStreamingMessage();
+                        const response = await generateValidRoomResponse(messages, member, index + 1, selection.speakerIds.length);
                         if (response.content === null || response.content === undefined || !isGenerating) break;
-                        const responseText = response.content.trim() || '（没有作出回应）';
+                        const responseText = Rooms.cleanCharacterOutput(response.content, member.name);
+                        if (!Rooms.hasSubstantiveContent(responseText)) {
+                            showToast(`${member.name}本轮没有生成有效内容，已跳过空回复`, 'info');
+                            continue;
+                        }
                         room.messages.push({
                             id: Rooms.createId('roommsg'),
                             role: 'assistant',
@@ -3938,13 +3980,16 @@
                     const latestUser = [...room.messages].reverse().find(message => message.role === 'user');
                     const contexts = getRoomMemoryContexts(room, member.id, latestUser?.content || '');
                     const messages = Rooms.buildCharacterMessages(room, member.id, contexts, 100);
-                    const bubble = createRoomStreamingMessage(member, 1, 1);
-                    const response = await callDeepSeekStreamPromise(messages, bubble);
-                    removeRoomStreamingMessage();
+                    const response = await generateValidRoomResponse(messages, member, 1, 1);
                     if (response.content !== null && response.content !== undefined && isGenerating) {
-                        room.messages.splice(messageIndex, 0, { ...oldMessage, id: Rooms.createId('roommsg'), content: response.content.trim() || '（没有作出回应）', createdAt: Date.now() });
-                        replacementSaved = true;
-                        saveData();
+                        const cleaned = Rooms.cleanCharacterOutput(response.content, member.name);
+                        if (Rooms.hasSubstantiveContent(cleaned)) {
+                            room.messages.splice(messageIndex, 0, { ...oldMessage, id: Rooms.createId('roommsg'), content: cleaned, createdAt: Date.now() });
+                            replacementSaved = true;
+                            saveData();
+                        } else {
+                            showToast('重新生成仍未得到有效内容，已保留原回复', 'info');
+                        }
                     }
                 } catch (error) {
                     if (error.name !== 'AbortError') showToast('重新生成失败：' + error.message, 'error');

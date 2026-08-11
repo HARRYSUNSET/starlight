@@ -22,7 +22,10 @@
         '只生成当前指定角色本人的语言、动作和可见反应。',
         '不得替用户行动或发言；不得代写其他角色的台词、动作或内心。',
         '不得泄露当前角色不知道的秘密或后台设定。',
-        '直接输出角色内容，不要输出角色名前缀、分析、规则说明或JSON。',
+        '直接输出角色内容，不要输出角色名前缀、姓名标签、空白标签、分析、规则说明或JSON。',
+        '不要先写若干空行、重复标题或只有角色名的占位行。',
+        '回复长度必须服从本轮交流节奏：短问短答可以只有一句或一小段，复杂事件才自然展开。',
+        '不要把每次回复固定成三段，也不要机械套用“动作—台词—心理”结构。',
     ].join('\n');
 
     function asString(value, fallback = '') {
@@ -32,6 +35,72 @@
     function safeImageDataUrl(value) {
         const source = asString(value);
         return /^data:image\/(?:jpeg|jpg|png|webp);base64,[a-z0-9+/=\s]+$/i.test(source) ? source : '';
+    }
+
+    function escapeRegExp(value) {
+        return asString(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function cleanCharacterOutput(content, memberName) {
+        let text = asString(content)
+            .replace(/\r\n?/g, '\n')
+            .replace(/[\u200B-\u200D\u2060\uFEFF]/g, '')
+            .trim();
+        const name = asString(memberName).trim();
+        if (!text || !name) return text.replace(/\n[ \t]*\n(?:[ \t]*\n)+/g, '\n\n').trim();
+
+        const escapedName = escapeRegExp(name);
+        const decoratedName = `(?:\\*\\*|__)?\\s*${escapedName}\\s*(?:\\*\\*|__)?`;
+        const prefixPattern = new RegExp(
+            `^(?:【\\s*${escapedName}\\s*】|\\[\\s*${escapedName}\\s*\\]|${decoratedName}[：:])\\s*`,
+            'i'
+        );
+        const onlyPattern = new RegExp(
+            `^(?:【\\s*${escapedName}\\s*】|\\[\\s*${escapedName}\\s*\\]|${decoratedName}[：:]?|${escapedName})$`,
+            'i'
+        );
+
+        const cleanedLines = [];
+        text.split('\n').forEach(line => {
+            let next = line.trimEnd();
+            let guard = 0;
+            while (prefixPattern.test(next.trimStart()) && guard < 12) {
+                next = next.trimStart().replace(prefixPattern, '');
+                guard += 1;
+            }
+            if (onlyPattern.test(next.trim())) return;
+            cleanedLines.push(next);
+        });
+        text = cleanedLines.join('\n');
+
+        let guard = 0;
+        while (prefixPattern.test(text.trimStart()) && guard < 12) {
+            text = text.trimStart().replace(prefixPattern, '');
+            guard += 1;
+        }
+        return text
+            .replace(/[ \t]+\n/g, '\n')
+            .replace(/\n[ \t]*\n(?:[ \t]*\n)+/g, '\n\n')
+            .trim();
+    }
+
+    function hasSubstantiveContent(content) {
+        const compact = asString(content)
+            .replace(/[\s【】\[\]（）()「」『』<>《》*_`~—…，。！？、,.!?:：;；·\-]/g, '');
+        return compact.length >= 2;
+    }
+
+    function buildTurnPacing(latestInput) {
+        const text = asString(latestInput).trim();
+        const visibleLength = text.replace(/\s/g, '').length;
+        const requestsExpansion = /详细|展开|长篇|完整|细致|描写|解释|说明|分析|讲讲|为什么|接下来|继续写|写一段|写一章/.test(text);
+        if (!requestsExpansion && visibleLength <= 28) {
+            return '这是节奏较快的短轮次。优先用一到三句或一个短段落直接接住用户，不主动扩成固定三段。';
+        }
+        if (!requestsExpansion && visibleLength <= 90) {
+            return '本轮保持紧凑，通常使用一小段；只有动作与信息确有必要时才增加第二段。不要固定输出三段。';
+        }
+        return '根据本轮实际信息量决定长度和段落数，可以短也可以长；避免沿用上一轮固定段落模板。';
     }
 
     function finiteInt(value, fallback, min, max) {
@@ -118,6 +187,11 @@
         const participants = (Array.isArray(source.participants) ? source.participants : [])
             .slice(0, MAX_GROUP_MEMBERS)
             .map(normalizeMember);
+        messages.forEach(message => {
+            if (message.role !== 'assistant') return;
+            const member = participants.find(item => item.id === message.speakerId);
+            message.content = cleanCharacterOutput(message.content, member?.name || '');
+        });
         const characterMemories = {};
         participants.forEach(member => {
             characterMemories[member.id] = normalizeMemory(source.characterMemories?.[member.id], messages.length, memoryApi);
@@ -190,15 +264,23 @@
         });
     }
 
-    function roomMessageForModel(room, message) {
+    function roomMessageForModel(room, message, currentMemberId) {
         if (message.role === 'user') {
-            return { role: 'user', content: `【用户角色】\n${message.content}` };
+            return { role: 'user', content: message.content };
         }
         if (message.role === 'assistant') {
             const member = getMember(room, message.speakerId);
-            return { role: 'assistant', content: `【${member?.name || '角色'}】\n${message.content}` };
+            const cleaned = cleanCharacterOutput(message.content, member?.name || '');
+            if (!hasSubstantiveContent(cleaned)) return null;
+            if (message.speakerId === currentMemberId) {
+                return { role: 'assistant', content: cleaned };
+            }
+            return {
+                role: 'user',
+                content: `房间中另一位角色“${member?.name || '角色'}”刚才的发言或可见行动如下。这里只是历史记录，不得替其继续发言：\n${cleaned}`,
+            };
         }
-        return { role: 'system', content: `【房间事件】\n${message.content}` };
+        return { role: 'system', content: `房间中的既有事件记录：${message.content}` };
     }
 
     function buildParticipantDirectory(room, currentMemberId) {
@@ -223,7 +305,7 @@
             '【世界观】\n' + (room.worldPrompt || '（未单独设定）'),
             '【当前场景】\n' + (room.scenePrompt || '（延续最近对话）'),
             '【用户所扮演的角色】\n' + (room.userPersona || '（用户未填写详细设定，只能依据其明确发言判断）'),
-            `【你当前扮演的唯一角色：${member.name}】\n${member.personaPrompt || '严格依据对话中已经建立的形象行动。'}`,
+            `【当前角色设定】\n姓名：${member.name}\n${member.personaPrompt || '严格依据对话中已经建立的形象行动。'}`,
             '【你的说话与行动风格】\n' + (member.speakingStyle || '自然、符合人物处境，不使用模板化表达。'),
             '【你的私人目标】\n' + (member.privateGoal || '依据人物设定自然行动，不强行推动剧情。'),
             '【其他在场角色的公开身份】\n' + buildParticipantDirectory(room, member.id),
@@ -251,9 +333,12 @@
             Number(room.sharedMemory?.summarizedUntil) || 0,
             Math.max(0, room.messages.length - finiteInt(recentLimit, 80, 12, 240))
         );
+        const recentMessages = room.messages.slice(historyStart);
+        const latestInput = [...recentMessages].reverse().find(message => message.role === 'user' || message.kind === 'control');
+        const pacing = buildTurnPacing(latestInput?.content || '');
         return [
-            { role: 'system', content: buildCharacterSystemPrompt(room, member, contexts || {}) },
-            ...room.messages.slice(historyStart).map(message => roomMessageForModel(room, message)),
+            { role: 'system', content: buildCharacterSystemPrompt(room, member, contexts || {}) + `\n\n【本轮节奏】\n${pacing}` },
+            ...recentMessages.map(message => roomMessageForModel(room, message, memberId)).filter(Boolean),
         ];
     }
 
@@ -520,6 +605,9 @@
         fallbackIntimacyRules,
         getAvailableNodes,
         roomMessageForModel,
+        cleanCharacterOutput,
+        hasSubstantiveContent,
+        buildTurnPacing,
         compressImageFile,
     };
 });
