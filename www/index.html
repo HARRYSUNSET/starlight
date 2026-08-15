@@ -1424,7 +1424,7 @@
                 </div>
                 <button id="themeToggleBtn" class="theme-toggle-btn" title="切换主题">🌙</button>
             </div>
-            <div class="sidebar-subtitle">DeepSeek API 驱动</div>
+            <div class="sidebar-subtitle">DeepSeek / OpenRouter API 驱动</div>
             <div class="mode-switcher" aria-label="对话模式">
                 <button type="button" class="mode-switch-btn active" id="btnGeneralMode">💬 通用模式</button>
                 <button type="button" class="mode-switch-btn" id="btnRoomMode">🎭 房间模式</button>
@@ -1437,15 +1437,20 @@
                         <span class="arrow">▼</span>
                     </div>
                     <div class="settings-group-body">
-                        <label>🔑 API Key</label>
-                        <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off">
-                        <div class="hint">输入你的 DeepSeek API Key，仅存储在本地浏览器</div>
-
                         <label>🤖 模型选择</label>
                         <select id="modelSelect">
-                            <option value="deepseek-v4-flash">DeepSeek V4 Flash（快速、经济）</option>
-                            <option value="deepseek-v4-pro">DeepSeek V4 Pro（质量优先）</option>
+                            <optgroup label="DeepSeek">
+                                <option value="deepseek-v4-flash">DeepSeek V4 Flash（快速、经济）</option>
+                                <option value="deepseek-v4-pro">DeepSeek V4 Pro（质量优先）</option>
+                            </optgroup>
+                            <optgroup label="OpenRouter">
+                                <option value="liquid/lfm-2.5-2.6b:free">Liquid LFM2.5-2.6B（免费）</option>
+                            </optgroup>
                         </select>
+
+                        <label>🔑 当前模型的 API Key</label>
+                        <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off">
+                        <div class="hint" id="apiKeyHint">输入你的 DeepSeek API Key，仅存储在本地浏览器</div>
 
                         <label>🧠 思考方式</label>
                         <select id="thinkingModeSelect">
@@ -1707,6 +1712,7 @@
             const $settingsToggle = document.getElementById('settingsToggle');
             const $settingsGroup = document.getElementById('settingsGroup');
             const $apiKeyInput = document.getElementById('apiKeyInput');
+            const $apiKeyHint = document.getElementById('apiKeyHint');
             const $modelSelect = document.getElementById('modelSelect');
             const $thinkingModeSelect = document.getElementById('thinkingModeSelect');
             const $maxOutputSelect = document.getElementById('maxOutputSelect');
@@ -1793,6 +1799,39 @@
             const Rooms = window.StarlightRooms;
             if (!Rooms) throw new Error('房间模式模块加载失败');
 
+            // 所有服务商都沿用现有 OpenAI Chat Completions 消息格式。
+            // 以后要添加其他 OpenAI 兼容 API，只需在这里新增一项，
+            // 无需修改智能体、房间、长期记忆或消息构建代码。
+            const API_PROVIDERS = Object.freeze({
+                deepseek: {
+                    name: 'DeepSeek',
+                    apiUrl: 'https://api.deepseek.com/v1/chat/completions',
+                    defaultModel: 'deepseek-v4-flash',
+                    models: [
+                        { id: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash（快速、经济）' },
+                        { id: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro（质量优先）' },
+                    ],
+                    keyPlaceholder: 'sk-...',
+                    keyHint: '输入你的 DeepSeek API Key，仅存储在本地浏览器',
+                    supportsDeepSeekThinking: true,
+                    supportsJsonMode: true,
+                    maxOutputTokens: null,
+                },
+                openrouter: {
+                    name: 'OpenRouter',
+                    apiUrl: 'https://openrouter.ai/api/v1/chat/completions',
+                    defaultModel: 'liquid/lfm-2.5-2.6b:free',
+                    models: [
+                        { id: 'liquid/lfm-2.5-2.6b:free', label: 'Liquid LFM2.5-2.6B（免费）' },
+                    ],
+                    keyPlaceholder: 'sk-or-v1-...',
+                    keyHint: '输入你的 OpenRouter API Key；该免费模型单次最多输出约 8192 tokens',
+                    supportsDeepSeekThinking: false,
+                    supportsJsonMode: true,
+                    maxOutputTokens: 8192,
+                },
+            });
+
             const LEGACY_STORAGE_KEY = 'deepseek_chat_platform_v2';
             const SETTINGS_STORAGE_KEY = 'deepseek_chat_platform_v3_settings';
             const FALLBACK_STORAGE_KEY = 'deepseek_chat_platform_v3_fallback';
@@ -1801,6 +1840,15 @@
             const DATABASE_STORE = 'state';
             const DATABASE_STATE_KEY = 'appData';
             let appData = {
+                apiProvider: 'deepseek',
+                apiKeys: {
+                    deepseek: '',
+                    openrouter: '',
+                },
+                providerModels: {
+                    deepseek: 'deepseek-v4-flash',
+                    openrouter: 'liquid/lfm-2.5-2.6b:free',
+                },
                 apiKey: '',
                 model: 'deepseek-v4-flash',
                 globalPrompt: '你是一个有帮助的、友好的AI助手。请用简洁清晰的语言回答用户的问题。如果用户的问题不明确，请主动询问澄清。',
@@ -1879,6 +1927,9 @@
 
             function getSettingsSnapshot() {
                 return {
+                    apiProvider: appData.apiProvider,
+                    apiKeys: appData.apiKeys,
+                    providerModels: appData.providerModels,
                     apiKey: appData.apiKey,
                     model: appData.model,
                     globalPrompt: appData.globalPrompt,
@@ -1976,8 +2027,23 @@
 
             function normalizeLoadedData(parsed) {
                 if (!parsed || typeof parsed !== 'object') return;
-                appData.apiKey = parsed.apiKey || '';
-                appData.model = parsed.model || 'deepseek-v4-flash';
+                const loadedProvider = API_PROVIDERS[parsed.apiProvider] ? parsed.apiProvider : 'deepseek';
+                appData.apiProvider = loadedProvider;
+                appData.apiKeys = parsed.apiKeys && typeof parsed.apiKeys === 'object'
+                    ? { ...parsed.apiKeys }
+                    : { deepseek: parsed.apiKey || '', openrouter: '' };
+                appData.providerModels = parsed.providerModels && typeof parsed.providerModels === 'object'
+                    ? { ...parsed.providerModels }
+                    : {
+                        deepseek: parsed.model || API_PROVIDERS.deepseek.defaultModel,
+                        openrouter: API_PROVIDERS.openrouter.defaultModel,
+                    };
+                appData.apiKeys.deepseek = appData.apiKeys.deepseek || '';
+                appData.apiKeys.openrouter = appData.apiKeys.openrouter || '';
+                appData.providerModels.deepseek = appData.providerModels.deepseek || API_PROVIDERS.deepseek.defaultModel;
+                appData.providerModels.openrouter = appData.providerModels.openrouter || API_PROVIDERS.openrouter.defaultModel;
+                appData.apiKey = appData.apiKeys[loadedProvider] || '';
+                appData.model = appData.providerModels[loadedProvider] || API_PROVIDERS[loadedProvider].defaultModel;
                 appData.globalPrompt = parsed.globalPrompt || '快写入你的提示词吧~';
                 appData.naturalStylePrompt = typeof parsed.naturalStylePrompt === 'string'
                     ? parsed.naturalStylePrompt
@@ -1991,11 +2057,13 @@
                 appData.currentRoomId = parsed.currentRoomId || null;
                 appData.updatedAt = Number(parsed.updatedAt) || 0;
 
-                if (appData.model === 'deepseek-chat') {
+                if (appData.apiProvider === 'deepseek' && appData.model === 'deepseek-chat') {
                     appData.model = 'deepseek-v4-flash';
+                    appData.providerModels.deepseek = appData.model;
                     appData.memorySettings.thinkingMode = 'disabled';
-                } else if (appData.model === 'deepseek-reasoner') {
+                } else if (appData.apiProvider === 'deepseek' && appData.model === 'deepseek-reasoner') {
                     appData.model = 'deepseek-v4-flash';
+                    appData.providerModels.deepseek = appData.model;
                     appData.memorySettings.thinkingMode = 'enabled';
                 }
 
@@ -2030,8 +2098,22 @@
 
                 normalizeLoadedData(loaded);
                 if (settingsBackup && Number(settingsBackup.updatedAt) > appData.updatedAt) {
-                    appData.apiKey = settingsBackup.apiKey || appData.apiKey;
-                    appData.model = settingsBackup.model || appData.model;
+                    const backupProvider = API_PROVIDERS[settingsBackup.apiProvider]
+                        ? settingsBackup.apiProvider
+                        : appData.apiProvider;
+                    appData.apiProvider = backupProvider;
+                    if (settingsBackup.apiKeys && typeof settingsBackup.apiKeys === 'object') {
+                        appData.apiKeys = { ...appData.apiKeys, ...settingsBackup.apiKeys };
+                    } else if (settingsBackup.apiKey) {
+                        appData.apiKeys[backupProvider] = settingsBackup.apiKey;
+                    }
+                    if (settingsBackup.providerModels && typeof settingsBackup.providerModels === 'object') {
+                        appData.providerModels = { ...appData.providerModels, ...settingsBackup.providerModels };
+                    } else if (settingsBackup.model) {
+                        appData.providerModels[backupProvider] = settingsBackup.model;
+                    }
+                    appData.apiKey = appData.apiKeys[backupProvider] || '';
+                    appData.model = appData.providerModels[backupProvider] || API_PROVIDERS[backupProvider].defaultModel;
                     appData.globalPrompt = settingsBackup.globalPrompt || appData.globalPrompt;
                     if (typeof settingsBackup.naturalStylePrompt === 'string') {
                         appData.naturalStylePrompt = settingsBackup.naturalStylePrompt;
@@ -2925,7 +3007,7 @@
                 if (appData.activeMode === 'room') {
                     const room = getCurrentRoom();
                     $currentAgentName.textContent = room?.name || '请选择或创建房间';
-                    $modelBadge.textContent = appData.model || 'deepseek-v4-flash';
+                    $modelBadge.textContent = appData.model || getApiProviderConfig().defaultModel;
                     $roomTypeBadge.textContent = room?.roomType === 'group' ? '多人房间' : '双人房间';
                     $roomTypeBadge.hidden = !room;
                     $btnEditRoom.hidden = !room;
@@ -2944,13 +3026,13 @@
                 const agent = getCurrentAgent();
                 if (agent) {
                     $currentAgentName.textContent = agent.name;
-                    $modelBadge.textContent = appData.model || 'deepseek-v4-flash';
+                    $modelBadge.textContent = appData.model || getApiProviderConfig().defaultModel;
                     $messageInput.disabled = false;
                     $btnSend.disabled = false;
                     $emptyState.style.display = 'none';
                 } else {
                     $currentAgentName.textContent = '请选择或创建智能体';
-                    $modelBadge.textContent = appData.model || 'deepseek-v4-flash';
+                    $modelBadge.textContent = appData.model || getApiProviderConfig().defaultModel;
                     $messageInput.disabled = true;
                     $btnSend.disabled = true;
                     $emptyState.style.display = 'flex';
@@ -3347,14 +3429,46 @@
             }
 
             // ==================== API调用与长期记忆整理 ====================
+            function getProviderKeyByModel(modelId) {
+                for (const [providerKey, provider] of Object.entries(API_PROVIDERS)) {
+                    if (provider.models.some(model => model.id === modelId)) return providerKey;
+                }
+                return null;
+            }
+
+            function getApiProviderConfig() {
+                return API_PROVIDERS[appData.apiProvider] || API_PROVIDERS.deepseek;
+            }
+
+            function getApiRequestHeaders() {
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${appData.apiKey}`,
+                };
+                if (appData.apiProvider === 'openrouter') {
+                    headers['X-OpenRouter-Title'] = 'Starlight Chat';
+                    if (location.origin && location.origin !== 'null') {
+                        headers['HTTP-Referer'] = `${location.origin}/`;
+                    }
+                }
+                return headers;
+            }
+
             function getRequestOptions(overrides = {}) {
                 const settings = Memory.normalizeConfig(appData.memorySettings);
-                return {
+                const provider = getApiProviderConfig();
+                const requestedMaxTokens = overrides.maxTokens ?? settings.maxOutputTokens;
+                const options = {
                     model: appData.model,
                     temperature: overrides.temperature ?? 0.72,
-                    max_tokens: overrides.maxTokens ?? settings.maxOutputTokens,
-                    thinking: { type: overrides.thinkingMode || settings.thinkingMode },
+                    max_tokens: provider.maxOutputTokens
+                        ? Math.min(requestedMaxTokens, provider.maxOutputTokens)
+                        : requestedMaxTokens,
                 };
+                if (provider.supportsDeepSeekThinking) {
+                    options.thinking = { type: overrides.thinkingMode || settings.thinkingMode };
+                }
+                return options;
             }
 
             async function callDeepSeekAPI(messages, onChunk, onDone, onError, overrides = {}) {
@@ -3363,16 +3477,13 @@
                     return;
                 }
                 abortController = new AbortController();
-                const apiUrl = 'https://api.deepseek.com/v1/chat/completions';
+                const apiUrl = getApiProviderConfig().apiUrl;
                 const requestOptions = getRequestOptions(overrides);
 
                 try {
                     const response = await fetch(apiUrl, {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${appData.apiKey}`,
-                        },
+                        headers: getApiRequestHeaders(),
                         body: JSON.stringify({
                             ...requestOptions,
                             messages: messages,
@@ -3397,6 +3508,7 @@
                     let buffer = '';
                     let finishReason = null;
                     let usage = null;
+                    let streamError = null;
 
                     while (true) {
                         const { done, value } = await reader.read();
@@ -3411,6 +3523,10 @@
                             if (jsonStr === '[DONE]') continue;
                             try {
                                 const parsed = JSON.parse(jsonStr);
+                                if (parsed.error) {
+                                    streamError = new Error(parsed.error.message || '流式响应中断');
+                                    continue;
+                                }
                                 const delta = parsed.choices?.[0]?.delta?.content;
                                 if (delta) {
                                     fullContent += delta;
@@ -3421,6 +3537,7 @@
                             } catch (parseErr) {}
                         }
                     }
+                    if (streamError) throw streamError;
                     onDone(fullContent, { finishReason, usage });
                 } catch (error) {
                     if (error.name === 'AbortError') {
@@ -3449,22 +3566,23 @@
                 if (!appData.apiKey) throw new Error('请先设置 API Key');
                 abortController = new AbortController();
                 try {
-                    const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${appData.apiKey}`,
-                        },
-                        body: JSON.stringify({
-                            ...getRequestOptions({
-                                temperature: overrides.temperature ?? 0.1,
-                                maxTokens: overrides.maxTokens ?? 8000,
-                                thinkingMode: 'disabled',
-                            }),
-                            messages,
-                            stream: false,
-                            response_format: { type: 'json_object' },
+                    const provider = getApiProviderConfig();
+                    const requestBody = {
+                        ...getRequestOptions({
+                            temperature: overrides.temperature ?? 0.1,
+                            maxTokens: overrides.maxTokens ?? 8000,
+                            thinkingMode: 'disabled',
                         }),
+                        messages,
+                        stream: false,
+                    };
+                    if (provider.supportsJsonMode) {
+                        requestBody.response_format = { type: 'json_object' };
+                    }
+                    const response = await fetch(provider.apiUrl, {
+                        method: 'POST',
+                        headers: getApiRequestHeaders(),
+                        body: JSON.stringify(requestBody),
                         signal: abortController.signal,
                     });
                     if (!response.ok) {
@@ -4205,15 +4323,55 @@
                 else sendRoomMessage('', { continueScene: true });
             });
 
+            function refreshModelSettingsUI() {
+                let detectedProvider = getProviderKeyByModel(appData.model);
+                if (!detectedProvider) {
+                    detectedProvider = API_PROVIDERS[appData.apiProvider] ? appData.apiProvider : 'deepseek';
+                    appData.model = API_PROVIDERS[detectedProvider].defaultModel;
+                }
+                appData.apiProvider = detectedProvider;
+                appData.apiKey = appData.apiKeys[detectedProvider] || '';
+                appData.providerModels[detectedProvider] = appData.model;
+                const provider = getApiProviderConfig();
+                $apiKeyInput.placeholder = provider.keyPlaceholder;
+                $apiKeyHint.textContent = provider.keyHint;
+                $apiKeyInput.value = appData.apiKey;
+                $modelSelect.replaceChildren();
+                Object.entries(API_PROVIDERS).forEach(([providerKey, providerConfig]) => {
+                    const group = document.createElement('optgroup');
+                    group.label = providerConfig.name;
+                    providerConfig.models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model.id;
+                        option.textContent = model.label;
+                        option.dataset.provider = providerKey;
+                        group.appendChild(option);
+                    });
+                    $modelSelect.appendChild(group);
+                });
+                $modelSelect.value = appData.model;
+                $modelBadge.textContent = appData.model;
+            }
+
             $apiKeyInput.addEventListener('input', () => {
                 appData.apiKey = $apiKeyInput.value.trim();
+                appData.apiKeys[appData.apiProvider] = appData.apiKey;
                 saveData();
                 updateSendButton();
             });
             $modelSelect.addEventListener('change', () => {
-                appData.model = $modelSelect.value;
+                appData.apiKeys[appData.apiProvider] = appData.apiKey;
+                appData.providerModels[appData.apiProvider] = appData.model;
+                const selectedModel = $modelSelect.value;
+                const nextProvider = getProviderKeyByModel(selectedModel) || 'deepseek';
+                appData.apiProvider = nextProvider;
+                appData.model = selectedModel;
+                appData.apiKey = appData.apiKeys[nextProvider] || '';
+                appData.providerModels[appData.apiProvider] = appData.model;
+                refreshModelSettingsUI();
                 saveData();
                 $modelBadge.textContent = appData.model;
+                updateSendButton();
             });
             $thinkingModeSelect.addEventListener('change', () => {
                 appData.memorySettings.thinkingMode = $thinkingModeSelect.value;
@@ -4268,8 +4426,7 @@
                 await loadData();
                 applyTheme(); 
 
-                $apiKeyInput.value = appData.apiKey;
-                $modelSelect.value = appData.model;
+                refreshModelSettingsUI();
                 $thinkingModeSelect.value = appData.memorySettings.thinkingMode;
                 $maxOutputSelect.value = String(appData.memorySettings.maxOutputTokens);
                 if (!$maxOutputSelect.value) $maxOutputSelect.value = '16000';
