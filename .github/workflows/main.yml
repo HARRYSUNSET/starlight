@@ -18,11 +18,8 @@ jobs:
         with:
           node-version: '22'
 
-      - name: 3. 安装 Linux 依赖
-        run: |
-          rm -rf node_modules package-lock.json
-          npm install
-          npm install @capacitor/core @capacitor/cli
+      - name: 3. 按锁文件安装依赖
+        run: npm ci
 
       - name: 4. 同步网页代码到 Android 工程
         run: npx cap sync android

@@ -581,7 +581,10 @@
             display: flex;
             flex-direction: column;
             gap: 16px;
-            scroll-behavior: smooth;
+            scroll-behavior: auto;
+            overscroll-behavior-y: contain;
+            overflow-anchor: none;
+            touch-action: pan-y;
         }
         .messages-container::-webkit-scrollbar {
             width: 5px;
@@ -1871,6 +1874,11 @@
             let roomDraftParticipants = [];
             let roomDraftBackground = '';
             let roomDraftNodes = [];
+            let roomDraftSessionId = 0;
+            let roomDraftBackgroundRevision = 0;
+            let roomDraftAvatarRevisions = new Map();
+            let roomDraftImageTasks = new Set();
+            let roomDraftIntimacyValueAtOpen = 0;
             let lastIntimacyDelta = null;
             let storageDb = null;
             let saveQueue = Promise.resolve();
@@ -1960,14 +1968,17 @@
                         .catch((error) => {
                             console.error('本地数据库保存失败:', error);
                             showToast('本地数据库保存失败，请勿关闭页面并检查存储空间', 'error');
+                            throw error;
                         });
-                    return;
+                    return saveQueue;
                 }
 
                 try {
                     localStorage.setItem(FALLBACK_STORAGE_KEY, JSON.stringify(snapshot));
+                    return Promise.resolve();
                 } catch (error) {
                     showToast('本地存储空间不足；请启用正常浏览模式后重试', 'error');
+                    return Promise.reject(error);
                 }
             }
 
@@ -2022,7 +2033,9 @@
                     console.warn('设置备份失败:', error);
                 }
                 if (saveTimer) clearTimeout(saveTimer);
-                saveTimer = setTimeout(persistFullState, 160);
+                saveTimer = setTimeout(() => {
+                    persistFullState().catch(() => {});
+                }, 160);
             }
 
             function normalizeLoadedData(parsed) {
@@ -2119,9 +2132,15 @@
                         appData.naturalStylePrompt = settingsBackup.naturalStylePrompt;
                     }
                     appData.memorySettings = Memory.normalizeConfig(settingsBackup.memorySettings);
-                    appData.currentAgentId = settingsBackup.currentAgentId || appData.currentAgentId;
-                    appData.activeMode = settingsBackup.activeMode === 'room' ? 'room' : appData.activeMode;
-                    appData.currentRoomId = settingsBackup.currentRoomId || appData.currentRoomId;
+                    if (Object.prototype.hasOwnProperty.call(settingsBackup, 'currentAgentId')) {
+                        appData.currentAgentId = settingsBackup.currentAgentId || null;
+                    }
+                    if (settingsBackup.activeMode === 'room' || settingsBackup.activeMode === 'general') {
+                        appData.activeMode = settingsBackup.activeMode;
+                    }
+                    if (Object.prototype.hasOwnProperty.call(settingsBackup, 'currentRoomId')) {
+                        appData.currentRoomId = settingsBackup.currentRoomId || null;
+                    }
                 }
 
                 if (appData.agents.length === 0) {
@@ -2187,6 +2206,16 @@
                 return appData.rooms.find(room => room.id === appData.currentRoomId) || null;
             }
 
+            function canChangeConversationTarget() {
+                if (!isGenerating) return true;
+                showToast('请先停止当前生成，再切换或修改对话', 'info');
+                return false;
+            }
+
+            function resetScrollIntent() {
+                isUserScrolledUp = false;
+            }
+
             function getIntimacyRulesSignature(room) {
                 const member = room?.participants?.[0];
                 return JSON.stringify([
@@ -2202,12 +2231,11 @@
 
             function setActiveMode(mode) {
                 const nextMode = mode === 'room' ? 'room' : 'general';
-                if (isGenerating) {
-                    showToast('请先停止当前生成，再切换模式', 'info');
-                    return;
-                }
+                if (!canChangeConversationTarget()) return;
+                if (appData.activeMode === nextMode) return;
                 appData.activeMode = nextMode;
                 renderedMessageLimit = 200;
+                resetScrollIntent();
                 saveData();
                 updateModeUI();
                 renderMessages();
@@ -2240,13 +2268,11 @@
 
             function switchRoom(roomId) {
                 if (appData.currentRoomId === roomId) return;
-                if (isGenerating) {
-                    showToast('请先停止当前生成', 'info');
-                    return;
-                }
+                if (!canChangeConversationTarget()) return;
                 appData.currentRoomId = roomId;
                 renderedMessageLimit = 200;
                 lastIntimacyDelta = null;
+                resetScrollIntent();
                 saveData();
                 renderRoomsList();
                 renderRoomContext();
@@ -2255,6 +2281,7 @@
             }
 
             function deleteRoom(roomId) {
+                if (!canChangeConversationTarget()) return;
                 const room = appData.rooms.find(item => item.id === roomId);
                 if (!room) return;
                 if (!confirm(`确定删除房间“${room.name}”及其全部对话、记忆和图片吗？此操作不可恢复。`)) return;
@@ -2411,7 +2438,40 @@
                 $participantAddActions.hidden = roomDraftType === 'double' && roomDraftParticipants.length >= 1;
             }
 
+            function trackRoomDraftImageTask(task) {
+                const taskSet = roomDraftImageTasks;
+                taskSet.add(task);
+                task.finally(() => taskSet.delete(task));
+                return task;
+            }
+
+            async function waitForRoomDraftImages() {
+                while (roomDraftImageTasks.size > 0) {
+                    await Promise.all([...roomDraftImageTasks]);
+                }
+            }
+
+            function updateDraftMemberAvatarPreview(memberId) {
+                const member = roomDraftParticipants.find(item => item.id === memberId);
+                const editor = [...$roomParticipantsEditor.querySelectorAll('.participant-editor')]
+                    .find(item => item.dataset.memberId === memberId);
+                const preview = editor?.querySelector('.member-avatar-preview');
+                if (!member || !preview) return;
+                const next = document.createElement(member.avatar ? 'img' : 'div');
+                next.className = 'image-preview member-avatar-preview';
+                if (member.avatar) {
+                    next.src = member.avatar;
+                    next.alt = `${member.name || '角色'}头像预览`;
+                }
+                preview.replaceWith(next);
+            }
+
             function openRoomModal(roomId = null) {
+                if (!canChangeConversationTarget()) return;
+                roomDraftSessionId += 1;
+                roomDraftBackgroundRevision = 0;
+                roomDraftAvatarRevisions = new Map();
+                roomDraftImageTasks = new Set();
                 editingRoomId = roomId;
                 const room = roomId ? appData.rooms.find(item => item.id === roomId) : null;
                 $roomModalTitle.textContent = room ? '📝 编辑房间' : '🎭 创建房间';
@@ -2430,7 +2490,8 @@
                 $roomUserPersonaInput.value = room?.userPersona || '';
                 $roomTurnModeSelect.value = room?.turnMode || 'smart';
                 $roomMaxSpeakersSelect.value = String(room?.maxSpeakers || 2);
-                $initialIntimacyInput.value = String(room?.intimacy?.value || 0);
+                roomDraftIntimacyValueAtOpen = Number(room?.intimacy?.value) || 0;
+                $initialIntimacyInput.value = String(roomDraftIntimacyValueAtOpen);
                 $roomStyleToggle.checked = room?.styleEnabled !== false;
                 $roomStylePromptInput.value = room?.stylePrompt || Memory.NATURAL_STYLE_GUIDE;
                 $roomBackgroundPreview.src = roomDraftBackground || '';
@@ -2455,6 +2516,10 @@
             function closeRoomModal(force = false) {
                 if (!$roomModalLoading.hidden && !force) return;
                 $roomModalOverlay.style.display = 'none';
+                roomDraftSessionId += 1;
+                roomDraftBackgroundRevision += 1;
+                roomDraftAvatarRevisions = new Map();
+                roomDraftImageTasks = new Set();
                 editingRoomId = null;
                 roomDraftParticipants = [];
                 roomDraftNodes = [];
@@ -2562,17 +2627,32 @@
                     editor.querySelector('.member-avatar-file').addEventListener('change', async event => {
                         const file = event.target.files?.[0];
                         if (!file) return;
-                        try {
-                            member.avatar = await Rooms.compressImageFile(file, { maxWidth: 420, maxHeight: 420, quality: 0.84, square: true });
-                            renderRoomParticipantsEditor();
-                        } catch (error) {
-                            showToast(error.message, 'error');
-                        }
+                        const sessionId = roomDraftSessionId;
+                        const revision = (roomDraftAvatarRevisions.get(member.id) || 0) + 1;
+                        roomDraftAvatarRevisions.set(member.id, revision);
+                        const task = (async () => {
+                            try {
+                                const avatar = await Rooms.compressImageFile(file, { maxWidth: 420, maxHeight: 420, quality: 0.84, square: true });
+                                const currentMember = roomDraftParticipants.find(item => item.id === member.id);
+                                if (sessionId !== roomDraftSessionId
+                                    || roomDraftAvatarRevisions.get(member.id) !== revision
+                                    || !currentMember) return;
+                                currentMember.avatar = avatar;
+                                updateDraftMemberAvatarPreview(member.id);
+                            } catch (error) {
+                                if (sessionId === roomDraftSessionId) showToast(error.message, 'error');
+                            } finally {
+                                event.target.value = '';
+                            }
+                        })();
+                        trackRoomDraftImageTask(task);
+                        await task;
                     });
                     editor.querySelector('.member-avatar-remove').addEventListener('click', event => {
                         event.preventDefault();
+                        roomDraftAvatarRevisions.set(member.id, (roomDraftAvatarRevisions.get(member.id) || 0) + 1);
                         member.avatar = '';
-                        renderRoomParticipantsEditor();
+                        updateDraftMemberAvatarPreview(member.id);
                     });
                 });
             }
@@ -2627,13 +2707,15 @@
                 };
                 let room;
                 if (existingRoom) {
+                    const requestedIntimacy = Number($initialIntimacyInput.value);
+                    const intimacyWasEdited = requestedIntimacy !== roomDraftIntimacyValueAtOpen;
                     room = Rooms.normalizeRoom({
                         ...existingRoom,
                         ...input,
                         intimacy: roomDraftType === 'double' ? {
                             ...(existingRoom.intimacy || {}),
-                            value: Number($initialIntimacyInput.value),
-                            initialValue: Number($initialIntimacyInput.value),
+                            value: intimacyWasEdited ? requestedIntimacy : existingRoom.intimacy?.value,
+                            initialValue: intimacyWasEdited ? requestedIntimacy : existingRoom.intimacy?.initialValue,
                             nodes: Rooms.normalizeNodes(roomDraftNodes),
                         } : null,
                     }, Memory, Memory.NATURAL_STYLE_GUIDE);
@@ -2673,18 +2755,18 @@
 
             async function saveRoomFromModal() {
                 if (!$roomModalLoading.hidden) return;
+                const draftSessionId = roomDraftSessionId;
                 const existing = editingRoomId ? appData.rooms.find(room => room.id === editingRoomId) : null;
-                let room;
                 try {
-                    room = collectRoomDraft(existing);
+                    if (roomDraftImageTasks.size > 0) {
+                        setRoomModalLoading(true, '正在处理并保存图片……');
+                        await waitForRoomDraftImages();
+                    }
+                    if (draftSessionId !== roomDraftSessionId) return;
+                    const room = collectRoomDraft(existing);
                     validateRoomDraft(room);
-                } catch (error) {
-                    showToast(error.message, 'error');
-                    return;
-                }
-                const signatureChanged = room.roomType === 'double'
-                    && room.intimacy.rulesSignature !== getIntimacyRulesSignature(room);
-                try {
+                    const signatureChanged = room.roomType === 'double'
+                        && room.intimacy.rulesSignature !== getIntimacyRulesSignature(room);
                     if (room.roomType === 'double' && (!room.intimacy.rulesReady || signatureChanged)) {
                         setRoomModalLoading(true, '正在根据人物设定生成隐藏亲密度判定……');
                         await generateIntimacyRules(room);
@@ -2699,6 +2781,7 @@
                     appData.currentRoomId = room.id;
                     appData.activeMode = 'room';
                     saveData();
+                    await persistFullState();
                     closeRoomModal(true);
                     updateModeUI();
                     renderMessages();
@@ -2744,21 +2827,32 @@
             $roomBackgroundFile.addEventListener('change', async event => {
                 const file = event.target.files?.[0];
                 if (!file) return;
-                try {
-                    roomDraftBackground = await Rooms.compressImageFile(file, { maxWidth: 1600, maxHeight: 1100, quality: 0.78 });
-                    $roomBackgroundPreview.src = roomDraftBackground;
-                    $roomBackgroundPreview.style.visibility = 'visible';
-                } catch (error) {
-                    showToast(error.message, 'error');
-                }
+                const sessionId = roomDraftSessionId;
+                const revision = ++roomDraftBackgroundRevision;
+                const task = (async () => {
+                    try {
+                        const background = await Rooms.compressImageFile(file, { maxWidth: 1600, maxHeight: 1100, quality: 0.78 });
+                        if (sessionId !== roomDraftSessionId || revision !== roomDraftBackgroundRevision) return;
+                        roomDraftBackground = background;
+                        $roomBackgroundPreview.src = roomDraftBackground;
+                        $roomBackgroundPreview.style.visibility = 'visible';
+                    } catch (error) {
+                        if (sessionId === roomDraftSessionId) showToast(error.message, 'error');
+                    } finally {
+                        event.target.value = '';
+                    }
+                })();
+                trackRoomDraftImageTask(task);
+                await task;
             });
             $btnRemoveRoomBackground.addEventListener('click', () => {
+                roomDraftBackgroundRevision += 1;
                 roomDraftBackground = '';
                 $roomBackgroundFile.value = '';
                 $roomBackgroundPreview.src = '';
                 $roomBackgroundPreview.style.visibility = 'hidden';
             });
-            $btnCancelRoomModal.addEventListener('click', closeRoomModal);
+            $btnCancelRoomModal.addEventListener('click', () => closeRoomModal());
             $btnConfirmRoom.addEventListener('click', saveRoomFromModal);
             $roomModalOverlay.addEventListener('click', event => {
                 if (event.target === $roomModalOverlay) closeRoomModal();
@@ -2766,8 +2860,14 @@
             $btnRegenerateIntimacyRules.addEventListener('click', async () => {
                 const existing = editingRoomId ? appData.rooms.find(room => room.id === editingRoomId) : null;
                 if (!existing) return;
+                const draftSessionId = roomDraftSessionId;
                 let draft;
                 try {
+                    if (roomDraftImageTasks.size > 0) {
+                        setRoomModalLoading(true, '正在处理并保存图片……');
+                        await waitForRoomDraftImages();
+                    }
+                    if (draftSessionId !== roomDraftSessionId) return;
                     draft = collectRoomDraft(existing);
                     validateRoomDraft(draft);
                     setRoomModalLoading(true, '正在重新生成隐藏亲密度判定……');
@@ -2775,6 +2875,7 @@
                     const index = appData.rooms.findIndex(room => room.id === existing.id);
                     appData.rooms[index] = draft;
                     saveData();
+                    await persistFullState();
                     updateIntimacyRulesStatus(draft);
                     showToast('判定已启用，可进行攻略', 'success');
                 } catch (error) {
@@ -2822,16 +2923,17 @@
             // ==================== 智能体交互核心逻辑 ====================
             function switchAgent(agentId) {
                 if (appData.currentAgentId === agentId) return;
+                if (!canChangeConversationTarget()) return;
                 appData.currentAgentId = agentId;
                 renderedMessageLimit = 200;
+                resetScrollIntent();
                 saveData();
-                renderAgentsList();
-                renderRoomsList();
                 updateModeUI();
                 renderMessages();
             }
 
             function deleteAgent(agentId) {
+                if (!canChangeConversationTarget()) return;
                 if (appData.agents.length <= 1) {
                     showToast('至少需要保留一个智能体', 'error');
                     return;
@@ -2903,15 +3005,17 @@
                     });
                 });
 
-                document.addEventListener('click', (e) => {
-                    if (!e.target.closest('.agent-more-btn') && !e.target.closest('.agent-menu')) {
-                        closeAllMenus();
-                    }
-                });
             }
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.agent-more-btn') && !e.target.closest('.agent-menu')) {
+                    document.querySelectorAll('.agent-menu').forEach(menu => menu.classList.remove('show'));
+                }
+            });
 
             // ==================== 智能体模态框逻辑 ====================
             function openCreateModal() {
+                if (!canChangeConversationTarget()) return;
                 editingAgentId = null;
                 document.querySelector('.modal h3').textContent = '✨ 创建新智能体';
                 $btnConfirmCreate.textContent = '创建智能体';
@@ -2922,6 +3026,7 @@
             }
 
             function openEditModal(agentId) {
+                if (!canChangeConversationTarget()) return;
                 editingAgentId = agentId;
                 const agent = appData.agents.find(a => a.id === agentId);
                 if (!agent) return;
@@ -3103,6 +3208,22 @@
             }
 
             function updateSendButton() {
+                [
+                    $apiKeyInput,
+                    $modelSelect,
+                    $thinkingModeSelect,
+                    $maxOutputSelect,
+                    $longMemoryToggle,
+                    $naturalStyleToggle,
+                    $naturalStylePromptInput,
+                    $btnResetStylePrompt,
+                    $globalPromptInput,
+                    $btnCreateAgent,
+                    $btnCreateRoom,
+                    $btnEditRoom,
+                ].forEach(control => {
+                    if (control) control.disabled = isGenerating;
+                });
                 if (isGenerating) {
                     $btnSend.classList.add('stop-mode');
                     $btnSend.textContent = '■';
@@ -3124,11 +3245,27 @@
             }
 
             // ==================== 消息渲染 ====================
-            function renderMessages() {
-                if (appData.activeMode === 'room') {
-                    renderRoomMessages();
+            function captureMessageViewport() {
+                return { scrollTop: $messagesContainer.scrollTop };
+            }
+
+            function finishMessageRender(viewport) {
+                if (!viewport) {
+                    scrollToBottom();
                     return;
                 }
+                requestAnimationFrame(() => {
+                    const maxTop = Math.max(0, $messagesContainer.scrollHeight - $messagesContainer.clientHeight);
+                    $messagesContainer.scrollTop = Math.min(viewport.scrollTop, maxTop);
+                });
+            }
+
+            function renderMessages(options = {}) {
+                if (appData.activeMode === 'room') {
+                    renderRoomMessages(options);
+                    return;
+                }
+                const viewport = options.preserveScroll ? captureMessageViewport() : null;
                 const agent = getCurrentAgent();
                 $messagesContainer.innerHTML = '';
 
@@ -3164,11 +3301,12 @@
                         $messagesContainer.appendChild(wrapper);
                     });
                 }
-                scrollToBottom();
+                finishMessageRender(viewport);
                 updateToolbarButtons();
             }
 
-            function renderRoomMessages() {
+            function renderRoomMessages(options = {}) {
+                const viewport = options.preserveScroll ? captureMessageViewport() : null;
                 const room = getCurrentRoom();
                 $messagesContainer.innerHTML = '';
                 if (!room || room.messages.length === 0) {
@@ -3181,6 +3319,7 @@
                                 : '在左侧创建双人房间或多人房间。'}</p>
                         </div>`;
                     applyRoomBackground(room);
+                    finishMessageRender(viewport);
                     updateToolbarButtons();
                     return;
                 }
@@ -3204,7 +3343,7 @@
                     const isUser = message.role === 'user';
                     const member = isUser ? null : Rooms.getMember(room, message.speakerId);
                     const displayContent = isUser ? message.content : Rooms.cleanCharacterOutput(message.content, member?.name || '');
-                    if (!isUser && !Rooms.hasSubstantiveContent(displayContent)) return;
+                    if (!isUser && !Rooms.hasSubstantiveRoomContent(room, displayContent)) return;
                     const row = document.createElement('div');
                     row.className = `room-message-row ${isUser ? 'user' : 'assistant'}`;
                     const userAvatar = '<span class="room-avatar-fallback" style="background:#5d6475">你</span>';
@@ -3220,7 +3359,7 @@
                     $messagesContainer.appendChild(row);
                 });
                 applyRoomBackground(room);
-                scrollToBottom();
+                finishMessageRender(viewport);
                 updateToolbarButtons();
             }
 
@@ -3299,8 +3438,9 @@
             $messagesContainer.addEventListener('touchmove', markUserInteraction, { passive: true });
             $messagesContainer.addEventListener('pointerdown', markUserInteraction);
 
-            function scrollToBottom(force = false) {
-                if (!isUserScrolledUp || force) {
+            function scrollToBottom() {
+                if (isGenerating) return;
+                if (!isUserScrolledUp) {
                     requestAnimationFrame(() => {
                         $messagesContainer.scrollTop = $messagesContainer.scrollHeight;
                     });
@@ -3322,7 +3462,6 @@
                 wrapper.appendChild(timeDiv);
                 $messagesContainer.appendChild(wrapper);
                 $emptyState.style.display = 'none';
-                scrollToBottom();
                 return bubble;
             }
 
@@ -3333,7 +3472,6 @@
                     const agent = getCurrentAgent();
                     timeDiv.textContent = (agent?.name || 'AI') + ' · 生成中...';
                 }
-                scrollToBottom();
             }
 
             function finalizeStreamingMessage(fullContent) {
@@ -3368,7 +3506,6 @@
                         </div>
                     </div>`;
                 $messagesContainer.appendChild(row);
-                scrollToBottom();
                 const bubble = row.querySelector('.message-bubble');
                 bubble.dataset.memberName = member.name;
                 return bubble;
@@ -3380,7 +3517,6 @@
                 bubble.innerHTML = cleaned
                     ? formatMessageContent(cleaned)
                     : '<span class="typing-indicator"><span></span><span></span><span></span></span>';
-                scrollToBottom();
             }
 
             function removeRoomStreamingMessage() {
@@ -3399,26 +3535,29 @@
                 });
             }
 
-            async function generateValidRoomResponse(messages, member, queueIndex, queueTotal) {
+            async function generateValidRoomResponse(room, messages, member, queueIndex, queueTotal) {
                 let requestMessages = messages;
                 let lastMetadata = {};
-                for (let attempt = 0; attempt < 2; attempt += 1) {
+                for (let attempt = 0; attempt < 3; attempt += 1) {
                     const bubble = createRoomStreamingMessage(member, queueIndex, queueTotal);
-                    const response = await callDeepSeekStreamPromise(requestMessages, bubble);
+                    const response = await callDeepSeekStreamPromise(requestMessages, bubble, {
+                        temperature: attempt === 0 ? 0.72 : 0.5,
+                    });
                     removeRoomStreamingMessage();
                     lastMetadata = response.metadata || {};
                     if (response.content === null || response.content === undefined || !isGenerating) return response;
                     const cleaned = Rooms.cleanCharacterOutput(response.content, member.name);
-                    if (Rooms.hasSubstantiveContent(cleaned)) {
+                    if (Rooms.hasSubstantiveRoomContent(room, cleaned)) {
                         return { content: cleaned, metadata: lastMetadata };
                     }
-                    if (attempt === 0) {
-                        updateMemoryStatus(`${member.name}的首次输出只有空行或姓名标签，正在自动重试…`, true);
+                    if (attempt < 2) {
+                        updateMemoryStatus(`${member.name}的第${attempt + 1}次输出只有空行或姓名标签，正在自动重试…`, true);
                         const retryInstruction = [
                             '【本轮自动重试】',
                             '上一候选输出只有重复姓名标签、标题或空行，已被判定为无效。',
                             '请从头重新回答用户的最新消息，第一行就写有实际意义的角色语言或动作。',
-                            '不要输出姓名标签；短对话只需一句或一小段，不要为了凑格式写成三段。',
+                            `你就是${member.name}，无需再次写出“${member.name}”或任何角色标题。`,
+                            '不要输出姓名标签、Markdown标题或占位符；短对话只需一句或一小段，不要为了凑格式写成三段。',
                         ].join('\n');
                         requestMessages = requestMessages.map((message, index) => index === 0
                             ? { ...message, content: `${message.content}\n\n${retryInstruction}` }
@@ -3510,33 +3649,39 @@
                     let usage = null;
                     let streamError = null;
 
+                    const consumeSseLine = (line) => {
+                        const trimmed = line.trim();
+                        if (!trimmed || !trimmed.startsWith('data:')) return;
+                        const jsonStr = trimmed.slice(5).trim();
+                        if (!jsonStr || jsonStr === '[DONE]') return;
+                        try {
+                            const parsed = JSON.parse(jsonStr);
+                            if (parsed.error) {
+                                streamError = new Error(parsed.error.message || '流式响应中断');
+                                return;
+                            }
+                            const delta = parsed.choices?.[0]?.delta?.content;
+                            if (delta) {
+                                fullContent += delta;
+                                onChunk(fullContent);
+                            }
+                            if (parsed.choices?.[0]?.finish_reason) finishReason = parsed.choices[0].finish_reason;
+                            if (parsed.usage) usage = parsed.usage;
+                        } catch (parseError) {
+                            console.warn('忽略无法解析的流式响应片段:', parseError);
+                        }
+                    };
+
                     while (true) {
                         const { done, value } = await reader.read();
                         if (done) break;
                         buffer += decoder.decode(value, { stream: true });
                         const lines = buffer.split('\n');
                         buffer = lines.pop() || '';
-                        for (const line of lines) {
-                            const trimmed = line.trim();
-                            if (!trimmed || !trimmed.startsWith('data:')) continue;
-                            const jsonStr = trimmed.slice(5).trim();
-                            if (jsonStr === '[DONE]') continue;
-                            try {
-                                const parsed = JSON.parse(jsonStr);
-                                if (parsed.error) {
-                                    streamError = new Error(parsed.error.message || '流式响应中断');
-                                    continue;
-                                }
-                                const delta = parsed.choices?.[0]?.delta?.content;
-                                if (delta) {
-                                    fullContent += delta;
-                                    onChunk(fullContent);
-                                }
-                                if (parsed.choices?.[0]?.finish_reason) finishReason = parsed.choices[0].finish_reason;
-                                if (parsed.usage) usage = parsed.usage;
-                            } catch (parseErr) {}
-                        }
+                        lines.forEach(consumeSseLine);
                     }
+                    buffer += decoder.decode();
+                    if (buffer.trim()) consumeSseLine(buffer);
                     if (streamError) throw streamError;
                     onDone(fullContent, { finishReason, usage });
                 } catch (error) {
@@ -3665,16 +3810,7 @@
             }
 
             function getRoomMemoryConversation(room) {
-                return room.messages.map(message => {
-                    if (message.role === 'assistant') {
-                        const member = Rooms.getMember(room, message.speakerId);
-                        const cleaned = Rooms.cleanCharacterOutput(message.content, member?.name || '');
-                        if (!Rooms.hasSubstantiveContent(cleaned)) return null;
-                        return { role: 'assistant', content: `${member?.name || '角色'}的发言或行动：${cleaned}` };
-                    }
-                    if (message.role === 'user') return { role: 'user', content: `用户的发言或行动：${message.content}` };
-                    return { role: 'system', content: `场景事件：${message.content}` };
-                }).filter(Boolean);
+                return Rooms.roomMessagesForMemory(room);
             }
 
             async function summarizeRoomMemoryChunk(room, chunk) {
@@ -3932,7 +4068,7 @@
                                 createdAt: Date.now(),
                             });
                             saveData();
-                            renderRoomMessages();
+                            renderRoomMessages({ preserveScroll: true });
                         }
                     }
                     for (let index = 0; index < selection.speakerIds.length; index += 1) {
@@ -3943,10 +4079,10 @@
                         updateMemoryStatus(`${member.name}正在组织回应（${index + 1}/${selection.speakerIds.length}）…`, true);
                         const contexts = getRoomMemoryContexts(room, memberId, content);
                         const messages = Rooms.buildCharacterMessages(room, memberId, contexts, 100);
-                        const response = await generateValidRoomResponse(messages, member, index + 1, selection.speakerIds.length);
+                        const response = await generateValidRoomResponse(room, messages, member, index + 1, selection.speakerIds.length);
                         if (response.content === null || response.content === undefined || !isGenerating) break;
                         const responseText = Rooms.cleanCharacterOutput(response.content, member.name);
-                        if (!Rooms.hasSubstantiveContent(responseText)) {
+                        if (!Rooms.hasSubstantiveRoomContent(room, responseText)) {
                             showToast(`${member.name}本轮没有生成有效内容，已跳过空回复`, 'info');
                             continue;
                         }
@@ -3962,8 +4098,7 @@
                         generatedCount += 1;
                         room.updatedAt = Date.now();
                         saveData();
-                        renderRoomMessages();
-                        scrollToBottom(true);
+                        renderRoomMessages({ preserveScroll: true });
                         if (response.metadata?.finishReason === 'length') {
                             showToast(`${member.name}的回复达到长度上限`, 'info');
                         }
@@ -3984,7 +4119,7 @@
                     updateSendButton();
                     updateToolbarButtons();
                     updateMemoryStatus();
-                    renderRoomMessages();
+                    renderRoomMessages({ preserveScroll: true });
                 }
             }
 
@@ -4046,14 +4181,12 @@
                             }
                             saveData();
                             finalizeStreamingMessage(fullContent);
-                            renderMessages();
-                            scrollToBottom(true);
+                            renderMessages({ preserveScroll: true });
                         } else {
                             removeStreamingMessage();
-                            renderMessages();
+                            renderMessages({ preserveScroll: true });
                         }
                         updateToolbarButtons();
-                        scrollToBottom();
                         if (metadata.finishReason === 'length') {
                             showToast('回复已达到长度上限，可发送“继续”接着写', 'info');
                         }
@@ -4062,7 +4195,7 @@
                         isGenerating = false;
                         updateSendButton();
                         removeStreamingMessage();
-                        renderMessages();
+                        renderMessages({ preserveScroll: true });
                         updateToolbarButtons();
                         showToast('错误: ' + error.message, 'error');
                         console.error('API调用错误:', error);
@@ -4089,7 +4222,7 @@
                 if (!member) return;
                 room.messages.splice(messageIndex, 1);
                 saveData();
-                renderRoomMessages();
+                renderRoomMessages({ preserveScroll: true });
                 isGenerating = true;
                 updateSendButton();
                 updateToolbarButtons();
@@ -4098,10 +4231,10 @@
                     const latestUser = [...room.messages].reverse().find(message => message.role === 'user');
                     const contexts = getRoomMemoryContexts(room, member.id, latestUser?.content || '');
                     const messages = Rooms.buildCharacterMessages(room, member.id, contexts, 100);
-                    const response = await generateValidRoomResponse(messages, member, 1, 1);
+                    const response = await generateValidRoomResponse(room, messages, member, 1, 1);
                     if (response.content !== null && response.content !== undefined && isGenerating) {
                         const cleaned = Rooms.cleanCharacterOutput(response.content, member.name);
-                        if (Rooms.hasSubstantiveContent(cleaned)) {
+                        if (Rooms.hasSubstantiveRoomContent(room, cleaned)) {
                             room.messages.splice(messageIndex, 0, { ...oldMessage, id: Rooms.createId('roommsg'), content: cleaned, createdAt: Date.now() });
                             replacementSaved = true;
                             saveData();
@@ -4116,7 +4249,7 @@
                     removeRoomStreamingMessage();
                     isGenerating = false;
                     saveData();
-                    renderRoomMessages();
+                    renderRoomMessages({ preserveScroll: true });
                     updateSendButton();
                     updateToolbarButtons();
                     updateMemoryStatus();
@@ -4136,20 +4269,30 @@
 
                 agent.conversations.pop();
                 saveData();
-                renderMessages();
+                renderMessages({ preserveScroll: true });
                 updateToolbarButtons();
 
                 isGenerating = true;
                 updateSendButton();
                 updateToolbarButtons();
                 let bubble = null;
+                let replacementCommitted = false;
+                let originalRestored = false;
+                const restoreOriginalResponse = () => {
+                    if (replacementCommitted || originalRestored) return;
+                    agent.conversations.push(lastMsg);
+                    originalRestored = true;
+                    saveData();
+                };
                 try {
                     await ensureLongTermMemory(agent);
                     if (!isGenerating) return;
                 } catch (error) {
                     isGenerating = false;
+                    restoreOriginalResponse();
                     updateSendButton();
                     updateToolbarButtons();
+                    renderMessages({ preserveScroll: true });
                     if (error.name !== 'AbortError') {
                         showToast('长期记忆整理未完成：' + error.message, 'error');
                     }
@@ -4166,13 +4309,14 @@
                         updateSendButton();
                         if (fullContent !== null && fullContent !== undefined) {
                             agent.conversations.push({ role: 'assistant', content: fullContent || '（回复为空）' });
+                            replacementCommitted = true;
                             saveData();
                             finalizeStreamingMessage(fullContent);
-                            renderMessages();
-                            scrollToBottom(true);
+                            renderMessages({ preserveScroll: true });
                         } else {
+                            restoreOriginalResponse();
                             removeStreamingMessage();
-                            renderMessages();
+                            renderMessages({ preserveScroll: true });
                         }
                         updateToolbarButtons();
                         if (metadata.finishReason === 'length') {
@@ -4182,8 +4326,9 @@
                     (error) => {
                         isGenerating = false;
                         updateSendButton();
+                        restoreOriginalResponse();
                         removeStreamingMessage();
-                        renderMessages();
+                        renderMessages({ preserveScroll: true });
                         updateToolbarButtons();
                         showToast('错误: ' + error.message, 'error');
                     }
@@ -4408,10 +4553,10 @@
                 saveData();
             });
             document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'hidden' && saveTimer) persistFullState();
+                if (document.visibilityState === 'hidden' && saveTimer) persistFullState().catch(() => {});
             });
             window.addEventListener('pagehide', () => {
-                if (saveTimer) persistFullState();
+                if (saveTimer) persistFullState().catch(() => {});
             });
 
             // ==================== 初始化 ====================
@@ -4437,7 +4582,8 @@
                 $modelBadge.textContent = appData.model;
                 
                 renderAgentsList();
-                updateChatUI();
+                renderRoomsList();
+                updateModeUI();
                 renderMessages();
                 updateToolbarButtons();
                 updateSendButton();

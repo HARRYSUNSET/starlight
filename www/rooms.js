@@ -51,14 +51,27 @@
 
         const escapedName = escapeRegExp(name);
         const decoratedName = `(?:\\*\\*|__)?\\s*${escapedName}\\s*(?:\\*\\*|__)?`;
+        const wrappedName = `(?:【\\s*${escapedName}\\s*】|\\[\\s*${escapedName}\\s*\\]|「\\s*${escapedName}\\s*」|『\\s*${escapedName}\\s*』|<\\s*${escapedName}\\s*>|《\\s*${escapedName}\\s*》)`;
+        const markdownPrefix = '(?:#{1,6}\\s*|[>+*-]\\s*)?';
         const prefixPattern = new RegExp(
-            `^(?:【\\s*${escapedName}\\s*】|\\[\\s*${escapedName}\\s*\\]|${decoratedName}[：:])\\s*`,
+            `^${markdownPrefix}(?:${wrappedName}(?:\\s*[：:|｜—-])?\\s*|${decoratedName}(?:\\s*[：:|｜—-]\\s*|\\s+(?=[“\"'「『（(])))`,
             'i'
         );
         const onlyPattern = new RegExp(
-            `^(?:【\\s*${escapedName}\\s*】|\\[\\s*${escapedName}\\s*\\]|${decoratedName}[：:]?|${escapedName})$`,
+            `^${markdownPrefix}(?:${wrappedName}|${decoratedName})(?:\\s*[：:|｜—-])?\\s*$`,
             'i'
         );
+        const repeatedNamePattern = new RegExp(escapedName, 'gi');
+
+        function isOnlyRepeatedName(line) {
+            if (!repeatedNamePattern.test(line)) return false;
+            repeatedNamePattern.lastIndex = 0;
+            const remainder = line
+                .replace(repeatedNamePattern, '')
+                .replace(/[\s#【】\[\]（）()「」『』<>《》*_`~|｜：:;；、，。！？,.!?·+\-—…'\"]/g, '');
+            repeatedNamePattern.lastIndex = 0;
+            return remainder.length === 0;
+        }
 
         const cleanedLines = [];
         text.split('\n').forEach(line => {
@@ -68,7 +81,7 @@
                 next = next.trimStart().replace(prefixPattern, '');
                 guard += 1;
             }
-            if (onlyPattern.test(next.trim())) return;
+            if (onlyPattern.test(next.trim()) || isOnlyRepeatedName(next.trim())) return;
             cleanedLines.push(next);
         });
         text = cleanedLines.join('\n');
@@ -87,7 +100,21 @@
     function hasSubstantiveContent(content) {
         const compact = asString(content)
             .replace(/[\s【】\[\]（）()「」『』<>《》*_`~—…，。！？、,.!?:：;；·\-]/g, '');
-        return compact.length >= 2;
+        return compact.length >= 1;
+    }
+
+    function hasSubstantiveRoomContent(room, content) {
+        if (!hasSubstantiveContent(content)) return false;
+        let compact = asString(content)
+            .replace(/[\s【】\[\]（）()「」『』<>《》*_`~—…，。！？、,.!?:：;；·|｜\-]/g, '');
+        const names = (Array.isArray(room?.participants) ? room.participants : [])
+            .map(member => asString(member?.name).trim())
+            .filter(Boolean)
+            .sort((a, b) => b.length - a.length);
+        names.forEach(name => {
+            compact = compact.replace(new RegExp(escapeRegExp(name), 'gi'), '');
+        });
+        return compact.length >= 1;
     }
 
     function buildTurnPacing(latestInput) {
@@ -259,9 +286,24 @@
 
     function detectMentionedMembers(room, text) {
         const source = asString(text);
-        return getActiveMembers(room).filter(member => {
-            return source.includes(`@${member.name}`) || source.includes(`＠${member.name}`);
+        const active = getActiveMembers(room);
+        const claimedRanges = [];
+        const mentionedIds = new Set();
+        active.slice().sort((a, b) => b.name.length - a.name.length).forEach(member => {
+            [`@${member.name}`, `＠${member.name}`].forEach(token => {
+                let start = source.indexOf(token);
+                while (start >= 0) {
+                    const end = start + token.length;
+                    const overlapsLongerMention = claimedRanges.some(range => start >= range.start && end <= range.end);
+                    if (!overlapsLongerMention) {
+                        claimedRanges.push({ start, end });
+                        mentionedIds.add(member.id);
+                    }
+                    start = source.indexOf(token, start + token.length);
+                }
+            });
         });
+        return active.filter(member => mentionedIds.has(member.id));
     }
 
     function roomMessageForModel(room, message, currentMemberId) {
@@ -271,7 +313,7 @@
         if (message.role === 'assistant') {
             const member = getMember(room, message.speakerId);
             const cleaned = cleanCharacterOutput(message.content, member?.name || '');
-            if (!hasSubstantiveContent(cleaned)) return null;
+            if (!hasSubstantiveRoomContent(room, cleaned)) return null;
             if (message.speakerId === currentMemberId) {
                 return { role: 'assistant', content: cleaned };
             }
@@ -281,6 +323,22 @@
             };
         }
         return { role: 'system', content: `房间中的既有事件记录：${message.content}` };
+    }
+
+    function roomMessagesForMemory(room) {
+        return (Array.isArray(room?.messages) ? room.messages : []).map(message => {
+            if (message.role === 'assistant') {
+                const member = getMember(room, message.speakerId);
+                const cleaned = cleanCharacterOutput(message.content, member?.name || '');
+                return hasSubstantiveRoomContent(room, cleaned)
+                    ? { role: 'assistant', content: `${member?.name || '角色'}的发言或行动：${cleaned}` }
+                    : { role: 'system', content: '（本条没有可记忆的有效角色内容，请忽略。）' };
+            }
+            if (message.role === 'user') {
+                return { role: 'user', content: `用户的发言或行动：${asString(message.content)}` };
+            }
+            return { role: 'system', content: `场景事件：${asString(message.content)}` };
+        });
     }
 
     function buildParticipantDirectory(room, currentMemberId) {
@@ -536,7 +594,10 @@
     }
 
     async function compressImageFile(file, options) {
-        if (!file || !/^image\//i.test(file.type || '')) throw new Error('请选择图片文件');
+        const fileType = asString(file?.type).trim();
+        if (!file || (fileType && !/^image\//i.test(fileType))) {
+            throw new Error('请选择图片文件');
+        }
         if (file.size > IMAGE_LIMIT_BYTES) throw new Error('图片不能超过12MB');
         const settings = Object.assign({ maxWidth: 1200, maxHeight: 1200, quality: 0.82, square: false }, options || {});
         const dataUrl = await readFileAsDataUrl(file);
@@ -545,6 +606,7 @@
         let sourceY = 0;
         let sourceWidth = image.naturalWidth || image.width;
         let sourceHeight = image.naturalHeight || image.height;
+        if (!sourceWidth || !sourceHeight) throw new Error('图片尺寸无效');
         if (settings.square) {
             const edge = Math.min(sourceWidth, sourceHeight);
             sourceX = (sourceWidth - edge) / 2;
@@ -557,6 +619,7 @@
         canvas.width = Math.max(1, Math.round(sourceWidth * ratio));
         canvas.height = Math.max(1, Math.round(sourceHeight * ratio));
         const context = canvas.getContext('2d', { alpha: false });
+        if (!context) throw new Error('当前设备无法处理这张图片');
         context.imageSmoothingEnabled = true;
         context.imageSmoothingQuality = 'high';
         context.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, canvas.width, canvas.height);
@@ -605,8 +668,10 @@
         fallbackIntimacyRules,
         getAvailableNodes,
         roomMessageForModel,
+        roomMessagesForMemory,
         cleanCharacterOutput,
         hasSubstantiveContent,
+        hasSubstantiveRoomContent,
         buildTurnPacing,
         compressImageFile,
     };
