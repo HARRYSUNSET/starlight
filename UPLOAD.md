@@ -1,5 +1,14 @@
 # 更新记录
 
+## v1.3.3
+
+- 按 DeepSeek 官方模型文档将默认 Flash 模型更新为 `deepseek-flash`，对应 DeepSeek-V4.1-Flash
+- 保留 `deepseek-v4-pro`，并在界面明确其当前版本为 DeepSeek-V4-Pro-0813
+- 移除 OpenRouter 与 Liquid LFM2.5-2.6B 免费模型，不再保存或使用 OpenRouter 配置
+- 旧版 `deepseek-v4-flash`、`deepseek-v4-flash-vision-exp`、`deepseek-chat` 和 `deepseek-reasoner` 配置会自动迁移到 `deepseek-flash`
+- 保留旧 `deepseek-reasoner` 用户的深度思考设置，升级不会影响现有智能体、房间、聊天记录与长期记忆
+- Android 版本更新为 `versionCode 7`、`versionName 1.3.3`
+
 ## v1.3.2
 
 - 强化通用模式、智能体、房间和生成任务之间的状态隔离，生成中不再允许切换、删除或修改当前对话目标

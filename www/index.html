@@ -1427,7 +1427,7 @@
                 </div>
                 <button id="themeToggleBtn" class="theme-toggle-btn" title="切换主题">🌙</button>
             </div>
-            <div class="sidebar-subtitle">DeepSeek / OpenRouter API 驱动</div>
+            <div class="sidebar-subtitle">DeepSeek API 驱动</div>
             <div class="mode-switcher" aria-label="对话模式">
                 <button type="button" class="mode-switch-btn active" id="btnGeneralMode">💬 通用模式</button>
                 <button type="button" class="mode-switch-btn" id="btnRoomMode">🎭 房间模式</button>
@@ -1443,11 +1443,8 @@
                         <label>🤖 模型选择</label>
                         <select id="modelSelect">
                             <optgroup label="DeepSeek">
-                                <option value="deepseek-v4-flash">DeepSeek V4 Flash（快速、经济）</option>
-                                <option value="deepseek-v4-pro">DeepSeek V4 Pro（质量优先）</option>
-                            </optgroup>
-                            <optgroup label="OpenRouter">
-                                <option value="liquid/lfm-2.5-2.6b:free">Liquid LFM2.5-2.6B（免费）</option>
+                                <option value="deepseek-flash">DeepSeek V4.1 Flash（快速、经济）</option>
+                                <option value="deepseek-v4-pro">DeepSeek V4 Pro 0813（质量优先）</option>
                             </optgroup>
                         </select>
 
@@ -1528,7 +1525,7 @@
                 <button class="btn-hamburger" id="btnHamburger" title="菜单">☰</button>
                 <span class="current-agent-name" id="currentAgentName">选择智能体</span>
                 <span class="room-kind-badge" id="roomTypeBadge" hidden>双人房间</span>
-                <span class="badge" id="modelBadge">deepseek-v4-flash</span>
+                <span class="badge" id="modelBadge">deepseek-flash</span>
                 <button class="btn-toolbar" id="btnEditRoom" title="编辑当前房间" hidden>⚙️ 房间设置</button>
                 <button class="btn-toolbar" id="btnRegenerate" title="重新生成最后一条回复" disabled>🔄 重新生成</button>
                 <button class="btn-toolbar" id="btnUndo" title="撤回最后一轮对话" disabled>↩️ 撤回</button>
@@ -1802,36 +1799,21 @@
             const Rooms = window.StarlightRooms;
             if (!Rooms) throw new Error('房间模式模块加载失败');
 
-            // 所有服务商都沿用现有 OpenAI Chat Completions 消息格式。
-            // 以后要添加其他 OpenAI 兼容 API，只需在这里新增一项，
-            // 无需修改智能体、房间、长期记忆或消息构建代码。
+            // DeepSeek 沿用 OpenAI Chat Completions 消息格式。
             const API_PROVIDERS = Object.freeze({
                 deepseek: {
                     name: 'DeepSeek',
                     apiUrl: 'https://api.deepseek.com/v1/chat/completions',
-                    defaultModel: 'deepseek-v4-flash',
+                    defaultModel: 'deepseek-flash',
                     models: [
-                        { id: 'deepseek-v4-flash', label: 'DeepSeek V4 Flash（快速、经济）' },
-                        { id: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro（质量优先）' },
+                        { id: 'deepseek-flash', label: 'DeepSeek V4.1 Flash（快速、经济）' },
+                        { id: 'deepseek-v4-pro', label: 'DeepSeek V4 Pro 0813（质量优先）' },
                     ],
                     keyPlaceholder: 'sk-...',
                     keyHint: '输入你的 DeepSeek API Key，仅存储在本地浏览器',
                     supportsDeepSeekThinking: true,
                     supportsJsonMode: true,
                     maxOutputTokens: null,
-                },
-                openrouter: {
-                    name: 'OpenRouter',
-                    apiUrl: 'https://openrouter.ai/api/v1/chat/completions',
-                    defaultModel: 'liquid/lfm-2.5-2.6b:free',
-                    models: [
-                        { id: 'liquid/lfm-2.5-2.6b:free', label: 'Liquid LFM2.5-2.6B（免费）' },
-                    ],
-                    keyPlaceholder: 'sk-or-v1-...',
-                    keyHint: '输入你的 OpenRouter API Key；该免费模型单次最多输出约 8192 tokens',
-                    supportsDeepSeekThinking: false,
-                    supportsJsonMode: true,
-                    maxOutputTokens: 8192,
                 },
             });
 
@@ -1846,14 +1828,12 @@
                 apiProvider: 'deepseek',
                 apiKeys: {
                     deepseek: '',
-                    openrouter: '',
                 },
                 providerModels: {
-                    deepseek: 'deepseek-v4-flash',
-                    openrouter: 'liquid/lfm-2.5-2.6b:free',
+                    deepseek: 'deepseek-flash',
                 },
                 apiKey: '',
-                model: 'deepseek-v4-flash',
+                model: 'deepseek-flash',
                 globalPrompt: '你是一个有帮助的、友好的AI助手。请用简洁清晰的语言回答用户的问题。如果用户的问题不明确，请主动询问澄清。',
                 naturalStylePrompt: Memory.NATURAL_STYLE_GUIDE,
                 memorySettings: Memory.normalizeConfig(),
@@ -2038,25 +2018,32 @@
                 }, 160);
             }
 
+            function normalizeDeepSeekModel(modelId) {
+                const aliases = {
+                    'deepseek-v4-flash': 'deepseek-flash',
+                    'deepseek-v4-flash-vision-exp': 'deepseek-flash',
+                    'deepseek-chat': 'deepseek-flash',
+                    'deepseek-reasoner': 'deepseek-flash',
+                };
+                const candidate = aliases[modelId] || modelId;
+                return API_PROVIDERS.deepseek.models.some(model => model.id === candidate)
+                    ? candidate
+                    : API_PROVIDERS.deepseek.defaultModel;
+            }
+
             function normalizeLoadedData(parsed) {
                 if (!parsed || typeof parsed !== 'object') return;
-                const loadedProvider = API_PROVIDERS[parsed.apiProvider] ? parsed.apiProvider : 'deepseek';
-                appData.apiProvider = loadedProvider;
-                appData.apiKeys = parsed.apiKeys && typeof parsed.apiKeys === 'object'
-                    ? { ...parsed.apiKeys }
-                    : { deepseek: parsed.apiKey || '', openrouter: '' };
-                appData.providerModels = parsed.providerModels && typeof parsed.providerModels === 'object'
-                    ? { ...parsed.providerModels }
-                    : {
-                        deepseek: parsed.model || API_PROVIDERS.deepseek.defaultModel,
-                        openrouter: API_PROVIDERS.openrouter.defaultModel,
-                    };
-                appData.apiKeys.deepseek = appData.apiKeys.deepseek || '';
-                appData.apiKeys.openrouter = appData.apiKeys.openrouter || '';
-                appData.providerModels.deepseek = appData.providerModels.deepseek || API_PROVIDERS.deepseek.defaultModel;
-                appData.providerModels.openrouter = appData.providerModels.openrouter || API_PROVIDERS.openrouter.defaultModel;
-                appData.apiKey = appData.apiKeys[loadedProvider] || '';
-                appData.model = appData.providerModels[loadedProvider] || API_PROVIDERS[loadedProvider].defaultModel;
+                const legacyUsesDeepSeek = !parsed.apiProvider || parsed.apiProvider === 'deepseek';
+                const legacyModel = parsed.providerModels?.deepseek
+                    || (legacyUsesDeepSeek ? parsed.model : '')
+                    || API_PROVIDERS.deepseek.defaultModel;
+                appData.apiProvider = 'deepseek';
+                appData.apiKeys = {
+                    deepseek: String(parsed.apiKeys?.deepseek || (legacyUsesDeepSeek ? parsed.apiKey : '') || ''),
+                };
+                appData.providerModels = { deepseek: normalizeDeepSeekModel(legacyModel) };
+                appData.apiKey = appData.apiKeys.deepseek;
+                appData.model = appData.providerModels.deepseek;
                 appData.globalPrompt = parsed.globalPrompt || '快写入你的提示词吧~';
                 appData.naturalStylePrompt = typeof parsed.naturalStylePrompt === 'string'
                     ? parsed.naturalStylePrompt
@@ -2070,13 +2057,9 @@
                 appData.currentRoomId = parsed.currentRoomId || null;
                 appData.updatedAt = Number(parsed.updatedAt) || 0;
 
-                if (appData.apiProvider === 'deepseek' && appData.model === 'deepseek-chat') {
-                    appData.model = 'deepseek-v4-flash';
-                    appData.providerModels.deepseek = appData.model;
+                if (legacyModel === 'deepseek-chat') {
                     appData.memorySettings.thinkingMode = 'disabled';
-                } else if (appData.apiProvider === 'deepseek' && appData.model === 'deepseek-reasoner') {
-                    appData.model = 'deepseek-v4-flash';
-                    appData.providerModels.deepseek = appData.model;
+                } else if (legacyModel === 'deepseek-reasoner') {
                     appData.memorySettings.thinkingMode = 'enabled';
                 }
 
@@ -2111,27 +2094,24 @@
 
                 normalizeLoadedData(loaded);
                 if (settingsBackup && Number(settingsBackup.updatedAt) > appData.updatedAt) {
-                    const backupProvider = API_PROVIDERS[settingsBackup.apiProvider]
-                        ? settingsBackup.apiProvider
-                        : appData.apiProvider;
-                    appData.apiProvider = backupProvider;
-                    if (settingsBackup.apiKeys && typeof settingsBackup.apiKeys === 'object') {
-                        appData.apiKeys = { ...appData.apiKeys, ...settingsBackup.apiKeys };
-                    } else if (settingsBackup.apiKey) {
-                        appData.apiKeys[backupProvider] = settingsBackup.apiKey;
-                    }
-                    if (settingsBackup.providerModels && typeof settingsBackup.providerModels === 'object') {
-                        appData.providerModels = { ...appData.providerModels, ...settingsBackup.providerModels };
-                    } else if (settingsBackup.model) {
-                        appData.providerModels[backupProvider] = settingsBackup.model;
-                    }
-                    appData.apiKey = appData.apiKeys[backupProvider] || '';
-                    appData.model = appData.providerModels[backupProvider] || API_PROVIDERS[backupProvider].defaultModel;
+                    const backupUsesDeepSeek = !settingsBackup.apiProvider || settingsBackup.apiProvider === 'deepseek';
+                    const backupKey = settingsBackup.apiKeys?.deepseek
+                        || (backupUsesDeepSeek ? settingsBackup.apiKey : '');
+                    const backupModel = settingsBackup.providerModels?.deepseek
+                        || (backupUsesDeepSeek ? settingsBackup.model : '')
+                        || appData.model;
+                    appData.apiProvider = 'deepseek';
+                    appData.apiKeys = { deepseek: String(backupKey || appData.apiKeys.deepseek || '') };
+                    appData.providerModels = { deepseek: normalizeDeepSeekModel(backupModel) };
+                    appData.apiKey = appData.apiKeys.deepseek;
+                    appData.model = appData.providerModels.deepseek;
                     appData.globalPrompt = settingsBackup.globalPrompt || appData.globalPrompt;
                     if (typeof settingsBackup.naturalStylePrompt === 'string') {
                         appData.naturalStylePrompt = settingsBackup.naturalStylePrompt;
                     }
                     appData.memorySettings = Memory.normalizeConfig(settingsBackup.memorySettings);
+                    if (backupModel === 'deepseek-chat') appData.memorySettings.thinkingMode = 'disabled';
+                    if (backupModel === 'deepseek-reasoner') appData.memorySettings.thinkingMode = 'enabled';
                     if (Object.prototype.hasOwnProperty.call(settingsBackup, 'currentAgentId')) {
                         appData.currentAgentId = settingsBackup.currentAgentId || null;
                     }
@@ -3568,29 +3548,15 @@
             }
 
             // ==================== API调用与长期记忆整理 ====================
-            function getProviderKeyByModel(modelId) {
-                for (const [providerKey, provider] of Object.entries(API_PROVIDERS)) {
-                    if (provider.models.some(model => model.id === modelId)) return providerKey;
-                }
-                return null;
-            }
-
             function getApiProviderConfig() {
-                return API_PROVIDERS[appData.apiProvider] || API_PROVIDERS.deepseek;
+                return API_PROVIDERS.deepseek;
             }
 
             function getApiRequestHeaders() {
-                const headers = {
+                return {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${appData.apiKey}`,
                 };
-                if (appData.apiProvider === 'openrouter') {
-                    headers['X-OpenRouter-Title'] = 'Starlight Chat';
-                    if (location.origin && location.origin !== 'null') {
-                        headers['HTTP-Referer'] = `${location.origin}/`;
-                    }
-                }
-                return headers;
             }
 
             function getRequestOptions(overrides = {}) {
@@ -4469,50 +4435,38 @@
             });
 
             function refreshModelSettingsUI() {
-                let detectedProvider = getProviderKeyByModel(appData.model);
-                if (!detectedProvider) {
-                    detectedProvider = API_PROVIDERS[appData.apiProvider] ? appData.apiProvider : 'deepseek';
-                    appData.model = API_PROVIDERS[detectedProvider].defaultModel;
-                }
-                appData.apiProvider = detectedProvider;
-                appData.apiKey = appData.apiKeys[detectedProvider] || '';
-                appData.providerModels[detectedProvider] = appData.model;
+                appData.apiProvider = 'deepseek';
+                appData.model = normalizeDeepSeekModel(appData.model);
+                appData.apiKey = appData.apiKeys.deepseek || '';
+                appData.providerModels.deepseek = appData.model;
                 const provider = getApiProviderConfig();
                 $apiKeyInput.placeholder = provider.keyPlaceholder;
                 $apiKeyHint.textContent = provider.keyHint;
                 $apiKeyInput.value = appData.apiKey;
                 $modelSelect.replaceChildren();
-                Object.entries(API_PROVIDERS).forEach(([providerKey, providerConfig]) => {
-                    const group = document.createElement('optgroup');
-                    group.label = providerConfig.name;
-                    providerConfig.models.forEach(model => {
-                        const option = document.createElement('option');
-                        option.value = model.id;
-                        option.textContent = model.label;
-                        option.dataset.provider = providerKey;
-                        group.appendChild(option);
-                    });
-                    $modelSelect.appendChild(group);
+                const group = document.createElement('optgroup');
+                group.label = provider.name;
+                provider.models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model.id;
+                    option.textContent = model.label;
+                    group.appendChild(option);
                 });
+                $modelSelect.appendChild(group);
                 $modelSelect.value = appData.model;
                 $modelBadge.textContent = appData.model;
             }
 
             $apiKeyInput.addEventListener('input', () => {
                 appData.apiKey = $apiKeyInput.value.trim();
-                appData.apiKeys[appData.apiProvider] = appData.apiKey;
+                appData.apiKeys.deepseek = appData.apiKey;
                 saveData();
                 updateSendButton();
             });
             $modelSelect.addEventListener('change', () => {
-                appData.apiKeys[appData.apiProvider] = appData.apiKey;
-                appData.providerModels[appData.apiProvider] = appData.model;
-                const selectedModel = $modelSelect.value;
-                const nextProvider = getProviderKeyByModel(selectedModel) || 'deepseek';
-                appData.apiProvider = nextProvider;
-                appData.model = selectedModel;
-                appData.apiKey = appData.apiKeys[nextProvider] || '';
-                appData.providerModels[appData.apiProvider] = appData.model;
+                appData.apiProvider = 'deepseek';
+                appData.model = normalizeDeepSeekModel($modelSelect.value);
+                appData.providerModels.deepseek = appData.model;
                 refreshModelSettingsUI();
                 saveData();
                 $modelBadge.textContent = appData.model;

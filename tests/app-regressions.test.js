@@ -54,9 +54,16 @@ test('全局智能体菜单监听器不会在每次渲染时重复注册', () =>
 
 test('应用版本号在 npm 与 Android 配置中一致', () => {
     const gradle = fs.readFileSync(path.join(root, 'android', 'app', 'build.gradle'), 'utf8');
-    assert.equal(packageJson.version, '1.3.2');
-    assert.match(gradle, /versionCode\s+6/);
-    assert.match(gradle, /versionName\s+"1\.3\.2"/);
+    assert.equal(packageJson.version, '1.3.3');
+    assert.match(gradle, /versionCode\s+7/);
+    assert.match(gradle, /versionName\s+"1\.3\.3"/);
+});
+
+test('模型列表只保留 DeepSeek 官方当前模型标识', () => {
+    assert.match(html, /value="deepseek-flash"/);
+    assert.match(html, /value="deepseek-v4-pro"/);
+    assert.doesNotMatch(html, /OpenRouter|liquid\/lfm/i);
+    assert.doesNotMatch(html, /value="deepseek-v4-flash"/);
 });
 
 test('GitHub Actions 按锁文件进行可复现安装', () => {
