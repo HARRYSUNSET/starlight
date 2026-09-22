@@ -42,8 +42,8 @@ test('房间记忆使用保持原始序号的转换函数', () => {
     assert.match(functionBody('getRoomMemoryConversation', 'summarizeRoomMemoryChunk'), /Rooms\.roomMessagesForMemory\(room\)/);
 });
 
-test('重启应用时会恢复完整的模式界面，通用模式也能覆盖旧房间状态', () => {
-    assert.match(html, /settingsBackup\.activeMode === 'room' \|\| settingsBackup\.activeMode === 'general'/);
+test('重启应用时会恢复独立的剧情或房间页面，并兼容旧通用模式', () => {
+    assert.match(html, /settingsBackup\.activeMode === 'room' \|\| settingsBackup\.activeMode === 'story' \|\| settingsBackup\.activeMode === 'general'/);
     assert.match(functionBody('init', null), /updateModeUI\(\);[\s\S]*?renderMessages\(\);/);
 });
 
@@ -54,9 +54,9 @@ test('全局智能体菜单监听器不会在每次渲染时重复注册', () =>
 
 test('应用版本号在 npm 与 Android 配置中一致', () => {
     const gradle = fs.readFileSync(path.join(root, 'android', 'app', 'build.gradle'), 'utf8');
-    assert.equal(packageJson.version, '1.4.0');
-    assert.match(gradle, /versionCode\s+8/);
-    assert.match(gradle, /versionName\s+"1\.4\.0"/);
+    assert.equal(packageJson.version, '1.5.0');
+    assert.match(gradle, /versionCode\s+9/);
+    assert.match(gradle, /versionName\s+"1\.5\.0"/);
 });
 
 test('模型列表只保留 DeepSeek 官方当前模型标识', () => {
@@ -74,11 +74,41 @@ test('长对话定位器支持搜索、收藏和分窗跳转', () => {
     assert.doesNotMatch(html, /renderedMessageLimit/);
 });
 
-test('剧情房间使用全屏结构化编辑器', () => {
+test('剧情定位与收藏入口不会渗入房间消息页面', () => {
+    const start = html.indexOf('function renderRoomMessages');
+    const end = html.indexOf("$messagesContainer.addEventListener('click'", start);
+    const roomRender = html.slice(start, end);
+    assert.doesNotMatch(roomRender, /bookmark-btn/);
+    assert.doesNotMatch(roomRender, /data-locate-index/);
+    assert.match(functionBody('openConversationNavigator', 'closeConversationNavigator'), /activeMode !== 'story'/);
+});
+
+test('剧情智能体和房间分别使用自己的全屏结构化编辑器', () => {
+    assert.match(html, /id="storyEditor"/);
+    assert.match(html, /id="storyGrowthInput"/);
+    assert.match(html, /id="storyKnowledgeInput"/);
     assert.match(html, /room-editor-overlay/);
     assert.match(html, /id="roomStyleExamplesInput"/);
     assert.match(html, /class="member-growth"/);
     assert.match(html, /class="member-knowledge"/);
+});
+
+test('剧情与房间拥有分离的记忆设置和消息窗口状态', () => {
+    assert.match(html, /storyModel:\s*'deepseek-flash'/);
+    assert.match(html, /roomModel:\s*'deepseek-flash'/);
+    assert.match(html, /storyMemorySettings:\s*Memory\.normalizeConfig\(\)/);
+    assert.match(html, /roomMemorySettings:\s*Memory\.normalizeConfig\(\)/);
+    assert.match(html, /storyRenderedMessageRange/);
+    assert.match(html, /roomRenderedMessageRange/);
+    assert.match(html, /appData\.activeMode === 'room'[\s\S]*?appData\.roomMemorySettings[\s\S]*?appData\.storyMemorySettings/);
+});
+
+test('剧情长期记忆提供可查看、编辑和重建页面', () => {
+    assert.match(html, /id="memoryEditorOverlay"/);
+    assert.match(html, /id="memoryCoreInput"/);
+    assert.match(html, /memory-segment-summary/);
+    assert.match(html, /function saveStoryMemoryEdits/);
+    assert.match(html, /btnResetStoryMemory/);
 });
 
 test('记忆整理失败不会直接阻断普通发送', () => {

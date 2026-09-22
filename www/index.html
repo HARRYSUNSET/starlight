@@ -1098,7 +1098,7 @@
             opacity: 1;
             box-shadow: 0 4px 14px rgba(108, 92, 231, 0.26);
         }
-        .general-only-setting[hidden],
+        .story-only-setting[hidden],
         .room-mode-section[hidden],
         .room-context-bar[hidden],
         .room-input-tools[hidden] {
@@ -1541,6 +1541,224 @@
             .navigator-result { grid-template-columns: 62px minmax(0, 1fr) 24px; }
             .bookmark-btn { opacity: 0.72; }
         }
+
+        /* ==================== v1.5 独立页面与沉浸式剧情 UI ==================== */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: min(360px, 92vw);
+            min-width: 0;
+            transform: translateX(-102%);
+            z-index: 210;
+        }
+        .sidebar.open { transform: translateX(0); }
+        .sidebar-overlay { z-index: 200; backdrop-filter: blur(3px); }
+        .btn-hamburger { display: flex; }
+        .sidebar-close-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,.16);
+            background: rgba(255,255,255,.06);
+            color: #fff;
+            cursor: pointer;
+        }
+        .library-heading {
+            padding: 14px 18px 4px;
+            color: #fff;
+            font-size: .92rem;
+            font-weight: 700;
+        }
+        .library-subtitle {
+            padding: 0 18px 10px;
+            color: #777f94;
+            font-size: .69rem;
+            line-height: 1.45;
+        }
+        .workspace-tabs {
+            display: flex;
+            gap: 4px;
+            padding: 4px;
+            border-radius: 14px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            flex: 0 0 auto;
+        }
+        .workspace-tab {
+            border: 0;
+            background: transparent;
+            color: var(--text-secondary);
+            border-radius: 10px;
+            padding: 7px 13px;
+            cursor: pointer;
+            font-size: .76rem;
+            font-weight: 650;
+            white-space: nowrap;
+        }
+        .workspace-tab.active {
+            background: var(--card-bg);
+            color: var(--accent);
+            box-shadow: var(--shadow-sm);
+        }
+        .chat-title-stack {
+            min-width: 120px;
+            flex: 1;
+            overflow: hidden;
+        }
+        .chat-mode-eyebrow {
+            color: var(--accent);
+            font-size: .62rem;
+            font-weight: 750;
+            letter-spacing: .12em;
+            margin-bottom: 1px;
+        }
+        .chat-title-stack .current-agent-name { display: block; }
+        .story-only-control[hidden] { display: none !important; }
+        .btn-toolbar[hidden] { display: none !important; }
+        body.mode-room { --accent: #258a8a; --accent-light: #6bc6bf; --accent-glow: rgba(37,138,138,.24); }
+        body.mode-story { --accent: #6c5ce7; --accent-light: #a29bfe; --accent-glow: rgba(108,92,231,.3); }
+        .story-editor-overlay,
+        .memory-editor-overlay {
+            padding: 0;
+            background: var(--card-bg);
+            align-items: stretch;
+            justify-content: stretch;
+            z-index: 240;
+        }
+        .story-editor,
+        .memory-editor {
+            --editor-pad: max(24px, calc((100vw - 1120px) / 2));
+            width: 100vw;
+            max-width: none;
+            height: 100dvh;
+            max-height: none;
+            overflow-y: auto;
+            border: 0;
+            border-radius: 0;
+            box-shadow: none;
+            padding: 28px var(--editor-pad);
+            animation: none;
+        }
+        .full-page-header {
+            position: sticky;
+            top: -28px;
+            z-index: 8;
+            margin: -28px calc(0px - var(--editor-pad)) 24px;
+            padding: 16px var(--editor-pad);
+            background: color-mix(in srgb, var(--card-bg) 94%, transparent);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(14px);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .full-page-header h3 { margin: 0; flex: 1; }
+        .full-page-header-copy { color: var(--text-muted); font-size: .72rem; }
+        .full-page-actions {
+            position: sticky;
+            bottom: -28px;
+            z-index: 8;
+            margin: 24px calc(0px - var(--editor-pad)) -28px;
+            padding: 14px var(--editor-pad);
+            background: color-mix(in srgb, var(--card-bg) 94%, transparent);
+            border-top: 1px solid var(--border);
+            backdrop-filter: blur(14px);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .full-page-actions button {
+            padding: 10px 20px;
+            border-radius: 999px;
+            border: 0;
+            cursor: pointer;
+            font-weight: 650;
+            font-size: .82rem;
+        }
+        #btnResetStoryMemory { color: var(--danger); border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent); }
+        .story-editor-section,
+        .memory-editor-section {
+            padding: 20px;
+            margin-top: 18px;
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: color-mix(in srgb, var(--bg) 62%, var(--card-bg));
+        }
+        .story-editor-section h4,
+        .memory-editor-section h4 { margin: 0 0 6px; }
+        .section-description { color: var(--text-muted); font-size: .72rem; line-height: 1.5; margin-bottom: 14px; }
+        .story-form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+        .story-form-grid .full { grid-column: 1 / -1; }
+        .story-form-grid label,
+        .memory-editor label { display: block; font-size: .73rem; font-weight: 700; margin-bottom: 5px; color: var(--text-secondary); }
+        .story-form-grid input,
+        .story-form-grid textarea,
+        .memory-editor input,
+        .memory-editor textarea,
+        .memory-editor select {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            padding: 11px 12px;
+            background: var(--card-bg);
+            color: var(--text-primary);
+            font: inherit;
+            line-height: 1.55;
+            resize: vertical;
+            outline: none;
+        }
+        .story-form-grid input:focus,
+        .story-form-grid textarea:focus,
+        .memory-editor input:focus,
+        .memory-editor textarea:focus { border-color: var(--accent-light); box-shadow: 0 0 0 3px var(--accent-glow); }
+        .memory-overview {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+        .memory-stat {
+            padding: 14px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: var(--bg);
+        }
+        .memory-stat strong { display: block; font-size: 1.15rem; color: var(--accent); }
+        .memory-stat span { color: var(--text-muted); font-size: .68rem; }
+        .memory-segment-list { display: flex; flex-direction: column; gap: 12px; }
+        .memory-segment-card { border: 1px solid var(--border); border-radius: 14px; background: var(--card-bg); overflow: hidden; }
+        .memory-segment-card summary { cursor: pointer; padding: 13px 15px; font-weight: 700; color: var(--text-primary); }
+        .memory-segment-body { padding: 0 15px 15px; display: grid; grid-template-columns: 1fr 160px; gap: 12px; }
+        .memory-segment-body .full { grid-column: 1 / -1; }
+        .memory-empty { padding: 30px; text-align: center; color: var(--text-muted); border: 1px dashed var(--border); border-radius: 14px; }
+
+        @media (max-width: 900px) {
+            .chat-topbar { padding: 9px 10px; }
+            .workspace-tab { padding: 7px 9px; font-size: .7rem; }
+            .chat-topbar .badge { display: none; }
+            .chat-topbar .btn-toolbar { padding: 6px 9px; font-size: .68rem; }
+        }
+        @media (max-width: 640px) {
+            .chat-topbar .btn-toolbar:disabled { display: none; }
+            .workspace-tabs { order: 4; width: 100%; }
+            .workspace-tab { flex: 1; }
+            .chat-title-stack { min-width: 90px; }
+            .story-editor,
+            .memory-editor { --editor-pad: 14px; padding: 20px var(--editor-pad); }
+            .full-page-header { top: -20px; margin-top: -20px; padding-top: 14px; padding-bottom: 14px; }
+            .full-page-header-copy { display: none; }
+            .full-page-actions { bottom: -20px; margin-bottom: -20px; }
+            .story-form-grid,
+            .memory-segment-body { grid-template-columns: 1fr; }
+            .story-form-grid .full,
+            .memory-segment-body .full { grid-column: auto; }
+            .memory-overview { grid-template-columns: 1fr; }
+        }
     </style>
 </head>
 <body>
@@ -1553,13 +1771,14 @@
                     <div class="logo-icon">✨</div>
                     <span>星陽之语</span>
                 </div>
-                <button id="themeToggleBtn" class="theme-toggle-btn" title="切换主题">🌙</button>
+                <div style="display:flex;gap:7px">
+                    <button id="themeToggleBtn" class="theme-toggle-btn" title="切换主题">🌙</button>
+                    <button id="btnCloseSidebar" class="sidebar-close-btn" title="关闭书架">×</button>
+                </div>
             </div>
             <div class="sidebar-subtitle">DeepSeek API 驱动</div>
-            <div class="mode-switcher" aria-label="对话模式">
-                <button type="button" class="mode-switch-btn active" id="btnGeneralMode">💬 通用模式</button>
-                <button type="button" class="mode-switch-btn" id="btnRoomMode">🎭 房间模式</button>
-            </div>
+            <div class="library-heading" id="libraryTitle">剧情书架</div>
+            <div class="library-subtitle" id="librarySubtitle">每个剧情智能体拥有独立设定、对话与长期记忆。</div>
 
             <div class="sidebar-scroll">
                 <div class="settings-group" id="settingsGroup">
@@ -1600,7 +1819,7 @@
                             <label for="longMemoryToggle">自动长期记忆</label>
                             <input type="checkbox" id="longMemoryToggle" checked>
                         </div>
-                        <div class="general-only-setting" id="generalStyleSettings">
+                        <div class="story-only-setting" id="generalStyleSettings">
                             <div class="settings-toggle-row">
                                 <label for="naturalStyleToggle">自然文风增强</label>
                                 <input type="checkbox" id="naturalStyleToggle" checked>
@@ -1617,21 +1836,21 @@
                             <button type="button" class="btn-reset-style" id="btnPersistStorage">申请持久存储保护</button>
                         </div>
 
-                        <div class="general-only-setting" id="generalPromptSettings">
-                            <label>📜 底层提示词（通用模式）</label>
-                            <textarea id="globalPromptInput" placeholder="输入底层提示词，通用模式中的所有智能体都会遵循...">在此可以把你想让所有智能体都遵循的底层要求列写出来~想不出来也可以先空着~</textarea>
-                            <div class="hint">只应用于通用模式，不会影响房间模式</div>
+                        <div class="story-only-setting" id="generalPromptSettings">
+                            <label>📜 剧情模式底层提示词</label>
+                            <textarea id="globalPromptInput" placeholder="输入所有剧情智能体都需要遵循的底层要求...">在此可以把你想让所有剧情智能体都遵循的底层要求列写出来~想不出来也可以先空着~</textarea>
+                            <div class="hint">只应用于剧情模式，绝不会加入房间模式请求</div>
                         </div>
                     </div>
                 </div>
 
-                <div class="agents-section" id="generalModeSection">
+                <div class="agents-section" id="storyModeSection">
                     <div class="agents-section-title">
-                        🤖 我的智能体
+                        ✦ 我的剧情
                     </div>
                     <div class="agents-list" id="agentsList">
                         </div>
-                    <button class="btn-create-agent" id="btnCreateAgent">+ 创建新智能体</button>
+                    <button class="btn-create-agent" id="btnCreateAgent">＋ 创建剧情智能体</button>
                 </div>
 
                 <div class="agents-section room-mode-section" id="roomModeSection" hidden>
@@ -1650,12 +1869,21 @@
 
         <main class="main-area">
             <div class="chat-topbar">
-                <button class="btn-hamburger" id="btnHamburger" title="菜单">☰</button>
-                <span class="current-agent-name" id="currentAgentName">选择智能体</span>
+                <button class="btn-hamburger" id="btnHamburger" title="打开当前页面的作品列表">☰</button>
+                <div class="workspace-tabs" aria-label="独立功能页面">
+                    <button type="button" class="workspace-tab active" id="btnStoryMode">✦ 剧情</button>
+                    <button type="button" class="workspace-tab" id="btnRoomMode">⌂ 房间</button>
+                </div>
+                <div class="chat-title-stack">
+                    <div class="chat-mode-eyebrow" id="chatModeEyebrow">STORY · 剧情模式</div>
+                    <span class="current-agent-name" id="currentAgentName">选择剧情智能体</span>
+                </div>
                 <span class="room-kind-badge" id="roomTypeBadge" hidden>双人房间</span>
                 <span class="badge" id="modelBadge">deepseek-flash</span>
-                <button class="btn-toolbar" id="btnEditRoom" title="打开全屏剧情设定" hidden>⚙️ 剧情设定</button>
-                <button class="btn-toolbar" id="btnLocate" title="搜索、收藏或按编号跳转消息" disabled>🧭 定位</button>
+                <button class="btn-toolbar story-only-control" id="btnEditStory" title="打开全屏剧情智能体设定" disabled>✎ 设定</button>
+                <button class="btn-toolbar story-only-control" id="btnMemoryManager" title="查看并修改当前剧情长期记忆" disabled>🧠 记忆</button>
+                <button class="btn-toolbar" id="btnEditRoom" title="打开房间设置" hidden>⚙️ 房间设置</button>
+                <button class="btn-toolbar story-only-control" id="btnLocate" title="搜索、收藏或按编号跳转剧情消息" disabled>🧭 定位</button>
                 <button class="btn-toolbar" id="btnRegenerate" title="重新生成最后一条回复" disabled>🔄 重新生成</button>
                 <button class="btn-toolbar" id="btnUndo" title="撤回最后一轮对话" disabled>↩️ 撤回</button>
                 <button class="btn-toolbar danger" id="btnRestart" title="清空当前对话" disabled>🗑️ 重启对话</button>
@@ -1676,7 +1904,7 @@
                 <div class="empty-state" id="emptyState">
                     <div class="empty-icon">💬</div>
                     <h3>开始一段对话</h3>
-                    <p>在左侧选择或创建一个智能体，然后在下方输入消息开始对话。</p>
+                    <p>打开书架选择剧情智能体，或创建一张新的角色卡开始故事。</p>
                 </div>
             </div>
 
@@ -1695,16 +1923,65 @@
         </main>
     </div>
 
-    <div class="modal-overlay" id="modalOverlay" style="display:none;">
-        <div class="modal">
-            <h3>✨ 创建新智能体</h3>
-            <label>智能体名称</label>
-            <input type="text" id="newAgentName" placeholder="例如：代码助手、翻译专家...">
-            <label>表层提示词（人设提示词）</label>
-            <textarea id="newAgentPrompt" placeholder="描述这个智能体的人设、专长和对话风格...例如：你是一个精通Python的代码专家，擅长用简洁的代码示例解答问题。"></textarea>
-            <div class="modal-actions">
+    <div class="modal-overlay story-editor-overlay" id="modalOverlay" style="display:none;">
+        <div class="modal story-editor" id="storyEditor">
+            <div class="full-page-header">
+                <div>
+                    <h3 id="storyEditorTitle">✦ 创建剧情智能体</h3>
+                    <div class="full-page-header-copy">设定只属于这一个剧情，不会传入房间模式</div>
+                </div>
+                <button type="button" class="mini-action-btn" id="btnStoryEditorClose">关闭编辑页</button>
+            </div>
+
+            <section class="story-editor-section">
+                <h4>基本信息</h4>
+                <div class="section-description">聊天页会使用角色名称和一句话简介展示当前剧情。</div>
+                <div class="story-form-grid">
+                    <div><label for="newAgentName">角色名称</label><input type="text" id="newAgentName" placeholder="例如：林澈"></div>
+                    <div><label for="storySubtitleInput">一句话简介</label><input type="text" id="storySubtitleInput" placeholder="例如：住在旧书店楼上的青梅竹马"></div>
+                    <div class="full"><label for="storyRulesInput">本剧情底层规则</label><textarea id="storyRulesInput" style="min-height:150px" placeholder="只对当前剧情生效的不可违背规则"></textarea></div>
+                </div>
+            </section>
+
+            <section class="story-editor-section">
+                <h4>世界与开场</h4>
+                <div class="section-description">先确定故事发生在哪里、用户扮演谁，以及当前从哪个场景开始。</div>
+                <div class="story-form-grid">
+                    <div><label for="storyWorldInput">世界观背景</label><textarea id="storyWorldInput" style="min-height:180px" placeholder="时代、地点、组织、社会规则、力量体系等"></textarea></div>
+                    <div><label for="storyOpeningInput">当前／开场场景</label><textarea id="storyOpeningInput" style="min-height:180px" placeholder="时间、地点、正在发生的事件和人物位置"></textarea></div>
+                    <div class="full"><label for="storyUserPersonaInput">用户所扮演的角色</label><textarea id="storyUserPersonaInput" style="min-height:150px" placeholder="姓名、身份、性格、外貌、能力、与AI角色的关系以及知识边界"></textarea></div>
+                </div>
+            </section>
+
+            <section class="story-editor-section">
+                <h4>角色档案</h4>
+                <div class="section-description">稳定底色负责“她是谁”，当前状态和成长记录负责“她现在已经变成了怎样的人”。</div>
+                <div class="story-form-grid">
+                    <div class="full"><label for="newAgentPrompt">基础人设与稳定性格</label><textarea id="newAgentPrompt" style="min-height:210px" placeholder="身份、经历、性格底色、价值观、习惯、能力与弱点"></textarea></div>
+                    <div><label for="storyAppearanceInput">外貌与可观察特征</label><textarea id="storyAppearanceInput" style="min-height:140px" placeholder="外貌、服装、姿态、常用物品等"></textarea></div>
+                    <div><label for="storyCurrentStateInput">当前状态</label><textarea id="storyCurrentStateInput" style="min-height:140px" placeholder="当前身体、情绪、处境和短期关注点"></textarea></div>
+                    <div><label for="storyGrowthInput">成长与变化记录</label><textarea id="storyGrowthInput" style="min-height:160px" placeholder="已经形成的新认知、性格变化、能力成长、立场变化"></textarea></div>
+                    <div><label for="storyRelationshipsInput">关系网络</label><textarea id="storyRelationshipsInput" style="min-height:160px" placeholder="与用户及其他人物的关系、称呼、信任与矛盾"></textarea></div>
+                    <div><label for="storyKnowledgeInput">知识边界、误解与秘密</label><textarea id="storyKnowledgeInput" style="min-height:160px" placeholder="知道、不知道、误以为知道的事情，以及不能自动获知的秘密"></textarea></div>
+                    <div><label for="storyGoalInput">私人目标与动机</label><textarea id="storyGoalInput" style="min-height:160px" placeholder="短期愿望、长期目标、顾虑和不会公开说出的动机"></textarea></div>
+                    <div><label for="storySpeakingInput">说话与行动方式</label><textarea id="storySpeakingInput" style="min-height:170px" placeholder="措辞、语速、口头习惯、行动倾向和不同情绪下的表现"></textarea></div>
+                    <div><label for="storyDialogueInput">对白语感示例</label><textarea id="storyDialogueInput" style="min-height:170px" placeholder="写几句角色在不同情绪下会怎么说，只参考语感，不要求复读"></textarea></div>
+                </div>
+            </section>
+
+            <section class="story-editor-section">
+                <h4>文风与补充信息</h4>
+                <div class="section-description">示例用于学习节奏与对白密度，不会作为故事中已经发生的事件。</div>
+                <div class="story-form-grid">
+                    <div class="full"><label for="storyStyleInput">剧情文风要求</label><textarea id="storyStyleInput" style="min-height:190px"></textarea></div>
+                    <div class="full"><label for="storyStyleExamplesInput">文风示例</label><textarea id="storyStyleExamplesInput" style="min-height:220px" placeholder="粘贴你原创或有权使用的参考语段"></textarea></div>
+                    <div class="full"><label for="storyOtherInfoInput">其他剧情信息</label><textarea id="storyOtherInfoInput" style="min-height:160px" placeholder="伏笔、关键物品、时间线、主线目标、暂不归类的信息"></textarea></div>
+                </div>
+            </section>
+
+            <div class="full-page-actions">
                 <button class="btn-cancel" id="btnCancelModal">取消</button>
-                <button class="btn-confirm" id="btnConfirmCreate">创建智能体</button>
+                <button class="btn-confirm" id="btnConfirmCreate">保存并进入剧情</button>
             </div>
         </div>
     </div>
@@ -1757,7 +2034,7 @@
                 <div class="full">
                     <label for="roomUserPersonaInput">用户所扮演的角色设定</label>
                     <textarea id="roomUserPersonaInput" style="min-height:150px" placeholder="填写用户在本房间中的姓名、身份、性格、能力、外貌、与其他人物的关系，以及角色知道或不知道的事情"></textarea>
-                    <div class="room-form-hint">这是房间独立设定，不会影响其他房间或通用模式。</div>
+                    <div class="room-form-hint">这是房间独立设定，不会影响其他房间或剧情模式。</div>
                 </div>
                 <div class="full">
                     <label for="roomOtherInfoInput">其他剧情信息</label>
@@ -1780,7 +2057,7 @@
                 <div id="roomParticipantsEditor"></div>
                 <div class="image-upload-row" id="participantAddActions">
                     <button type="button" class="mini-action-btn" id="btnAddRoomParticipant">＋ 创建空白角色</button>
-                    <select id="importAgentSelect"><option value="">从通用模式选择智能体……</option></select>
+                    <select id="importAgentSelect"><option value="">从剧情模式复制角色（不会同步）……</option></select>
                     <button type="button" class="mini-action-btn" id="btnImportAgent">复制到房间</button>
                 </div>
             </div>
@@ -1856,9 +2133,43 @@
         </div>
     </div>
 
+    <div class="modal-overlay memory-editor-overlay" id="memoryEditorOverlay" style="display:none;">
+        <div class="modal memory-editor" id="memoryEditor">
+            <div class="full-page-header">
+                <div>
+                    <h3>🧠 剧情长期记忆</h3>
+                    <div class="full-page-header-copy" id="memoryEditorSubtitle">查看和修正 AI 从旧对话中整理出的记忆</div>
+                </div>
+                <button type="button" class="mini-action-btn" id="btnMemoryEditorClose">关闭记忆页</button>
+            </div>
+
+            <div class="memory-overview" id="memoryOverview"></div>
+
+            <section class="memory-editor-section">
+                <h4>持续状态与关键事实</h4>
+                <div class="section-description">这部分会在后续对话中优先提供给角色。你可以直接修正错误、补充遗漏或删除已经失效的状态。</div>
+                <label for="memoryCoreInput">核心记忆</label>
+                <textarea id="memoryCoreInput" style="min-height:300px" placeholder="当前还没有整理出核心记忆"></textarea>
+            </section>
+
+            <section class="memory-editor-section">
+                <h4>可检索篇章记忆</h4>
+                <div class="section-description">系统会根据当前话题召回相关篇章。标题、关键词、重要度和摘要都可以修改。</div>
+                <div class="memory-segment-list" id="memorySegmentList"></div>
+            </section>
+
+            <div class="full-page-actions">
+                <button class="btn-cancel" id="btnResetStoryMemory">清空整理结果并从原文重建</button>
+                <button class="btn-cancel" id="btnCancelMemoryEdit">取消修改</button>
+                <button class="btn-confirm" id="btnSaveMemoryEdit">保存记忆修改</button>
+            </div>
+        </div>
+    </div>
+
     <div id="toastContainer"></div>
 
     <script src="memory.js"></script>
+    <script src="story.js"></script>
     <script src="rooms.js"></script>
     <script>
         (function() {
@@ -1866,6 +2177,9 @@
             const $sidebar = document.getElementById('sidebar');
             const $sidebarOverlay = document.getElementById('sidebarOverlay');
             const $btnHamburger = document.getElementById('btnHamburger');
+            const $btnCloseSidebar = document.getElementById('btnCloseSidebar');
+            const $libraryTitle = document.getElementById('libraryTitle');
+            const $librarySubtitle = document.getElementById('librarySubtitle');
             const $settingsToggle = document.getElementById('settingsToggle');
             const $settingsGroup = document.getElementById('settingsGroup');
             const $apiKeyInput = document.getElementById('apiKeyInput');
@@ -1884,7 +2198,10 @@
             const $agentsList = document.getElementById('agentsList');
             const $btnCreateAgent = document.getElementById('btnCreateAgent');
             const $currentAgentName = document.getElementById('currentAgentName');
+            const $chatModeEyebrow = document.getElementById('chatModeEyebrow');
             const $modelBadge = document.getElementById('modelBadge');
+            const $btnEditStory = document.getElementById('btnEditStory');
+            const $btnMemoryManager = document.getElementById('btnMemoryManager');
             const $btnLocate = document.getElementById('btnLocate');
             const $btnRegenerate = document.getElementById('btnRegenerate');
             const $btnUndo = document.getElementById('btnUndo');
@@ -1896,13 +2213,31 @@
             const $modalOverlay = document.getElementById('modalOverlay');
             const $newAgentName = document.getElementById('newAgentName');
             const $newAgentPrompt = document.getElementById('newAgentPrompt');
+            const $storyEditorTitle = document.getElementById('storyEditorTitle');
+            const $storySubtitleInput = document.getElementById('storySubtitleInput');
+            const $storyRulesInput = document.getElementById('storyRulesInput');
+            const $storyWorldInput = document.getElementById('storyWorldInput');
+            const $storyOpeningInput = document.getElementById('storyOpeningInput');
+            const $storyUserPersonaInput = document.getElementById('storyUserPersonaInput');
+            const $storyAppearanceInput = document.getElementById('storyAppearanceInput');
+            const $storyCurrentStateInput = document.getElementById('storyCurrentStateInput');
+            const $storyGrowthInput = document.getElementById('storyGrowthInput');
+            const $storyRelationshipsInput = document.getElementById('storyRelationshipsInput');
+            const $storyKnowledgeInput = document.getElementById('storyKnowledgeInput');
+            const $storyGoalInput = document.getElementById('storyGoalInput');
+            const $storySpeakingInput = document.getElementById('storySpeakingInput');
+            const $storyDialogueInput = document.getElementById('storyDialogueInput');
+            const $storyStyleInput = document.getElementById('storyStyleInput');
+            const $storyStyleExamplesInput = document.getElementById('storyStyleExamplesInput');
+            const $storyOtherInfoInput = document.getElementById('storyOtherInfoInput');
+            const $btnStoryEditorClose = document.getElementById('btnStoryEditorClose');
             const $btnCancelModal = document.getElementById('btnCancelModal');
             const $btnConfirmCreate = document.getElementById('btnConfirmCreate');
             const $toastContainer = document.getElementById('toastContainer');
             const $themeToggleBtn = document.getElementById('themeToggleBtn');
-            const $btnGeneralMode = document.getElementById('btnGeneralMode');
+            const $btnStoryMode = document.getElementById('btnStoryMode');
             const $btnRoomMode = document.getElementById('btnRoomMode');
-            const $generalModeSection = document.getElementById('generalModeSection');
+            const $storyModeSection = document.getElementById('storyModeSection');
             const $roomModeSection = document.getElementById('roomModeSection');
             const $roomsList = document.getElementById('roomsList');
             const $btnCreateRoom = document.getElementById('btnCreateRoom');
@@ -1962,10 +2297,22 @@
             const $navigatorResults = document.getElementById('navigatorResults');
             const $btnNavigatorClose = document.getElementById('btnNavigatorClose');
             const $btnNavigatorLatest = document.getElementById('btnNavigatorLatest');
+            const $memoryEditorOverlay = document.getElementById('memoryEditorOverlay');
+            const $memoryEditor = document.getElementById('memoryEditor');
+            const $memoryEditorSubtitle = document.getElementById('memoryEditorSubtitle');
+            const $memoryOverview = document.getElementById('memoryOverview');
+            const $memoryCoreInput = document.getElementById('memoryCoreInput');
+            const $memorySegmentList = document.getElementById('memorySegmentList');
+            const $btnMemoryEditorClose = document.getElementById('btnMemoryEditorClose');
+            const $btnResetStoryMemory = document.getElementById('btnResetStoryMemory');
+            const $btnCancelMemoryEdit = document.getElementById('btnCancelMemoryEdit');
+            const $btnSaveMemoryEdit = document.getElementById('btnSaveMemoryEdit');
 
             // ==================== 状态 ====================
             const Memory = window.StarlightMemory;
             if (!Memory) throw new Error('长期记忆模块加载失败');
+            const Story = window.StarlightStory;
+            if (!Story) throw new Error('剧情模式模块加载失败');
             const Rooms = window.StarlightRooms;
             if (!Rooms) throw new Error('房间模式模块加载失败');
 
@@ -2004,12 +2351,15 @@
                 },
                 apiKey: '',
                 model: 'deepseek-flash',
-                globalPrompt: '你是一个有帮助的、友好的AI助手。请用简洁清晰的语言回答用户的问题。如果用户的问题不明确，请主动询问澄清。',
-                naturalStylePrompt: Memory.NATURAL_STYLE_GUIDE,
-                memorySettings: Memory.normalizeConfig(),
-                agents: [], // [{id, name, surfacePrompt, conversations, memory, createdAt}]
+                storyModel: 'deepseek-flash',
+                roomModel: 'deepseek-flash',
+                storyGlobalPrompt: '你正在参与一个持续发展的沉浸式剧情。尊重用户明确设定，保持人物与事件连续。',
+                storyNaturalStylePrompt: Memory.NATURAL_STYLE_GUIDE,
+                storyMemorySettings: Memory.normalizeConfig(),
+                roomMemorySettings: Memory.normalizeConfig(),
+                agents: [], // 剧情模式专用；与 rooms 完全分离
                 currentAgentId: null,
-                activeMode: 'general',
+                activeMode: 'story',
                 rooms: [],
                 currentRoomId: null,
                 updatedAt: 0,
@@ -2034,8 +2384,10 @@
             let saveQueue = Promise.resolve();
             let saveTimer = null;
             const MESSAGE_PAGE_SIZE = 200;
-            let renderedMessageRange = null;
+            let storyRenderedMessageRange = null;
+            let roomRenderedMessageRange = null;
             let navigatorBookmarkedOnly = false;
+            let memoryDraftSegments = [];
             
             // 安全读取本地主题配置，防止浏览器严格隐私模式拦截报错
             let isDarkMode = false;
@@ -2091,10 +2443,13 @@
                     apiKeys: appData.apiKeys,
                     providerModels: appData.providerModels,
                     apiKey: appData.apiKey,
-                    model: appData.model,
-                    globalPrompt: appData.globalPrompt,
-                    naturalStylePrompt: appData.naturalStylePrompt,
-                    memorySettings: appData.memorySettings,
+                    model: getActiveModel(),
+                    storyModel: appData.storyModel,
+                    roomModel: appData.roomModel,
+                    storyGlobalPrompt: appData.storyGlobalPrompt,
+                    storyNaturalStylePrompt: appData.storyNaturalStylePrompt,
+                    storyMemorySettings: appData.storyMemorySettings,
+                    roomMemorySettings: appData.roomMemorySettings,
                     currentAgentId: appData.currentAgentId,
                     activeMode: appData.activeMode,
                     currentRoomId: appData.currentRoomId,
@@ -2213,39 +2568,34 @@
                 appData.apiKeys = {
                     deepseek: String(parsed.apiKeys?.deepseek || (legacyUsesDeepSeek ? parsed.apiKey : '') || ''),
                 };
-                appData.providerModels = { deepseek: normalizeDeepSeekModel(legacyModel) };
+                appData.storyModel = normalizeDeepSeekModel(parsed.storyModel || legacyModel);
+                appData.roomModel = normalizeDeepSeekModel(parsed.roomModel || legacyModel);
+                appData.providerModels = { deepseek: appData.storyModel };
                 appData.apiKey = appData.apiKeys.deepseek;
-                appData.model = appData.providerModels.deepseek;
-                appData.globalPrompt = parsed.globalPrompt || '快写入你的提示词吧~';
-                appData.naturalStylePrompt = typeof parsed.naturalStylePrompt === 'string'
-                    ? parsed.naturalStylePrompt
-                    : Memory.NATURAL_STYLE_GUIDE;
-                appData.memorySettings = Memory.normalizeConfig(parsed.memorySettings);
-                appData.agents = Array.isArray(parsed.agents) ? parsed.agents : [];
+                appData.model = appData.storyModel;
+                appData.storyGlobalPrompt = parsed.storyGlobalPrompt || parsed.globalPrompt || appData.storyGlobalPrompt;
+                appData.storyNaturalStylePrompt = typeof parsed.storyNaturalStylePrompt === 'string'
+                    ? parsed.storyNaturalStylePrompt
+                    : (typeof parsed.naturalStylePrompt === 'string' ? parsed.naturalStylePrompt : Memory.NATURAL_STYLE_GUIDE);
+                const legacyMemorySettings = Memory.normalizeConfig(parsed.memorySettings);
+                appData.storyMemorySettings = Memory.normalizeConfig(parsed.storyMemorySettings || legacyMemorySettings);
+                appData.roomMemorySettings = Memory.normalizeConfig(parsed.roomMemorySettings || legacyMemorySettings);
+                appData.agents = (Array.isArray(parsed.agents) ? parsed.agents : [])
+                    .map(agent => Story.normalizeAgent(agent, Memory));
                 appData.currentAgentId = parsed.currentAgentId || null;
-                appData.activeMode = parsed.activeMode === 'room' ? 'room' : 'general';
+                appData.activeMode = parsed.activeMode === 'room' ? 'room' : 'story';
                 appData.rooms = (Array.isArray(parsed.rooms) ? parsed.rooms : [])
                     .map(room => Rooms.normalizeRoom(room, Memory, Memory.NATURAL_STYLE_GUIDE));
                 appData.currentRoomId = parsed.currentRoomId || null;
                 appData.updatedAt = Number(parsed.updatedAt) || 0;
 
                 if (legacyModel === 'deepseek-chat') {
-                    appData.memorySettings.thinkingMode = 'disabled';
+                    appData.storyMemorySettings.thinkingMode = 'disabled';
+                    appData.roomMemorySettings.thinkingMode = 'disabled';
                 } else if (legacyModel === 'deepseek-reasoner') {
-                    appData.memorySettings.thinkingMode = 'enabled';
+                    appData.storyMemorySettings.thinkingMode = 'enabled';
+                    appData.roomMemorySettings.thinkingMode = 'enabled';
                 }
-
-                appData.agents.forEach(agent => {
-                    agent.conversations = (Array.isArray(agent.conversations) ? agent.conversations : [])
-                        .filter(message => message && typeof message === 'object')
-                        .map(message => ({
-                            role: message.role === 'assistant' ? 'assistant' : 'user',
-                            content: String(message.content || ''),
-                            createdAt: Number(message.createdAt) || 0,
-                            bookmarked: message.bookmarked === true,
-                        }));
-                    agent.memory = Memory.normalizeMemory(agent.memory, agent.conversations.length);
-                });
             }
 
             async function loadData() {
@@ -2278,39 +2628,47 @@
                         || (backupUsesDeepSeek ? settingsBackup.apiKey : '');
                     const backupModel = settingsBackup.providerModels?.deepseek
                         || (backupUsesDeepSeek ? settingsBackup.model : '')
-                        || appData.model;
+                        || getActiveModel();
                     appData.apiProvider = 'deepseek';
                     appData.apiKeys = { deepseek: String(backupKey || appData.apiKeys.deepseek || '') };
-                    appData.providerModels = { deepseek: normalizeDeepSeekModel(backupModel) };
+                    appData.storyModel = normalizeDeepSeekModel(settingsBackup.storyModel || backupModel);
+                    appData.roomModel = normalizeDeepSeekModel(settingsBackup.roomModel || backupModel);
+                    appData.providerModels = { deepseek: appData.storyModel };
                     appData.apiKey = appData.apiKeys.deepseek;
-                    appData.model = appData.providerModels.deepseek;
-                    appData.globalPrompt = settingsBackup.globalPrompt || appData.globalPrompt;
-                    if (typeof settingsBackup.naturalStylePrompt === 'string') {
-                        appData.naturalStylePrompt = settingsBackup.naturalStylePrompt;
+                    appData.model = appData.storyModel;
+                    appData.storyGlobalPrompt = settingsBackup.storyGlobalPrompt || settingsBackup.globalPrompt || appData.storyGlobalPrompt;
+                    if (typeof settingsBackup.storyNaturalStylePrompt === 'string' || typeof settingsBackup.naturalStylePrompt === 'string') {
+                        appData.storyNaturalStylePrompt = settingsBackup.storyNaturalStylePrompt || settingsBackup.naturalStylePrompt;
                     }
-                    appData.memorySettings = Memory.normalizeConfig(settingsBackup.memorySettings);
-                    if (backupModel === 'deepseek-chat') appData.memorySettings.thinkingMode = 'disabled';
-                    if (backupModel === 'deepseek-reasoner') appData.memorySettings.thinkingMode = 'enabled';
+                    appData.storyMemorySettings = Memory.normalizeConfig(settingsBackup.storyMemorySettings || settingsBackup.memorySettings || appData.storyMemorySettings);
+                    appData.roomMemorySettings = Memory.normalizeConfig(settingsBackup.roomMemorySettings || settingsBackup.memorySettings || appData.roomMemorySettings);
+                    if (backupModel === 'deepseek-chat') {
+                        appData.storyMemorySettings.thinkingMode = 'disabled';
+                        appData.roomMemorySettings.thinkingMode = 'disabled';
+                    }
+                    if (backupModel === 'deepseek-reasoner') {
+                        appData.storyMemorySettings.thinkingMode = 'enabled';
+                        appData.roomMemorySettings.thinkingMode = 'enabled';
+                    }
                     if (Object.prototype.hasOwnProperty.call(settingsBackup, 'currentAgentId')) {
                         appData.currentAgentId = settingsBackup.currentAgentId || null;
                     }
-                    if (settingsBackup.activeMode === 'room' || settingsBackup.activeMode === 'general') {
-                        appData.activeMode = settingsBackup.activeMode;
+                    if (settingsBackup.activeMode === 'room' || settingsBackup.activeMode === 'story' || settingsBackup.activeMode === 'general') {
+                        appData.activeMode = settingsBackup.activeMode === 'room' ? 'room' : 'story';
                     }
                     if (Object.prototype.hasOwnProperty.call(settingsBackup, 'currentRoomId')) {
                         appData.currentRoomId = settingsBackup.currentRoomId || null;
                     }
                 }
+                appData.model = getActiveModel();
+                appData.providerModels.deepseek = appData.model;
 
                 if (appData.agents.length === 0) {
-                    const defaultAgent = {
-                        id: generateId(),
-                        name: '修改你的智能体名称',
-                        surfacePrompt: '在此处加入你的人设提示词，即表层提示词~',
-                        conversations: [],
-                        memory: Memory.createEmptyMemory(),
-                        createdAt: Date.now(),
-                    };
+                    const defaultAgent = Story.createAgent({
+                        name: '创建你的第一个剧情角色',
+                        subtitle: '打开设定页，逐项补全人物与世界',
+                        characterPrompt: '在这里填写角色的身份、经历、性格底色、价值观、习惯、能力和弱点。',
+                    }, Memory);
                     appData.agents = [defaultAgent];
                     appData.currentAgentId = defaultAgent.id;
                     saveData();
@@ -2375,6 +2733,27 @@
                 isUserScrolledUp = false;
             }
 
+            function getActiveMemorySettings() {
+                return appData.activeMode === 'room'
+                    ? appData.roomMemorySettings
+                    : appData.storyMemorySettings;
+            }
+
+            function getActiveModel() {
+                return normalizeDeepSeekModel(
+                    appData.activeMode === 'room' ? appData.roomModel : appData.storyModel
+                );
+            }
+
+            function setActiveModel(modelId) {
+                const normalized = normalizeDeepSeekModel(modelId);
+                if (appData.activeMode === 'room') appData.roomModel = normalized;
+                else appData.storyModel = normalized;
+                // 保留旧字段作为向后兼容快照，但请求始终读取当前页面的独立模型。
+                appData.model = normalized;
+                appData.providerModels.deepseek = normalized;
+            }
+
             function getIntimacyRulesSignature(room) {
                 const member = room?.participants?.[0];
                 return JSON.stringify([
@@ -2394,27 +2773,38 @@
             }
 
             function setActiveMode(mode) {
-                const nextMode = mode === 'room' ? 'room' : 'general';
+                const nextMode = mode === 'room' ? 'room' : 'story';
                 if (!canChangeConversationTarget()) return;
                 if (appData.activeMode === nextMode) return;
                 appData.activeMode = nextMode;
-                renderedMessageRange = null;
+                appData.model = getActiveModel();
+                appData.providerModels.deepseek = appData.model;
                 resetScrollIntent();
                 saveData();
                 updateModeUI();
                 renderMessages();
-                if (window.innerWidth <= 768) closeSidebar();
+                closeSidebar();
             }
 
             function updateModeUI() {
                 const isRoomMode = appData.activeMode === 'room';
-                $btnGeneralMode.classList.toggle('active', !isRoomMode);
+                document.body.classList.toggle('mode-story', !isRoomMode);
+                document.body.classList.toggle('mode-room', isRoomMode);
+                $btnStoryMode.classList.toggle('active', !isRoomMode);
                 $btnRoomMode.classList.toggle('active', isRoomMode);
-                $generalModeSection.hidden = isRoomMode;
+                $storyModeSection.hidden = isRoomMode;
                 $roomModeSection.hidden = !isRoomMode;
-                document.querySelectorAll('.general-only-setting').forEach(element => {
+                document.querySelectorAll('.story-only-setting').forEach(element => {
                     element.hidden = isRoomMode;
                 });
+                document.querySelectorAll('.story-only-control').forEach(element => {
+                    element.hidden = isRoomMode;
+                });
+                $libraryTitle.textContent = isRoomMode ? '房间列表' : '剧情书架';
+                $librarySubtitle.textContent = isRoomMode
+                    ? '房间拥有独立角色调度、亲密度与房间记忆。'
+                    : '每个剧情智能体拥有独立设定、对话与长期记忆。';
+                $chatModeEyebrow.textContent = isRoomMode ? 'ROOM · 房间模式' : 'STORY · 剧情模式';
                 $roomTypeBadge.hidden = !isRoomMode;
                 $btnEditRoom.hidden = !isRoomMode || !getCurrentRoom();
                 $roomContextBar.hidden = !isRoomMode || !getCurrentRoom();
@@ -2427,6 +2817,7 @@
                     renderAgentsList();
                     clearRoomBackground();
                 }
+                syncSettingsControls();
                 updateChatUI();
             }
 
@@ -2434,7 +2825,7 @@
                 if (appData.currentRoomId === roomId) return;
                 if (!canChangeConversationTarget()) return;
                 appData.currentRoomId = roomId;
-                renderedMessageRange = null;
+                roomRenderedMessageRange = null;
                 lastIntimacyDelta = null;
                 resetScrollIntent();
                 saveData();
@@ -2489,7 +2880,7 @@
                     item.addEventListener('click', event => {
                         if (event.target.closest('.agent-more-btn') || event.target.closest('.agent-menu')) return;
                         switchRoom(roomId);
-                        if (window.innerWidth <= 768) closeSidebar();
+                        closeSidebar();
                     });
                     item.querySelector('.agent-more-btn').addEventListener('click', event => {
                         event.stopPropagation();
@@ -2694,7 +3085,7 @@
             }
 
             function refreshImportAgentSelect() {
-                $importAgentSelect.innerHTML = '<option value="">从通用模式选择智能体……</option>' + appData.agents
+                $importAgentSelect.innerHTML = '<option value="">从剧情模式复制角色（不会同步）……</option>' + appData.agents
                     .map(agent => `<option value="${escapeHtml(agent.id)}">${escapeHtml(agent.name)}</option>`).join('');
             }
 
@@ -2726,7 +3117,7 @@
 
             function renderRoomParticipantsEditor() {
                 if (roomDraftParticipants.length === 0) {
-                    $roomParticipantsEditor.innerHTML = '<div class="room-form-hint">请创建角色，或从通用模式复制一个智能体。</div>';
+                    $roomParticipantsEditor.innerHTML = '<div class="room-form-hint">请创建房间角色，或从剧情模式一次性复制角色设定；复制后双方不会同步。</div>';
                     return;
                 }
                 $roomParticipantsEditor.innerHTML = roomDraftParticipants.map((member, index) => `
@@ -2992,7 +3383,7 @@
                 }
             }
 
-            $btnGeneralMode.addEventListener('click', () => setActiveMode('general'));
+            $btnStoryMode.addEventListener('click', () => setActiveMode('story'));
             $btnRoomMode.addEventListener('click', () => setActiveMode('room'));
             $btnCreateRoom.addEventListener('click', () => openRoomModal());
             $btnEditRoom.addEventListener('click', () => {
@@ -3007,15 +3398,20 @@
             $btnImportAgent.addEventListener('click', () => {
                 const agent = appData.agents.find(item => item.id === $importAgentSelect.value);
                 if (!agent) {
-                    showToast('请先选择要复制的智能体', 'info');
+                    showToast('请先选择要复制的剧情角色', 'info');
                     return;
                 }
                 addDraftParticipant({
                     name: agent.name,
-                    personaPrompt: agent.surfacePrompt,
+                    personaPrompt: Story.composePersonaForRoom(agent),
                     publicProfile: '',
-                    speakingStyle: '',
-                    privateGoal: '',
+                    speakingStyle: agent.speakingStyle,
+                    privateGoal: agent.privateGoal,
+                    currentState: agent.currentState,
+                    growthNotes: agent.growthNotes,
+                    relationships: agent.relationships,
+                    knowledgeBoundary: agent.knowledgeBoundary,
+                    dialogueExamples: agent.dialogueExamples,
                 });
                 $importAgentSelect.value = '';
             });
@@ -3113,19 +3509,20 @@
             }
 
             $btnHamburger.addEventListener('click', toggleSidebar);
+            $btnCloseSidebar.addEventListener('click', closeSidebar);
             $sidebarOverlay.addEventListener('click', closeSidebar);
 
             $settingsToggle.addEventListener('click', () => {
                 $settingsGroup.classList.toggle('collapsed');
             });
-            $settingsGroup.classList.remove('collapsed');
+            $settingsGroup.classList.add('collapsed');
 
             // ==================== 智能体交互核心逻辑 ====================
             function switchAgent(agentId) {
                 if (appData.currentAgentId === agentId) return;
                 if (!canChangeConversationTarget()) return;
                 appData.currentAgentId = agentId;
-                renderedMessageRange = null;
+                storyRenderedMessageRange = null;
                 resetScrollIntent();
                 saveData();
                 updateModeUI();
@@ -3135,10 +3532,10 @@
             function deleteAgent(agentId) {
                 if (!canChangeConversationTarget()) return;
                 if (appData.agents.length <= 1) {
-                    showToast('至少需要保留一个智能体', 'error');
+                    showToast('至少需要保留一个剧情智能体', 'error');
                     return;
                 }
-                if (!confirm('确定要删除这个智能体及其所有对话记录吗？此操作不可恢复。')) return;
+                if (!confirm('确定要删除这个剧情智能体及其全部设定、对话和长期记忆吗？此操作不可恢复。')) return;
 
                 appData.agents = appData.agents.filter(a => a.id !== agentId);
                 if (appData.currentAgentId === agentId) {
@@ -3148,20 +3545,24 @@
                 renderAgentsList();
                 updateChatUI();
                 renderMessages();
-                showToast('智能体已成功删除', 'success');
+                showToast('剧情智能体已删除', 'success');
             }
 
             // ==================== 动态渲染智能体列表 ====================
             function renderAgentsList() {
                 $agentsList.innerHTML = appData.agents.map(agent => {
                     const isActive = agent.id === appData.currentAgentId;
+                    const summary = agent.subtitle || `${agent.conversations.length} 条消息`;
                     return `
                     <div class="agent-item ${isActive ? 'active' : ''}" data-agent-id="${agent.id}">
                       <span class="agent-dot"></span>
-                      <span class="agent-name" title="${escapeHtml(agent.name)}">${escapeHtml(agent.name)}</span>
+                      <span class="room-item-main">
+                        <span class="agent-name" title="${escapeHtml(agent.name)}">${escapeHtml(agent.name)}</span>
+                        <span class="room-item-meta">${escapeHtml(summary)}</span>
+                      </span>
                       <button class="agent-more-btn" title="选项">⋮</button>
                       <div class="agent-menu" id="menu-${agent.id}">
-                        <button class="menu-edit" data-id="${agent.id}">✎ 编辑人设</button>
+                        <button class="menu-edit" data-id="${agent.id}">✎ 编辑剧情设定</button>
                         <button class="menu-delete delete-text" data-id="${agent.id}">× 删除</button>
                       </div>
                     </div>
@@ -3182,7 +3583,7 @@
                     item.addEventListener('click', (e) => {
                         if (e.target.closest('.agent-more-btn') || e.target.closest('.agent-menu')) return;
                         switchAgent(agentId);
-                        if (window.innerWidth <= 768) closeSidebar();
+                        closeSidebar();
                     });
 
                     moreBtn.addEventListener('click', (e) => {
@@ -3213,15 +3614,42 @@
                 }
             });
 
-            // ==================== 智能体模态框逻辑 ====================
+            // ==================== 剧情智能体全屏编辑页 ====================
+            function fillStoryEditor(agent) {
+                const story = agent ? Story.normalizeAgent(agent, Memory) : Story.normalizeAgent({
+                    name: '',
+                    characterPrompt: '',
+                    storyRules: Story.DEFAULT_STORY_RULES,
+                    stylePrompt: Story.DEFAULT_STORY_STYLE,
+                }, Memory);
+                $newAgentName.value = agent ? story.name : '';
+                $storySubtitleInput.value = story.subtitle;
+                $storyRulesInput.value = story.storyRules;
+                $storyWorldInput.value = story.worldPrompt;
+                $storyOpeningInput.value = story.openingScene;
+                $storyUserPersonaInput.value = story.userPersona;
+                $newAgentPrompt.value = story.characterPrompt;
+                $storyAppearanceInput.value = story.appearance;
+                $storyCurrentStateInput.value = story.currentState;
+                $storyGrowthInput.value = story.growthNotes;
+                $storyRelationshipsInput.value = story.relationships;
+                $storyKnowledgeInput.value = story.knowledgeBoundary;
+                $storyGoalInput.value = story.privateGoal;
+                $storySpeakingInput.value = story.speakingStyle;
+                $storyDialogueInput.value = story.dialogueExamples;
+                $storyStyleInput.value = story.stylePrompt;
+                $storyStyleExamplesInput.value = story.styleExamples;
+                $storyOtherInfoInput.value = story.otherInfo;
+            }
+
             function openCreateModal() {
                 if (!canChangeConversationTarget()) return;
                 editingAgentId = null;
-                document.querySelector('.modal h3').textContent = '✨ 创建新智能体';
-                $btnConfirmCreate.textContent = '创建智能体';
-                $newAgentName.value = '';
-                $newAgentPrompt.value = '';
+                $storyEditorTitle.textContent = '✦ 创建剧情智能体';
+                $btnConfirmCreate.textContent = '保存并进入剧情';
+                fillStoryEditor(null);
                 $modalOverlay.style.display = 'flex';
+                document.getElementById('storyEditor').scrollTop = 0;
                 setTimeout(() => $newAgentName.focus(), 150);
             }
 
@@ -3231,66 +3659,87 @@
                 const agent = appData.agents.find(a => a.id === agentId);
                 if (!agent) return;
                 
-                document.querySelector('.modal h3').textContent = '📝 编辑智能体人设';
+                $storyEditorTitle.textContent = '✎ 编辑剧情智能体';
                 $btnConfirmCreate.textContent = '保存修改';
-                $newAgentName.value = agent.name;
-                $newAgentPrompt.value = agent.surfacePrompt;
+                fillStoryEditor(agent);
                 $modalOverlay.style.display = 'flex';
+                document.getElementById('storyEditor').scrollTop = 0;
                 setTimeout(() => $newAgentName.focus(), 150);
             }
 
             function closeCreateModal() {
                 $modalOverlay.style.display = 'none';
-                $newAgentName.value = '';
-                $newAgentPrompt.value = '';
                 editingAgentId = null;
             }
 
             function saveAgent() {
                 const name = $newAgentName.value.trim();
-                const surfacePrompt = $newAgentPrompt.value.trim();
+                const characterPrompt = $newAgentPrompt.value.trim();
                 
                 if (!name) {
-                    showToast('请输入智能体名称', 'error');
+                    showToast('请输入角色名称', 'error');
                     $newAgentName.focus();
                     return;
                 }
-                if (!surfacePrompt) {
-                    showToast('请输入表层提示词（人设提示词）', 'error');
+                if (!characterPrompt) {
+                    showToast('请填写角色的基础人设', 'error');
                     $newAgentPrompt.focus();
                     return;
                 }
 
+                const input = {
+                    name,
+                    subtitle: $storySubtitleInput.value.trim(),
+                    storyRules: $storyRulesInput.value.trim() || Story.DEFAULT_STORY_RULES,
+                    worldPrompt: $storyWorldInput.value.trim(),
+                    openingScene: $storyOpeningInput.value.trim(),
+                    userPersona: $storyUserPersonaInput.value.trim(),
+                    characterPrompt,
+                    appearance: $storyAppearanceInput.value.trim(),
+                    currentState: $storyCurrentStateInput.value.trim(),
+                    growthNotes: $storyGrowthInput.value.trim(),
+                    relationships: $storyRelationshipsInput.value.trim(),
+                    knowledgeBoundary: $storyKnowledgeInput.value.trim(),
+                    privateGoal: $storyGoalInput.value.trim(),
+                    speakingStyle: $storySpeakingInput.value.trim(),
+                    dialogueExamples: $storyDialogueInput.value.trim(),
+                    stylePrompt: $storyStyleInput.value.trim() || Story.DEFAULT_STORY_STYLE,
+                    styleExamples: $storyStyleExamplesInput.value.trim(),
+                    otherInfo: $storyOtherInfoInput.value.trim(),
+                    updatedAt: Date.now(),
+                };
+
                 if (editingAgentId) {
                     const agent = appData.agents.find(a => a.id === editingAgentId);
                     if (agent) {
-                        agent.name = name;
-                        agent.surfacePrompt = surfacePrompt;
-                        showToast(`智能体「${name}」已更新`, 'success');
+                        const updated = Story.normalizeAgent({ ...agent, ...input }, Memory);
+                        const index = appData.agents.findIndex(item => item.id === editingAgentId);
+                        appData.agents[index] = updated;
+                        showToast(`剧情智能体「${name}」已更新`, 'success');
                     }
                 } else {
-                    const newAgent = {
-                        id: generateId(),
-                        name,
-                        surfacePrompt,
-                        conversations: [],
-                        memory: Memory.createEmptyMemory(),
-                        createdAt: Date.now(),
-                    };
+                    const newAgent = Story.createAgent(input, Memory);
                     appData.agents.push(newAgent);
                     appData.currentAgentId = newAgent.id;
-                    showToast(`智能体「${name}」创建成功`, 'success');
+                    appData.activeMode = 'story';
+                    storyRenderedMessageRange = null;
+                    showToast(`剧情智能体「${name}」创建成功`, 'success');
                 }
 
                 saveData();
                 renderAgentsList();
-                updateChatUI();
+                updateModeUI();
                 renderMessages(); 
                 updateToolbarButtons();
                 closeCreateModal();
             }
 
             $btnCreateAgent.addEventListener('click', openCreateModal);
+            $btnEditStory.addEventListener('click', () => {
+                const agent = getCurrentAgent();
+                if (agent) openEditModal(agent.id);
+            });
+            $btnStoryEditorClose.addEventListener('click', closeCreateModal);
             $btnCancelModal.addEventListener('click', closeCreateModal);
             $btnConfirmCreate.addEventListener('click', saveAgent);
             
@@ -3308,6 +3757,9 @@
                 if (e.key === 'Escape' && $navigatorOverlay.style.display === 'flex') {
                     closeConversationNavigator();
                 }
+                if (e.key === 'Escape' && $memoryEditorOverlay.style.display === 'flex') {
+                    closeStoryMemoryManager();
+                }
             });
 
             // ==================== 聊天UI更新 ====================
@@ -3315,7 +3767,7 @@
                 if (appData.activeMode === 'room') {
                     const room = getCurrentRoom();
                     $currentAgentName.textContent = room?.name || '请选择或创建房间';
-                    $modelBadge.textContent = appData.model || getApiProviderConfig().defaultModel;
+                    $modelBadge.textContent = getActiveModel();
                     $roomTypeBadge.textContent = room?.roomType === 'group' ? '多人房间' : '双人房间';
                     $roomTypeBadge.hidden = !room;
                     $btnEditRoom.hidden = !room;
@@ -3334,13 +3786,14 @@
                 const agent = getCurrentAgent();
                 if (agent) {
                     $currentAgentName.textContent = agent.name;
-                    $modelBadge.textContent = appData.model || getApiProviderConfig().defaultModel;
+                    $modelBadge.textContent = getActiveModel();
                     $messageInput.disabled = false;
                     $btnSend.disabled = false;
+                    $messageInput.placeholder = `以你的角色身份回应「${agent.name}」…`;
                     $emptyState.style.display = 'none';
                 } else {
-                    $currentAgentName.textContent = '请选择或创建智能体';
-                    $modelBadge.textContent = appData.model || getApiProviderConfig().defaultModel;
+                    $currentAgentName.textContent = '请选择或创建剧情智能体';
+                    $modelBadge.textContent = getActiveModel();
                     $messageInput.disabled = true;
                     $btnSend.disabled = true;
                     $emptyState.style.display = 'flex';
@@ -3357,7 +3810,8 @@
                     $memoryStatus.textContent = message;
                     return;
                 }
-                if (!appData.memorySettings.enabled) {
+                const activeSettings = getActiveMemorySettings();
+                if (!activeSettings.enabled) {
                     $memoryStatus.textContent = '长期记忆已关闭；仍会保留完整聊天原文';
                     return;
                 }
@@ -3377,7 +3831,7 @@
                 }
                 const agent = getCurrentAgent();
                 if (!agent) {
-                    $memoryStatus.textContent = '选择智能体后启用长期记忆';
+                    $memoryStatus.textContent = '选择剧情智能体后启用长期记忆';
                     return;
                 }
                 const memory = Memory.normalizeMemory(agent.memory, agent.conversations.length);
@@ -3396,7 +3850,9 @@
                         ? [...room.messages].reverse().find(message => message.role === 'assistant' || message.role === 'user')
                         : null;
                     const lastIsAssistant = lastConversational?.role === 'assistant';
-                    $btnLocate.disabled = !hasConversation;
+                    $btnLocate.disabled = true;
+                    $btnEditStory.disabled = true;
+                    $btnMemoryManager.disabled = true;
                     $btnRegenerate.disabled = !hasConversation || !lastIsAssistant || isGenerating;
                     $btnUndo.disabled = !hasConversation || isGenerating;
                     $btnRestart.disabled = !hasConversation || isGenerating;
@@ -3407,6 +3863,8 @@
                 const lastIsAssistant = hasConversation && agent.conversations[agent.conversations.length - 1].role === 'assistant';
 
                 $btnLocate.disabled = !hasConversation;
+                $btnEditStory.disabled = !agent || isGenerating;
+                $btnMemoryManager.disabled = !agent || isGenerating;
                 $btnRegenerate.disabled = !hasConversation || !lastIsAssistant || isGenerating;
                 $btnUndo.disabled = !hasConversation || isGenerating;
                 $btnRestart.disabled = !hasConversation || isGenerating;
@@ -3425,6 +3883,8 @@
                     $globalPromptInput,
                     $btnCreateAgent,
                     $btnCreateRoom,
+                    $btnEditStory,
+                    $btnMemoryManager,
                     $btnEditRoom,
                 ].forEach(control => {
                     if (control) control.disabled = isGenerating;
@@ -3471,13 +3931,19 @@
                     : (getCurrentAgent()?.conversations || []);
             }
 
-            function getMessageRenderRange(total) {
-                if (!renderedMessageRange) {
+            function getMessageRenderRange(total, mode = appData.activeMode) {
+                const activeRange = mode === 'room' ? roomRenderedMessageRange : storyRenderedMessageRange;
+                if (!activeRange) {
                     return { start: Math.max(0, total - MESSAGE_PAGE_SIZE), end: total };
                 }
-                let start = Math.max(0, Math.min(Number(renderedMessageRange.start) || 0, Math.max(0, total - 1)));
-                let end = Math.max(start + 1, Math.min(Number(renderedMessageRange.end) || total, total));
+                let start = Math.max(0, Math.min(Number(activeRange.start) || 0, Math.max(0, total - 1)));
+                let end = Math.max(start + 1, Math.min(Number(activeRange.end) || total, total));
                 return { start, end };
+            }
+
+            function setMessageRenderRange(range, mode = appData.activeMode) {
+                if (mode === 'room') roomRenderedMessageRange = range;
+                else storyRenderedMessageRange = range;
             }
 
             function appendMessageWindowControls(total, range) {
@@ -3516,12 +3982,12 @@
                     <div class="empty-state" id="emptyState">
                       <div class="empty-icon">💬</div>
                       <h3>开始一段对话</h3>
-                      <p>在下方输入消息，与「${agent?.name || '智能体'}」开始对话吧。</p>
+                      <p>在下方输入消息，与「${agent?.name || '剧情角色'}」开始故事吧。</p>
                     </div>`;
                     $emptyState.style.display = 'flex';
                 } else {
                     $emptyState.style.display = 'none';
-                    const range = getMessageRenderRange(agent.conversations.length);
+                    const range = getMessageRenderRange(agent.conversations.length, 'story');
                     agent.conversations.slice(range.start, range.end).forEach((msg, relativeIndex) => {
                         const index = range.start + relativeIndex;
                         const wrapper = document.createElement('div');
@@ -3562,7 +4028,7 @@
                     updateToolbarButtons();
                     return;
                 }
-                const range = getMessageRenderRange(room.messages.length);
+                const range = getMessageRenderRange(room.messages.length, 'room');
                 room.messages.slice(range.start, range.end).forEach((message, relativeIndex) => {
                     const index = range.start + relativeIndex;
                     if (message.role === 'system') {
@@ -3570,7 +4036,7 @@
                         event.className = 'room-system-event';
                         event.dataset.messageIndex = String(index);
                         event.id = `message-${index}`;
-                        event.innerHTML = `<span class="message-locator-link" data-locate-index="${index}">#${index + 1}</span> · ${formatMessageContent(message.content)}`;
+                        event.innerHTML = `<span>#${index + 1}</span> · ${formatMessageContent(message.content)}`;
                         $messagesContainer.appendChild(event);
                         return;
                     }
@@ -3586,10 +4052,9 @@
                     row.innerHTML = `
                         ${isUser ? userAvatar : avatarMarkup(member)}
                         <div class="room-message-body">
-                            <div class="room-speaker-name message-locator-link" data-locate-index="${index}">${isUser ? '你' : escapeHtml(member?.name || '角色')} · #${index + 1}</div>
+                            <div class="room-speaker-name">${isUser ? '你' : escapeHtml(member?.name || '角色')} · #${index + 1}</div>
                             <div class="message-bubble" ${member ? `style="border-left:3px solid ${member.color}"` : ''}>
                                 ${formatMessageContent(displayContent)}
-                                <button class="bookmark-btn ${message.bookmarked ? 'active' : ''}" title="${message.bookmarked ? '取消收藏' : '收藏并加入定位列表'}" data-index="${index}">${message.bookmarked ? '★' : '☆'}</button>
                                 <button class="copy-btn" title="复制正文" data-index="${index}">📋 复制</button>
                             </div>
                         </div>`;
@@ -3607,7 +4072,7 @@
                     const previousTop = $messagesContainer.scrollTop;
                     const messages = getActiveMessages();
                     const range = getMessageRenderRange(messages.length);
-                    renderedMessageRange = { start: Math.max(0, range.start - MESSAGE_PAGE_SIZE), end: range.end };
+                    setMessageRenderRange({ start: Math.max(0, range.start - MESSAGE_PAGE_SIZE), end: range.end });
                     renderMessages();
                     requestAnimationFrame(() => {
                         $messagesContainer.scrollTop = previousTop + ($messagesContainer.scrollHeight - previousHeight);
@@ -3617,18 +4082,18 @@
                 if (e.target.dataset.action === 'load-later') {
                     const messages = getActiveMessages();
                     const range = getMessageRenderRange(messages.length);
-                    renderedMessageRange = { start: range.start, end: Math.min(messages.length, range.end + MESSAGE_PAGE_SIZE) };
+                    setMessageRenderRange({ start: range.start, end: Math.min(messages.length, range.end + MESSAGE_PAGE_SIZE) });
                     renderMessages({ preserveScroll: true });
                     return;
                 }
                 if (e.target.dataset.action === 'load-latest') {
-                    renderedMessageRange = null;
+                    setMessageRenderRange(null);
                     resetScrollIntent();
                     renderMessages();
                     return;
                 }
                 if (e.target.dataset.locateIndex !== undefined) {
-                    openConversationNavigator(Number(e.target.dataset.locateIndex));
+                    if (appData.activeMode === 'story') openConversationNavigator(Number(e.target.dataset.locateIndex));
                     return;
                 }
                 if (e.target.classList.contains('bookmark-btn')) {
@@ -3676,11 +4141,7 @@
 
             function getMessageSpeakerLabel(message) {
                 if (message.role === 'user') return '你';
-                if (message.role === 'system') return '场景事件';
-                if (appData.activeMode === 'room') {
-                    return Rooms.getMember(getCurrentRoom(), message.speakerId)?.name || '角色';
-                }
-                return getCurrentAgent()?.name || '智能体';
+                return getCurrentAgent()?.name || '剧情角色';
             }
 
             function renderConversationNavigator() {
@@ -3720,7 +4181,11 @@
             }
 
             function openConversationNavigator(focusIndex = null) {
-                const messages = getActiveMessages();
+                if (appData.activeMode !== 'story') {
+                    showToast('对话定位属于剧情模式；房间模式保持独立', 'info');
+                    return;
+                }
+                const messages = getCurrentAgent()?.conversations || [];
                 if (!messages.length) {
                     showToast('当前对话还没有可定位的消息', 'info');
                     return;
@@ -3738,14 +4203,14 @@
             }
 
             function jumpToMessage(index) {
-                const messages = getActiveMessages();
+                const messages = getCurrentAgent()?.conversations || [];
                 const targetIndex = Number(index);
                 if (!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= messages.length) {
                     showToast(`请输入 1—${messages.length} 之间的消息编号`, 'error');
                     return;
                 }
                 const start = Math.max(0, targetIndex - 70);
-                renderedMessageRange = {
+                storyRenderedMessageRange = {
                     start,
                     end: Math.min(messages.length, Math.max(start + MESSAGE_PAGE_SIZE, targetIndex + 80)),
                 };
@@ -3777,13 +4242,108 @@
             });
             $btnNavigatorClose.addEventListener('click', closeConversationNavigator);
             $btnNavigatorLatest.addEventListener('click', () => {
-                renderedMessageRange = null;
+                storyRenderedMessageRange = null;
                 resetScrollIntent();
                 closeConversationNavigator();
                 renderMessages();
             });
             $navigatorOverlay.addEventListener('click', event => {
                 if (event.target === $navigatorOverlay) closeConversationNavigator();
+            });
+
+            // ==================== 剧情长期记忆查看与编辑 ====================
+            function renderStoryMemoryEditor() {
+                const agent = getCurrentAgent();
+                if (!agent) return;
+                const memory = Memory.normalizeMemory(agent.memory, agent.conversations.length);
+                $memoryEditorSubtitle.textContent = `「${agent.name}」· 原文 ${agent.conversations.length} 条 · 已整理到 #${memory.summarizedUntil}`;
+                $memoryOverview.innerHTML = `
+                    <div class="memory-stat"><strong>${agent.conversations.length}</strong><span>完整原始消息（不会因摘要删除）</span></div>
+                    <div class="memory-stat"><strong>${memory.summarizedUntil}</strong><span>已经进入长期记忆的消息</span></div>
+                    <div class="memory-stat"><strong>${memoryDraftSegments.length}</strong><span>可按话题召回的篇章</span></div>`;
+                if (!memoryDraftSegments.length) {
+                    $memorySegmentList.innerHTML = '<div class="memory-empty">目前还没有篇章记忆。对话达到整理阈值后会自动生成；也可以继续保留完整原文而不启用整理。</div>';
+                    return;
+                }
+                $memorySegmentList.innerHTML = memoryDraftSegments.map((segment, index) => `
+                    <details class="memory-segment-card" data-memory-index="${index}" ${index === memoryDraftSegments.length - 1 ? 'open' : ''}>
+                        <summary>#${segment.startIndex + 1}—#${segment.endIndex} · ${escapeHtml(segment.title || `篇章 ${index + 1}`)} · 重要度 ${segment.importance}</summary>
+                        <div class="memory-segment-body">
+                            <div><label>篇章标题</label><input class="memory-segment-title" value="${escapeHtml(segment.title || '')}"></div>
+                            <div><label>重要度</label><select class="memory-segment-importance">${[1,2,3,4,5].map(value => `<option value="${value}" ${value === segment.importance ? 'selected' : ''}>${value}</option>`).join('')}</select></div>
+                            <div class="full"><label>检索关键词（用逗号分隔）</label><input class="memory-segment-keywords" value="${escapeHtml((segment.keywords || []).join('，'))}"></div>
+                            <div class="full"><label>篇章摘要</label><textarea class="memory-segment-summary" style="min-height:220px">${escapeHtml(segment.summary || '')}</textarea></div>
+                            <div class="full" style="display:flex;justify-content:flex-end"><button type="button" class="mini-action-btn danger memory-segment-delete">删除本段记忆</button></div>
+                        </div>
+                    </details>`).join('');
+
+                $memorySegmentList.querySelectorAll('.memory-segment-card').forEach(card => {
+                    const index = Number(card.dataset.memoryIndex);
+                    const segment = memoryDraftSegments[index];
+                    card.querySelector('.memory-segment-title').addEventListener('input', event => segment.title = event.target.value);
+                    card.querySelector('.memory-segment-importance').addEventListener('change', event => segment.importance = Number(event.target.value));
+                    card.querySelector('.memory-segment-keywords').addEventListener('input', event => {
+                        segment.keywords = event.target.value.split(/[,，\n]/).map(item => item.trim()).filter(Boolean).slice(0, 40);
+                    });
+                    card.querySelector('.memory-segment-summary').addEventListener('input', event => segment.summary = event.target.value);
+                    card.querySelector('.memory-segment-delete').addEventListener('click', () => {
+                        memoryDraftSegments.splice(index, 1);
+                        renderStoryMemoryEditor();
+                    });
+                });
+            }
+
+            function openStoryMemoryManager() {
+                if (appData.activeMode !== 'story') return;
+                const agent = getCurrentAgent();
+                if (!agent || !canChangeConversationTarget()) return;
+                const memory = Memory.normalizeMemory(agent.memory, agent.conversations.length);
+                memoryDraftSegments = memory.segments.map(segment => ({
+                    ...segment,
+                    keywords: [...segment.keywords],
+                }));
+                $memoryCoreInput.value = memory.core;
+                renderStoryMemoryEditor();
+                $memoryEditorOverlay.style.display = 'flex';
+                $memoryEditor.scrollTop = 0;
+            }
+
+            function closeStoryMemoryManager() {
+                $memoryEditorOverlay.style.display = 'none';
+                memoryDraftSegments = [];
+            }
+
+            function saveStoryMemoryEdits() {
+                const agent = getCurrentAgent();
+                if (!agent) return;
+                const previous = Memory.normalizeMemory(agent.memory, agent.conversations.length);
+                agent.memory = Memory.normalizeMemory({
+                    ...previous,
+                    core: $memoryCoreInput.value.trim(),
+                    segments: memoryDraftSegments
+                        .map(segment => ({ ...segment, summary: String(segment.summary || '').trim() }))
+                        .filter(segment => segment.summary),
+                    updatedAt: Date.now(),
+                }, agent.conversations.length);
+                saveData();
+                updateMemoryStatus();
+                closeStoryMemoryManager();
+                showToast('剧情长期记忆已保存', 'success');
+            }
+
+            $btnMemoryManager.addEventListener('click', openStoryMemoryManager);
+            $btnMemoryEditorClose.addEventListener('click', closeStoryMemoryManager);
+            $btnCancelMemoryEdit.addEventListener('click', closeStoryMemoryManager);
+            $btnSaveMemoryEdit.addEventListener('click', saveStoryMemoryEdits);
+            $btnResetStoryMemory.addEventListener('click', () => {
+                const agent = getCurrentAgent();
+                if (!agent) return;
+                if (!confirm('确定清空当前整理结果吗？完整聊天原文不会删除；后续发送时会从原文重新建立记忆。')) return;
+                agent.memory = Memory.createEmptyMemory();
+                saveData();
+                updateMemoryStatus();
+                closeStoryMemoryManager();
+                showToast('已清空整理结果，完整原文仍然保留', 'success');
             });
 
             function formatMessageContent(content) {
@@ -3962,11 +4522,11 @@
             }
 
             function getRequestOptions(overrides = {}) {
-                const settings = Memory.normalizeConfig(appData.memorySettings);
+                const settings = Memory.normalizeConfig(getActiveMemorySettings());
                 const provider = getApiProviderConfig();
                 const requestedMaxTokens = overrides.maxTokens ?? settings.maxOutputTokens;
                 const options = {
-                    model: appData.model,
+                    model: getActiveModel(),
                     temperature: overrides.temperature ?? 0.72,
                     max_tokens: provider.maxOutputTokens
                         ? Math.min(requestedMaxTokens, provider.maxOutputTokens)
@@ -4158,7 +4718,7 @@
             }
 
             async function ensureLongTermMemory(agent) {
-                const settings = Memory.normalizeConfig(appData.memorySettings);
+                const settings = Memory.normalizeConfig(appData.storyMemorySettings);
                 if (!settings.enabled) return;
                 let rounds = 0;
                 let chunk = Memory.findSummaryChunk(agent.conversations, agent.memory, settings);
@@ -4259,7 +4819,7 @@
             }
 
             async function ensureRoomLongTermMemory(room) {
-                const settings = Memory.normalizeConfig(appData.memorySettings);
+                const settings = Memory.normalizeConfig(appData.roomMemorySettings);
                 if (!settings.enabled) return;
                 let rounds = 0;
                 const conversation = getRoomMemoryConversation(room);
@@ -4281,7 +4841,7 @@
             }
 
             function getRoomMemoryContexts(room, memberId, query) {
-                const settings = Memory.normalizeConfig(appData.memorySettings);
+                const settings = Memory.normalizeConfig(appData.roomMemorySettings);
                 if (!settings.enabled) return { sharedMemory: '', characterMemory: '', liveContextTokenBudget: settings.liveContextTokenBudget };
                 const sharedMemory = Memory.buildMemoryContext(room.sharedMemory, query || '', settings, { tokenBudget: 24000 });
                 const characterState = Memory.normalizeMemory(room.characterMemories?.[memberId], room.messages.length);
@@ -4294,9 +4854,14 @@
 
             function buildSystemPrompt() {
                 const agent = getCurrentAgent();
-                const globalPrompt = appData.globalPrompt.trim();
-                const surfacePrompt = agent?.surfacePrompt?.trim() || '';
-                return Memory.buildSystemPrompt(globalPrompt, surfacePrompt, appData.memorySettings.naturalStyle, appData.naturalStylePrompt);
+                const settings = Memory.normalizeConfig(appData.storyMemorySettings);
+                return Story.buildSystemPrompt(
+                    agent,
+                    appData.storyGlobalPrompt,
+                    settings,
+                    appData.storyNaturalStylePrompt,
+                    Memory
+                );
             }
 
             function buildMessagesForAPI() {
@@ -4305,7 +4870,7 @@
                 const messages = [{ role: 'system', content: systemPrompt }];
                 if (!agent || agent.conversations.length === 0) return messages;
 
-                const settings = Memory.normalizeConfig(appData.memorySettings);
+                const settings = Memory.normalizeConfig(appData.storyMemorySettings);
                 const memory = Memory.normalizeMemory(agent.memory, agent.conversations.length);
                 const latestUserMessage = [...agent.conversations].reverse().find(message => message.role === 'user');
                 const memoryContext = settings.enabled
@@ -4328,7 +4893,13 @@
                 messages.push(...earlierMessages);
                 messages.push({
                     role: 'system',
-                    content: Memory.buildTurnReminder(appData.globalPrompt, agent.surfacePrompt, settings.naturalStyle, appData.naturalStylePrompt),
+                    content: Story.buildTurnReminder(
+                        agent,
+                        appData.storyGlobalPrompt,
+                        settings,
+                        appData.storyNaturalStylePrompt,
+                        Memory
+                    ),
                 });
                 if (latestMessage) messages.push(latestMessage);
                 return messages;
@@ -4433,7 +5004,7 @@
                     createdAt: Date.now(),
                 });
                 room.updatedAt = Date.now();
-                renderedMessageRange = null;
+                roomRenderedMessageRange = null;
                 saveData();
                 renderMessages();
                 $messageInput.value = '';
@@ -4536,13 +5107,13 @@
                 }
                 const agent = getCurrentAgent();
                 if (!agent) {
-                    showToast('请先选择或创建智能体', 'error');
+                    showToast('请先选择或创建剧情智能体', 'error');
                     return;
                 }
                 if (!userContent.trim()) return;
 
                 agent.conversations.push({ role: 'user', content: userContent.trim(), createdAt: Date.now(), bookmarked: false });
-                renderedMessageRange = null;
+                storyRenderedMessageRange = null;
                 saveData();
                 renderMessages();
                 updateToolbarButtons();
@@ -4775,7 +5346,7 @@
                             room.messages.length
                         );
                     });
-                    renderedMessageRange = null;
+                    roomRenderedMessageRange = null;
                     saveData();
                     renderRoomContext();
                     renderRoomMessages();
@@ -4796,7 +5367,7 @@
                     agent.conversations.pop();
                 }
                 agent.memory = normalizeMemoryAfterUndo(agent.memory, agent.conversations.length);
-                renderedMessageRange = null;
+                storyRenderedMessageRange = null;
                 saveData();
                 renderMessages();
                 updateToolbarButtons();
@@ -4826,7 +5397,7 @@
                         room.intimacy.lastReason = '';
                     }
                     lastIntimacyDelta = null;
-                    renderedMessageRange = null;
+                    roomRenderedMessageRange = null;
                     saveData();
                     renderRoomContext();
                     renderRoomMessages();
@@ -4841,10 +5412,10 @@
                     showToast('当前对话已是空状态', 'info');
                     return;
                 }
-                if (!confirm('确定要清空当前智能体的所有对话历史吗？对话历史真的回不来了！')) return;
+                if (!confirm('确定清空当前剧情的全部对话和长期记忆吗？人物设定会保留，但聊天原文无法恢复。')) return;
                 agent.conversations = [];
                 agent.memory = Memory.createEmptyMemory();
-                renderedMessageRange = null;
+                storyRenderedMessageRange = null;
                 saveData();
                 renderMessages();
                 updateToolbarButtons();
@@ -4893,7 +5464,7 @@
 
             function refreshModelSettingsUI() {
                 appData.apiProvider = 'deepseek';
-                appData.model = normalizeDeepSeekModel(appData.model);
+                appData.model = getActiveModel();
                 appData.apiKey = appData.apiKeys.deepseek || '';
                 appData.providerModels.deepseek = appData.model;
                 const provider = getApiProviderConfig();
@@ -4910,8 +5481,21 @@
                     group.appendChild(option);
                 });
                 $modelSelect.appendChild(group);
-                $modelSelect.value = appData.model;
-                $modelBadge.textContent = appData.model;
+                $modelSelect.value = getActiveModel();
+                $modelBadge.textContent = getActiveModel();
+            }
+
+            function syncSettingsControls() {
+                const settings = Memory.normalizeConfig(getActiveMemorySettings());
+                $thinkingModeSelect.value = settings.thinkingMode;
+                $maxOutputSelect.value = String(settings.maxOutputTokens);
+                if (!$maxOutputSelect.value) $maxOutputSelect.value = '16000';
+                $longMemoryToggle.checked = settings.enabled;
+                $modelSelect.value = getActiveModel();
+                $modelBadge.textContent = getActiveModel();
+                $naturalStyleToggle.checked = appData.storyMemorySettings.naturalStyle;
+                $naturalStylePromptInput.value = appData.storyNaturalStylePrompt;
+                $globalPromptInput.value = appData.storyGlobalPrompt;
             }
 
             $apiKeyInput.addEventListener('input', () => {
@@ -4922,45 +5506,44 @@
             });
             $modelSelect.addEventListener('change', () => {
                 appData.apiProvider = 'deepseek';
-                appData.model = normalizeDeepSeekModel($modelSelect.value);
-                appData.providerModels.deepseek = appData.model;
+                setActiveModel($modelSelect.value);
                 refreshModelSettingsUI();
                 saveData();
-                $modelBadge.textContent = appData.model;
+                $modelBadge.textContent = getActiveModel();
                 updateSendButton();
             });
             $thinkingModeSelect.addEventListener('change', () => {
-                appData.memorySettings.thinkingMode = $thinkingModeSelect.value;
+                getActiveMemorySettings().thinkingMode = $thinkingModeSelect.value;
                 saveData();
             });
             $maxOutputSelect.addEventListener('change', () => {
-                appData.memorySettings.maxOutputTokens = Number($maxOutputSelect.value);
+                getActiveMemorySettings().maxOutputTokens = Number($maxOutputSelect.value);
                 saveData();
             });
             $longMemoryToggle.addEventListener('change', () => {
-                appData.memorySettings.enabled = $longMemoryToggle.checked;
+                getActiveMemorySettings().enabled = $longMemoryToggle.checked;
                 saveData();
                 updateMemoryStatus();
-                showToast($longMemoryToggle.checked ? '自动长期记忆已开启' : '自动长期记忆已关闭', 'info');
+                showToast(`${appData.activeMode === 'room' ? '房间' : '剧情'}自动长期记忆已${$longMemoryToggle.checked ? '开启' : '关闭'}`, 'info');
             });
             $naturalStyleToggle.addEventListener('change', () => {
-                appData.memorySettings.naturalStyle = $naturalStyleToggle.checked;
+                appData.storyMemorySettings.naturalStyle = $naturalStyleToggle.checked;
                 saveData();
                 showToast($naturalStyleToggle.checked ? '自然文风增强已开启' : '自然文风增强已关闭', 'info');
             });
             $naturalStylePromptInput.addEventListener('input', () => {
-                appData.naturalStylePrompt = $naturalStylePromptInput.value;
+                appData.storyNaturalStylePrompt = $naturalStylePromptInput.value;
                 saveData();
             });
             $btnResetStylePrompt.addEventListener('click', () => {
-                appData.naturalStylePrompt = Memory.NATURAL_STYLE_GUIDE;
-                $naturalStylePromptInput.value = appData.naturalStylePrompt;
+                appData.storyNaturalStylePrompt = Memory.NATURAL_STYLE_GUIDE;
+                $naturalStylePromptInput.value = appData.storyNaturalStylePrompt;
                 saveData();
                 showToast('已恢复默认自然文风提示词', 'success');
             });
             $btnPersistStorage.addEventListener('click', requestPersistentStorage);
             $globalPromptInput.addEventListener('input', () => {
-                appData.globalPrompt = $globalPromptInput.value;
+                appData.storyGlobalPrompt = $globalPromptInput.value;
                 saveData();
             });
             document.addEventListener('visibilitychange', () => {
@@ -4983,14 +5566,8 @@
                 applyTheme(); 
 
                 refreshModelSettingsUI();
-                $thinkingModeSelect.value = appData.memorySettings.thinkingMode;
-                $maxOutputSelect.value = String(appData.memorySettings.maxOutputTokens);
-                if (!$maxOutputSelect.value) $maxOutputSelect.value = '16000';
-                $longMemoryToggle.checked = appData.memorySettings.enabled;
-                $naturalStyleToggle.checked = appData.memorySettings.naturalStyle;
-                $naturalStylePromptInput.value = appData.naturalStylePrompt;
-                $globalPromptInput.value = appData.globalPrompt;
-                $modelBadge.textContent = appData.model;
+                syncSettingsControls();
+                $modelBadge.textContent = getActiveModel();
                 
                 renderAgentsList();
                 renderRoomsList();
