@@ -12,10 +12,24 @@
 
     const DEFAULT_ROOM_PROMPT = [
         '这是一个持续进行的角色扮演房间。所有角色都必须忠于各自的人设、知识边界、关系和当前处境。',
-        '人物应当像真实的人一样选择是否回应，不要机械复述，不要把每轮对话写成总结。',
+        '人物应当像真实的人一样选择是否回应。性格通过当下的判断、语气和小动作自然呈现，不要机械复述设定，不要把每轮对话写成总结。',
         '禁止替用户决定行动、语言、想法或感受。角色只能根据用户已经明确表达的内容作出反应。',
         '角色之间可以交流、打断、沉默或产生分歧，但不得擅自控制其他角色。',
-        '保持事件连续、情绪渐进和因果一致；不要为了推进剧情突然改变人物立场。',
+        '保持事件连续、情绪渐进和因果一致。角色可以成长和改变；当前状态、已发生事件和成长记录优先于早期的静态性格标签。',
+    ].join('\n');
+
+    const STORY_STYLE_GUIDE = [
+        '【轻松日常剧情文风】',
+        '整体接近日常轻小说或短篇动画的观感：自然、轻快、可爱、有生活气，不端着，也不为了“像轻小说”而堆砌动漫腔。',
+        '1. 对话先接住上一句话和眼前动作，再自然显出人物性格。不要让角色每一句都像在背诵人设关键词。',
+        '2. 允许半句话、停顿、抢话、改口、吐槽、没接住梗、口是心非和细小误会。人物不必总把意思解释完整。',
+        '3. 趣味来自反应节奏、具体小动作、关系反差和日常意外；不强行讲笑话，不用网络段子轰炸，不把所有人写成同一种活泼。',
+        '4. 动作用一两个准确细节带过。避免每句台词前后都补动作、神态和心理，也避免机械的“动作—台词—心理”三段式。',
+        '5. 场景描写像镜头短暂扫过，只写此刻真正影响人物的声音、物件、距离、温度和变化，不做空泛抒情。',
+        '6. 情绪变化要有铺垫。亲近、害羞、恼火或心动都通过行为露出，不直接替人物总结“她其实很……”。',
+        '7. 段落长度随节奏变化：普通接话可以只有一句；小事件通常一到三小段；只有用户明确要求细写时才展开。',
+        '8. 不重复角色名作标题，不用旁白解释写作方法，不在段尾固定升华或总结。',
+        '文风示例只用于学习节奏、句长、视角和对白密度，不得照抄其中事件、台词或人物。',
     ].join('\n');
 
     const ROOM_TURN_REMINDER = [
@@ -182,6 +196,11 @@
             publicProfile: asString(source.publicProfile).trim(),
             speakingStyle: asString(source.speakingStyle).trim(),
             privateGoal: asString(source.privateGoal).trim(),
+            growthNotes: asString(source.growthNotes).trim(),
+            currentState: asString(source.currentState).trim(),
+            relationships: asString(source.relationships).trim(),
+            knowledgeBoundary: asString(source.knowledgeBoundary).trim(),
+            dialogueExamples: asString(source.dialogueExamples).trim(),
             avatar: safeImageDataUrl(source.avatar),
             color: /^#[0-9a-f]{6}$/i.test(asString(source.color)) ? source.color : memberColor(index),
             enabled: source.enabled !== false,
@@ -204,6 +223,7 @@
             content: asString(source.content),
             turnId: asString(source.turnId) || null,
             kind: asString(source.kind, 'message'),
+            bookmarked: source.bookmarked === true,
             createdAt: Number(source.createdAt) || Date.now(),
         };
     }
@@ -224,6 +244,7 @@
             characterMemories[member.id] = normalizeMemory(source.characterMemories?.[member.id], messages.length, memoryApi);
         });
         const roomType = source.roomType === 'group' ? 'group' : 'double';
+        const legacyDefaultStyle = typeof defaultStylePrompt === 'string' && source.stylePrompt === defaultStylePrompt;
         return {
             id: asString(source.id) || createId('room'),
             roomType,
@@ -232,8 +253,12 @@
             worldPrompt: asString(source.worldPrompt).trim(),
             scenePrompt: asString(source.scenePrompt).trim(),
             userPersona: asString(source.userPersona).trim(),
+            styleExamples: asString(source.styleExamples).trim(),
+            otherInfo: asString(source.otherInfo).trim(),
             styleEnabled: source.styleEnabled !== false,
-            stylePrompt: asString(source.stylePrompt, defaultStylePrompt).trim(),
+            stylePrompt: legacyDefaultStyle
+                ? STORY_STYLE_GUIDE
+                : (asString(source.stylePrompt, STORY_STYLE_GUIDE).trim() || STORY_STYLE_GUIDE),
             narrationEnabled: source.narrationEnabled === true,
             turnMode: ['smart', 'mention', 'all'].includes(source.turnMode) ? source.turnMode : 'smart',
             maxSpeakers: finiteInt(source.maxSpeakers, 2, 1, MAX_SMART_SPEAKERS),
@@ -363,8 +388,14 @@
             '【世界观】\n' + (room.worldPrompt || '（未单独设定）'),
             '【当前场景】\n' + (room.scenePrompt || '（延续最近对话）'),
             '【用户所扮演的角色】\n' + (room.userPersona || '（用户未填写详细设定，只能依据其明确发言判断）'),
-            `【当前角色设定】\n姓名：${member.name}\n${member.personaPrompt || '严格依据对话中已经建立的形象行动。'}`,
+            '【其他补充信息】\n' + (room.otherInfo || '（无）'),
+            `【角色基础档案｜稳定底色】\n姓名：${member.name}\n${member.personaPrompt || '严格依据对话中已经建立的形象行动。'}`,
+            '【角色当前状态｜本轮优先】\n' + (member.currentState || '依据最近剧情判断身体、情绪、处境与短期关注点。'),
+            '【成长与变化记录｜高于早期静态标签】\n' + (member.growthNotes || '尚未另行记录；只依据已经发生的剧情自然变化。'),
+            '【关系网络】\n' + (member.relationships || '依据房间设定与已经发生的互动判断，不擅自建立未发生的关系。'),
+            '【知识边界与秘密】\n' + (member.knowledgeBoundary || '只使用该角色按设定和剧情能够知道的信息。'),
             '【你的说话与行动风格】\n' + (member.speakingStyle || '自然、符合人物处境，不使用模板化表达。'),
+            '【角色对白参考】\n' + (member.dialogueExamples || '（无固定台词示例；依据人物与情境自然表达。）'),
             '【你的私人目标】\n' + (member.privateGoal || '依据人物设定自然行动，不强行推动剧情。'),
             '【其他在场角色的公开身份】\n' + buildParticipantDirectory(room, member.id),
         ];
@@ -380,18 +411,27 @@
         if (room.styleEnabled && room.stylePrompt) {
             sections.push('【自然表达规则】\n' + room.stylePrompt);
         }
+        if (room.styleExamples) {
+            sections.push('【用户提供的文风示例｜只参考笔触，不继承内容】\n' + room.styleExamples);
+        }
         sections.push('【本轮强制要求】\n' + ROOM_TURN_REMINDER);
         return sections.join('\n\n');
     }
 
-    function buildCharacterMessages(room, memberId, contexts, recentLimit) {
+    function buildCharacterMessages(room, memberId, contexts, recentLimit, memoryApi) {
         const member = getMember(room, memberId);
         if (!member) throw new Error('找不到待发言角色');
-        const historyStart = Math.max(
-            Number(room.sharedMemory?.summarizedUntil) || 0,
-            Math.max(0, room.messages.length - finiteInt(recentLimit, 80, 12, 240))
-        );
-        const recentMessages = room.messages.slice(historyStart);
+        const summarizedUntil = Number(room.sharedMemory?.summarizedUntil) || 0;
+        const fallbackStart = Math.max(summarizedUntil, Math.max(0, room.messages.length - finiteInt(recentLimit, 100, 20, 1000)));
+        const window = memoryApi && typeof memoryApi.takeRecentMessages === 'function'
+            ? memoryApi.takeRecentMessages(
+                room.messages,
+                summarizedUntil,
+                contexts?.liveContextTokenBudget || 120000,
+                800
+            )
+            : { messages: room.messages.slice(fallbackStart) };
+        const recentMessages = window.messages;
         const latestInput = [...recentMessages].reverse().find(message => message.role === 'user' || message.kind === 'control');
         const pacing = buildTurnPacing(latestInput?.content || '');
         return [
@@ -409,6 +449,9 @@
             persona_excerpt: member.personaPrompt.slice(0, 1200),
             speaking_style: member.speakingStyle.slice(0, 500),
             private_goal: member.privateGoal,
+            current_state: member.currentState,
+            growth_notes: member.growthNotes,
+            relationships: member.relationships,
         }));
         const recent = room.messages.slice(-24).map(message => {
             if (message.role === 'assistant') {
@@ -434,6 +477,7 @@
                     '【候选角色】\n' + JSON.stringify(directory),
                     '【用户角色设定】\n' + (room.userPersona || '（未设定）'),
                     '【场景】\n' + (room.scenePrompt || '延续当前场景'),
+                    '【剧情补充】\n' + (room.otherInfo || '（无）'),
                     '【最近对话】\n' + (recent || '（尚无）'),
                     '【用户最新消息】\n' + latestUserText,
                 ].join('\n\n'),
@@ -502,6 +546,7 @@
                     '【角色私人目标】\n' + member.privateGoal,
                     '【用户角色设定】\n' + room.userPersona,
                     '【世界与场景】\n' + [room.worldPrompt, room.scenePrompt].filter(Boolean).join('\n'),
+                    '【角色成长与当前状态】\n' + [member.growthNotes, member.currentState, member.relationships].filter(Boolean).join('\n'),
                 ].join('\n\n'),
             },
         ];
@@ -648,6 +693,7 @@
         MAX_INTIMACY,
         MAX_GROUP_MEMBERS,
         DEFAULT_ROOM_PROMPT,
+        STORY_STYLE_GUIDE,
         createId,
         memberColor,
         normalizeMember,

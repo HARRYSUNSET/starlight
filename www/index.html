@@ -728,6 +728,36 @@
             color: var(--accent);
             border-color: var(--accent-light);
         }
+        .bookmark-btn {
+            position: absolute;
+            bottom: -14px;
+            right: 82px;
+            min-width: 28px;
+            height: 23px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--card-bg);
+            color: var(--text-muted);
+            cursor: pointer;
+            opacity: 0;
+            z-index: 5;
+            box-shadow: var(--shadow-sm);
+        }
+        .message-wrapper:hover .bookmark-btn,
+        .room-message-row:hover .bookmark-btn,
+        .bookmark-btn.active { opacity: 1; }
+        .bookmark-btn.active { color: #e0a11a; }
+        .message-locator-link {
+            cursor: pointer;
+            text-decoration: underline;
+            text-decoration-style: dotted;
+            text-underline-offset: 3px;
+        }
+        .message-jump-highlight .message-bubble,
+        .message-jump-highlight.room-system-event {
+            outline: 3px solid var(--accent-light);
+            box-shadow: 0 0 0 7px var(--accent-glow);
+        }
 
         /* 加载指示器 */
         .typing-indicator {
@@ -1260,11 +1290,59 @@
             gap: 8px;
         }
         .input-area:not(.room-active) .message-entry-row { width: 100%; }
+        .room-editor-overlay {
+            padding: 0;
+            background: var(--card-bg);
+            align-items: stretch;
+            justify-content: stretch;
+        }
         .modal.room-modal {
+            --editor-pad: max(24px, calc((100vw - 1180px) / 2));
             position: relative;
-            width: 780px;
-            max-height: 90vh;
+            width: 100vw;
+            max-width: none;
+            height: 100dvh;
+            max-height: none;
             overflow-y: auto;
+            border: 0;
+            border-radius: 0;
+            box-shadow: none;
+            padding: 28px var(--editor-pad);
+            animation: none;
+        }
+        .room-editor-header {
+            position: sticky;
+            top: -28px;
+            z-index: 5;
+            margin: -28px calc(0px - var(--editor-pad)) 24px;
+            padding: 18px var(--editor-pad);
+            background: color-mix(in srgb, var(--card-bg) 94%, transparent);
+            border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(14px);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .room-editor-header h3 {
+            margin: 0;
+            flex: 1;
+        }
+        .room-modal > .modal-actions {
+            position: sticky;
+            bottom: -28px;
+            z-index: 5;
+            margin: 24px calc(0px - var(--editor-pad)) -28px;
+            padding: 14px var(--editor-pad);
+            background: color-mix(in srgb, var(--card-bg) 94%, transparent);
+            border-top: 1px solid var(--border);
+            backdrop-filter: blur(14px);
+        }
+        .room-modal .room-form-section {
+            padding: 20px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: color-mix(in srgb, var(--bg) 62%, var(--card-bg));
+            margin-top: 18px;
         }
         .room-type-selector {
             display: grid;
@@ -1395,6 +1473,50 @@
             color: var(--text-secondary);
         }
         .modal-loading[hidden] { display: none; }
+        .conversation-navigator {
+            width: min(860px, 94vw);
+            max-height: 88dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .navigator-toolbar {
+            display: grid;
+            grid-template-columns: minmax(180px, 1fr) 130px auto auto;
+            gap: 8px;
+            align-items: center;
+        }
+        .navigator-summary {
+            margin: 10px 0;
+            color: var(--text-muted);
+            font-size: 0.72rem;
+        }
+        .navigator-results {
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+            padding-right: 4px;
+            min-height: 180px;
+        }
+        .navigator-result {
+            display: grid;
+            grid-template-columns: 76px minmax(0, 1fr) 28px;
+            gap: 10px;
+            align-items: center;
+            width: 100%;
+            text-align: left;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            background: var(--bg);
+            color: var(--text-primary);
+            padding: 10px 12px;
+            cursor: pointer;
+        }
+        .navigator-result:hover { border-color: var(--accent-light); }
+        .navigator-result-meta { color: var(--accent); font-size: 0.7rem; font-weight: 700; }
+        .navigator-result-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.78rem; }
+        .navigator-empty { padding: 36px; text-align: center; color: var(--text-muted); }
         .room-background-active {
             background-position: center, center;
             background-size: 100% 100%, cover;
@@ -1406,12 +1528,18 @@
             .room-context-bar { padding: 7px 10px; gap: 7px; }
             .intimacy-panel { min-width: 150px; flex-basis: 190px; }
             .room-message-row { max-width: 94%; }
-            .modal.room-modal { width: 94vw; padding: 20px 16px; }
+            .modal.room-modal { width: 100vw; padding: 20px 14px; }
+            .room-editor-header { top: -20px; margin: -20px -14px 18px; padding: 15px 14px; }
+            .room-modal > .modal-actions { bottom: -20px; margin: 20px -14px -20px; padding: 12px 14px; }
+            .room-modal .room-form-section { padding: 14px; }
             .room-form-grid,
             .participant-editor-body { grid-template-columns: 1fr; }
             .room-form-grid .full,
             .participant-editor-body .full { grid-column: auto; }
             .intimacy-node-row { grid-template-columns: 72px 1fr auto; }
+            .navigator-toolbar { grid-template-columns: 1fr 92px; }
+            .navigator-result { grid-template-columns: 62px minmax(0, 1fr) 24px; }
+            .bookmark-btn { opacity: 0.72; }
         }
     </style>
 </head>
@@ -1526,7 +1654,8 @@
                 <span class="current-agent-name" id="currentAgentName">选择智能体</span>
                 <span class="room-kind-badge" id="roomTypeBadge" hidden>双人房间</span>
                 <span class="badge" id="modelBadge">deepseek-flash</span>
-                <button class="btn-toolbar" id="btnEditRoom" title="编辑当前房间" hidden>⚙️ 房间设置</button>
+                <button class="btn-toolbar" id="btnEditRoom" title="打开全屏剧情设定" hidden>⚙️ 剧情设定</button>
+                <button class="btn-toolbar" id="btnLocate" title="搜索、收藏或按编号跳转消息" disabled>🧭 定位</button>
                 <button class="btn-toolbar" id="btnRegenerate" title="重新生成最后一条回复" disabled>🔄 重新生成</button>
                 <button class="btn-toolbar" id="btnUndo" title="撤回最后一轮对话" disabled>↩️ 撤回</button>
                 <button class="btn-toolbar danger" id="btnRestart" title="清空当前对话" disabled>🗑️ 重启对话</button>
@@ -1580,13 +1709,16 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="roomModalOverlay" style="display:none;">
+    <div class="modal-overlay room-editor-overlay" id="roomModalOverlay" style="display:none;">
         <div class="modal room-modal" id="roomModal">
             <div class="modal-loading" id="roomModalLoading" hidden>
                 <div class="typing-indicator"><span></span><span></span><span></span></div>
                 <div id="roomModalLoadingText">正在保存房间……</div>
             </div>
-            <h3 id="roomModalTitle">🎭 创建房间</h3>
+            <div class="room-editor-header">
+                <h3 id="roomModalTitle">🎭 创建房间</h3>
+                <button type="button" class="mini-action-btn" id="btnRoomEditorClose">关闭编辑页</button>
+            </div>
 
             <label>房间类型</label>
             <div class="room-type-selector" id="roomTypeSelector">
@@ -1626,6 +1758,10 @@
                     <label for="roomUserPersonaInput">用户所扮演的角色设定</label>
                     <textarea id="roomUserPersonaInput" style="min-height:150px" placeholder="填写用户在本房间中的姓名、身份、性格、能力、外貌、与其他人物的关系，以及角色知道或不知道的事情"></textarea>
                     <div class="room-form-hint">这是房间独立设定，不会影响其他房间或通用模式。</div>
+                </div>
+                <div class="full">
+                    <label for="roomOtherInfoInput">其他剧情信息</label>
+                    <textarea id="roomOtherInfoInput" style="min-height:130px" placeholder="主线目标、伏笔、关键物品、时间线、必须延续的事件、暂不归类的信息等"></textarea>
                 </div>
                 <div class="full">
                     <label>聊天背景</label>
@@ -1690,11 +1826,32 @@
                     <input type="checkbox" id="roomStyleToggle" checked>
                 </div>
                 <textarea id="roomStylePromptInput" style="min-height:150px" placeholder="只在当前房间使用的自然表达规则"></textarea>
+                <label for="roomStyleExamplesInput">故事文风示例</label>
+                <textarea id="roomStyleExamplesInput" style="min-height:220px" placeholder="粘贴一到数段你喜欢的原创或有权使用的文字。模型只参考节奏、句长、视角和对白密度，不继承示例中的人物与事件。"></textarea>
+                <div class="room-form-hint">示例会作为笔触参考放入角色提示词；建议使用能代表理想对白节奏的短片段。</div>
             </div>
 
             <div class="modal-actions">
                 <button class="btn-cancel" id="btnCancelRoomModal">取消</button>
                 <button class="btn-confirm" id="btnConfirmRoom">创建房间</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="navigatorOverlay" style="display:none;">
+        <div class="modal conversation-navigator">
+            <h3>🧭 对话定位</h3>
+            <div class="navigator-toolbar">
+                <input type="search" id="navigatorSearchInput" placeholder="搜索台词、事件或角色名">
+                <input type="number" id="navigatorNumberInput" min="1" placeholder="消息编号">
+                <button type="button" class="mini-action-btn" id="btnNavigatorJump">跳转</button>
+                <button type="button" class="mini-action-btn" id="btnNavigatorBookmarks">☆ 只看收藏</button>
+            </div>
+            <div class="navigator-summary" id="navigatorSummary"></div>
+            <div class="navigator-results" id="navigatorResults"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn-cancel" id="btnNavigatorClose">关闭</button>
+                <button type="button" class="btn-confirm" id="btnNavigatorLatest">回到最新消息</button>
             </div>
         </div>
     </div>
@@ -1728,6 +1885,7 @@
             const $btnCreateAgent = document.getElementById('btnCreateAgent');
             const $currentAgentName = document.getElementById('currentAgentName');
             const $modelBadge = document.getElementById('modelBadge');
+            const $btnLocate = document.getElementById('btnLocate');
             const $btnRegenerate = document.getElementById('btnRegenerate');
             const $btnUndo = document.getElementById('btnUndo');
             const $btnRestart = document.getElementById('btnRestart');
@@ -1762,6 +1920,7 @@
             const $btnContinueScene = document.getElementById('btnContinueScene');
             const $roomModalOverlay = document.getElementById('roomModalOverlay');
             const $roomModalTitle = document.getElementById('roomModalTitle');
+            const $btnRoomEditorClose = document.getElementById('btnRoomEditorClose');
             const $roomModalLoading = document.getElementById('roomModalLoading');
             const $roomModalLoadingText = document.getElementById('roomModalLoadingText');
             const $roomTypeSelector = document.getElementById('roomTypeSelector');
@@ -1771,6 +1930,7 @@
             const $roomWorldPromptInput = document.getElementById('roomWorldPromptInput');
             const $roomScenePromptInput = document.getElementById('roomScenePromptInput');
             const $roomUserPersonaInput = document.getElementById('roomUserPersonaInput');
+            const $roomOtherInfoInput = document.getElementById('roomOtherInfoInput');
             const $roomBackgroundPreview = document.getElementById('roomBackgroundPreview');
             const $roomBackgroundFile = document.getElementById('roomBackgroundFile');
             const $btnRemoveRoomBackground = document.getElementById('btnRemoveRoomBackground');
@@ -1790,8 +1950,18 @@
             const $btnAddIntimacyNode = document.getElementById('btnAddIntimacyNode');
             const $roomStyleToggle = document.getElementById('roomStyleToggle');
             const $roomStylePromptInput = document.getElementById('roomStylePromptInput');
+            const $roomStyleExamplesInput = document.getElementById('roomStyleExamplesInput');
             const $btnCancelRoomModal = document.getElementById('btnCancelRoomModal');
             const $btnConfirmRoom = document.getElementById('btnConfirmRoom');
+            const $navigatorOverlay = document.getElementById('navigatorOverlay');
+            const $navigatorSearchInput = document.getElementById('navigatorSearchInput');
+            const $navigatorNumberInput = document.getElementById('navigatorNumberInput');
+            const $btnNavigatorJump = document.getElementById('btnNavigatorJump');
+            const $btnNavigatorBookmarks = document.getElementById('btnNavigatorBookmarks');
+            const $navigatorSummary = document.getElementById('navigatorSummary');
+            const $navigatorResults = document.getElementById('navigatorResults');
+            const $btnNavigatorClose = document.getElementById('btnNavigatorClose');
+            const $btnNavigatorLatest = document.getElementById('btnNavigatorLatest');
 
             // ==================== 状态 ====================
             const Memory = window.StarlightMemory;
@@ -1863,7 +2033,9 @@
             let storageDb = null;
             let saveQueue = Promise.resolve();
             let saveTimer = null;
-            let renderedMessageLimit = 200;
+            const MESSAGE_PAGE_SIZE = 200;
+            let renderedMessageRange = null;
+            let navigatorBookmarkedOnly = false;
             
             // 安全读取本地主题配置，防止浏览器严格隐私模式拦截报错
             let isDarkMode = false;
@@ -2064,7 +2236,14 @@
                 }
 
                 appData.agents.forEach(agent => {
-                    agent.conversations = Array.isArray(agent.conversations) ? agent.conversations : [];
+                    agent.conversations = (Array.isArray(agent.conversations) ? agent.conversations : [])
+                        .filter(message => message && typeof message === 'object')
+                        .map(message => ({
+                            role: message.role === 'assistant' ? 'assistant' : 'user',
+                            content: String(message.content || ''),
+                            createdAt: Number(message.createdAt) || 0,
+                            bookmarked: message.bookmarked === true,
+                        }));
                     agent.memory = Memory.normalizeMemory(agent.memory, agent.conversations.length);
                 });
             }
@@ -2202,10 +2381,15 @@
                     room?.worldPrompt || '',
                     room?.scenePrompt || '',
                     room?.userPersona || '',
+                    room?.otherInfo || '',
                     member?.name || '',
                     member?.personaPrompt || '',
                     member?.speakingStyle || '',
                     member?.privateGoal || '',
+                    member?.growthNotes || '',
+                    member?.currentState || '',
+                    member?.relationships || '',
+                    member?.knowledgeBoundary || '',
                 ]);
             }
 
@@ -2214,7 +2398,7 @@
                 if (!canChangeConversationTarget()) return;
                 if (appData.activeMode === nextMode) return;
                 appData.activeMode = nextMode;
-                renderedMessageLimit = 200;
+                renderedMessageRange = null;
                 resetScrollIntent();
                 saveData();
                 updateModeUI();
@@ -2250,7 +2434,7 @@
                 if (appData.currentRoomId === roomId) return;
                 if (!canChangeConversationTarget()) return;
                 appData.currentRoomId = roomId;
-                renderedMessageLimit = 200;
+                renderedMessageRange = null;
                 lastIntimacyDelta = null;
                 resetScrollIntent();
                 saveData();
@@ -2468,12 +2652,14 @@
                 $roomWorldPromptInput.value = room?.worldPrompt || '';
                 $roomScenePromptInput.value = room?.scenePrompt || '';
                 $roomUserPersonaInput.value = room?.userPersona || '';
+                $roomOtherInfoInput.value = room?.otherInfo || '';
                 $roomTurnModeSelect.value = room?.turnMode || 'smart';
                 $roomMaxSpeakersSelect.value = String(room?.maxSpeakers || 2);
                 roomDraftIntimacyValueAtOpen = Number(room?.intimacy?.value) || 0;
                 $initialIntimacyInput.value = String(roomDraftIntimacyValueAtOpen);
                 $roomStyleToggle.checked = room?.styleEnabled !== false;
-                $roomStylePromptInput.value = room?.stylePrompt || Memory.NATURAL_STYLE_GUIDE;
+                $roomStylePromptInput.value = room?.stylePrompt || Rooms.STORY_STYLE_GUIDE;
+                $roomStyleExamplesInput.value = room?.styleExamples || '';
                 $roomBackgroundPreview.src = roomDraftBackground || '';
                 $roomBackgroundPreview.style.visibility = roomDraftBackground ? 'visible' : 'hidden';
                 $roomBackgroundFile.value = '';
@@ -2490,6 +2676,7 @@
                 });
                 setRoomModalLoading(false);
                 $roomModalOverlay.style.display = 'flex';
+                document.getElementById('roomModal').scrollTop = 0;
                 setTimeout(() => $roomNameInput.focus(), 100);
             }
 
@@ -2526,6 +2713,11 @@
                     publicProfile: '',
                     speakingStyle: '',
                     privateGoal: '',
+                    growthNotes: '',
+                    currentState: '',
+                    relationships: '',
+                    knowledgeBoundary: '',
+                    dialogueExamples: '',
                     color: Rooms.memberColor(roomDraftParticipants.length),
                 }, roomDraftParticipants.length));
                 renderRoomParticipantsEditor();
@@ -2565,8 +2757,8 @@
                                 </div>
                             </div>
                             <div class="full">
-                                <label>完整角色人设</label>
-                                <textarea class="member-persona" style="min-height:150px" placeholder="身份、性格、经历、价值观、关系、边界、秘密等">${escapeHtml(member.personaPrompt)}</textarea>
+                                <label>角色基础档案</label>
+                                <textarea class="member-persona" style="min-height:170px" placeholder="身份、年龄、外貌、长期性格底色、经历、价值观、能力、习惯、边界等稳定信息">${escapeHtml(member.personaPrompt)}</textarea>
                             </div>
                             <div class="full">
                                 <label>公开身份</label>
@@ -2574,11 +2766,31 @@
                             </div>
                             <div>
                                 <label>说话与行动风格</label>
-                                <textarea class="member-style" style="min-height:100px">${escapeHtml(member.speakingStyle)}</textarea>
+                                <textarea class="member-style" style="min-height:120px" placeholder="用词、语速、口头习惯、表达情绪的方式、常见动作，但不要把人物锁死成模板">${escapeHtml(member.speakingStyle)}</textarea>
                             </div>
                             <div>
                                 <label>私人目标</label>
-                                <textarea class="member-goal" style="min-height:100px">${escapeHtml(member.privateGoal)}</textarea>
+                                <textarea class="member-goal" style="min-height:120px" placeholder="短期愿望、长期目标、顾虑与隐藏动机">${escapeHtml(member.privateGoal)}</textarea>
+                            </div>
+                            <div class="full">
+                                <label>成长与变化记录</label>
+                                <textarea class="member-growth" style="min-height:140px" placeholder="记录角色在剧情中形成的新认知、性格变化、能力成长、立场变化。这里高于早期静态标签。">${escapeHtml(member.growthNotes)}</textarea>
+                            </div>
+                            <div>
+                                <label>当前状态</label>
+                                <textarea class="member-current-state" style="min-height:130px" placeholder="当前身体、情绪、处境、近期关注点，以及本场景中特别需要延续的状态">${escapeHtml(member.currentState)}</textarea>
+                            </div>
+                            <div>
+                                <label>关系网络</label>
+                                <textarea class="member-relationships" style="min-height:130px" placeholder="与用户和其他角色当前的关系、称呼、信任、矛盾、未说出口的态度">${escapeHtml(member.relationships)}</textarea>
+                            </div>
+                            <div>
+                                <label>知识边界与秘密</label>
+                                <textarea class="member-knowledge" style="min-height:130px" placeholder="角色知道、不知道、误以为知道的事情，以及不能被其他角色自动获知的秘密">${escapeHtml(member.knowledgeBoundary)}</textarea>
+                            </div>
+                            <div>
+                                <label>对白示例</label>
+                                <textarea class="member-dialogue-examples" style="min-height:130px" placeholder="写几句该角色在不同情绪下会怎么说。只作为语感参考，不要求重复原句。">${escapeHtml(member.dialogueExamples)}</textarea>
                             </div>
                         </div>
                     </details>`).join('');
@@ -2598,6 +2810,11 @@
                     bind('.member-public', 'publicProfile');
                     bind('.member-style', 'speakingStyle');
                     bind('.member-goal', 'privateGoal');
+                    bind('.member-growth', 'growthNotes');
+                    bind('.member-current-state', 'currentState');
+                    bind('.member-relationships', 'relationships');
+                    bind('.member-knowledge', 'knowledgeBoundary');
+                    bind('.member-dialogue-examples', 'dialogueExamples');
                     editor.querySelector('.member-remove').addEventListener('click', event => {
                         event.preventDefault();
                         roomDraftParticipants = roomDraftParticipants.filter(item => item.id !== member.id);
@@ -2677,8 +2894,10 @@
                     worldPrompt: $roomWorldPromptInput.value.trim(),
                     scenePrompt: $roomScenePromptInput.value.trim(),
                     userPersona: $roomUserPersonaInput.value.trim(),
+                    otherInfo: $roomOtherInfoInput.value.trim(),
                     styleEnabled: $roomStyleToggle.checked,
                     stylePrompt: $roomStylePromptInput.value.trim(),
+                    styleExamples: $roomStyleExamplesInput.value.trim(),
                     narrationEnabled: $roomNarrationToggle.value === 'on',
                     turnMode: $roomTurnModeSelect.value,
                     maxSpeakers: Number($roomMaxSpeakersSelect.value),
@@ -2833,6 +3052,7 @@
                 $roomBackgroundPreview.style.visibility = 'hidden';
             });
             $btnCancelRoomModal.addEventListener('click', () => closeRoomModal());
+            $btnRoomEditorClose.addEventListener('click', () => closeRoomModal());
             $btnConfirmRoom.addEventListener('click', saveRoomFromModal);
             $roomModalOverlay.addEventListener('click', event => {
                 if (event.target === $roomModalOverlay) closeRoomModal();
@@ -2905,7 +3125,7 @@
                 if (appData.currentAgentId === agentId) return;
                 if (!canChangeConversationTarget()) return;
                 appData.currentAgentId = agentId;
-                renderedMessageLimit = 200;
+                renderedMessageRange = null;
                 resetScrollIntent();
                 saveData();
                 updateModeUI();
@@ -3085,6 +3305,9 @@
                 if (e.key === 'Escape' && $roomModalOverlay.style.display === 'flex') {
                     closeRoomModal();
                 }
+                if (e.key === 'Escape' && $navigatorOverlay.style.display === 'flex') {
+                    closeConversationNavigator();
+                }
             });
 
             // ==================== 聊天UI更新 ====================
@@ -3173,6 +3396,7 @@
                         ? [...room.messages].reverse().find(message => message.role === 'assistant' || message.role === 'user')
                         : null;
                     const lastIsAssistant = lastConversational?.role === 'assistant';
+                    $btnLocate.disabled = !hasConversation;
                     $btnRegenerate.disabled = !hasConversation || !lastIsAssistant || isGenerating;
                     $btnUndo.disabled = !hasConversation || isGenerating;
                     $btnRestart.disabled = !hasConversation || isGenerating;
@@ -3182,6 +3406,7 @@
                 const hasConversation = agent && agent.conversations.length > 0;
                 const lastIsAssistant = hasConversation && agent.conversations[agent.conversations.length - 1].role === 'assistant';
 
+                $btnLocate.disabled = !hasConversation;
                 $btnRegenerate.disabled = !hasConversation || !lastIsAssistant || isGenerating;
                 $btnUndo.disabled = !hasConversation || isGenerating;
                 $btnRestart.disabled = !hasConversation || isGenerating;
@@ -3240,6 +3465,43 @@
                 });
             }
 
+            function getActiveMessages() {
+                return appData.activeMode === 'room'
+                    ? (getCurrentRoom()?.messages || [])
+                    : (getCurrentAgent()?.conversations || []);
+            }
+
+            function getMessageRenderRange(total) {
+                if (!renderedMessageRange) {
+                    return { start: Math.max(0, total - MESSAGE_PAGE_SIZE), end: total };
+                }
+                let start = Math.max(0, Math.min(Number(renderedMessageRange.start) || 0, Math.max(0, total - 1)));
+                let end = Math.max(start + 1, Math.min(Number(renderedMessageRange.end) || total, total));
+                return { start, end };
+            }
+
+            function appendMessageWindowControls(total, range) {
+                if (range.start > 0) {
+                    const earlier = document.createElement('button');
+                    earlier.className = 'load-earlier-btn';
+                    earlier.dataset.action = 'load-earlier';
+                    earlier.textContent = `加载更早消息（还有 ${range.start} 条）`;
+                    $messagesContainer.prepend(earlier);
+                }
+                if (range.end < total) {
+                    const later = document.createElement('button');
+                    later.className = 'load-earlier-btn';
+                    later.dataset.action = 'load-later';
+                    later.textContent = `加载后续消息（还有 ${total - range.end} 条）`;
+                    $messagesContainer.appendChild(later);
+                    const latest = document.createElement('button');
+                    latest.className = 'load-earlier-btn';
+                    latest.dataset.action = 'load-latest';
+                    latest.textContent = '回到最新消息';
+                    $messagesContainer.appendChild(latest);
+                }
+            }
+
             function renderMessages(options = {}) {
                 if (appData.activeMode === 'room') {
                     renderRoomMessages(options);
@@ -3259,27 +3521,24 @@
                     $emptyState.style.display = 'flex';
                 } else {
                     $emptyState.style.display = 'none';
-                    const startIndex = Math.max(0, agent.conversations.length - renderedMessageLimit);
-                    if (startIndex > 0) {
-                        const loadEarlierButton = document.createElement('button');
-                        loadEarlierButton.className = 'load-earlier-btn';
-                        loadEarlierButton.dataset.action = 'load-earlier';
-                        loadEarlierButton.textContent = `加载更早消息（还有 ${startIndex} 条）`;
-                        $messagesContainer.appendChild(loadEarlierButton);
-                    }
-                    agent.conversations.slice(startIndex).forEach((msg, relativeIndex) => {
-                        const index = startIndex + relativeIndex;
+                    const range = getMessageRenderRange(agent.conversations.length);
+                    agent.conversations.slice(range.start, range.end).forEach((msg, relativeIndex) => {
+                        const index = range.start + relativeIndex;
                         const wrapper = document.createElement('div');
                         wrapper.className = `message-wrapper ${msg.role}`;
+                        wrapper.dataset.messageIndex = String(index);
+                        wrapper.id = `message-${index}`;
                         wrapper.innerHTML = `
                         <div class="message-bubble">
                             ${formatMessageContent(msg.content)}
+                            <button class="bookmark-btn ${msg.bookmarked ? 'active' : ''}" title="${msg.bookmarked ? '取消收藏' : '收藏并加入定位列表'}" data-index="${index}">${msg.bookmarked ? '★' : '☆'}</button>
                             <button class="copy-btn" title="复制正文" data-index="${index}">📋 复制</button>
                         </div>
-                        <div class="message-time">${msg.role === 'user' ? '你' : agent.name} · #${index + 1}</div>
+                        <div class="message-time message-locator-link" data-locate-index="${index}">${msg.role === 'user' ? '你' : agent.name} · #${index + 1}</div>
                       `;
                         $messagesContainer.appendChild(wrapper);
                     });
+                    appendMessageWindowControls(agent.conversations.length, range);
                 }
                 finishMessageRender(viewport);
                 updateToolbarButtons();
@@ -3303,20 +3562,15 @@
                     updateToolbarButtons();
                     return;
                 }
-                const startIndex = Math.max(0, room.messages.length - renderedMessageLimit);
-                if (startIndex > 0) {
-                    const button = document.createElement('button');
-                    button.className = 'load-earlier-btn';
-                    button.dataset.action = 'load-earlier';
-                    button.textContent = `加载更早消息（还有 ${startIndex} 条）`;
-                    $messagesContainer.appendChild(button);
-                }
-                room.messages.slice(startIndex).forEach((message, relativeIndex) => {
-                    const index = startIndex + relativeIndex;
+                const range = getMessageRenderRange(room.messages.length);
+                room.messages.slice(range.start, range.end).forEach((message, relativeIndex) => {
+                    const index = range.start + relativeIndex;
                     if (message.role === 'system') {
                         const event = document.createElement('div');
                         event.className = 'room-system-event';
-                        event.innerHTML = formatMessageContent(message.content);
+                        event.dataset.messageIndex = String(index);
+                        event.id = `message-${index}`;
+                        event.innerHTML = `<span class="message-locator-link" data-locate-index="${index}">#${index + 1}</span> · ${formatMessageContent(message.content)}`;
                         $messagesContainer.appendChild(event);
                         return;
                     }
@@ -3326,18 +3580,22 @@
                     if (!isUser && !Rooms.hasSubstantiveRoomContent(room, displayContent)) return;
                     const row = document.createElement('div');
                     row.className = `room-message-row ${isUser ? 'user' : 'assistant'}`;
+                    row.dataset.messageIndex = String(index);
+                    row.id = `message-${index}`;
                     const userAvatar = '<span class="room-avatar-fallback" style="background:#5d6475">你</span>';
                     row.innerHTML = `
                         ${isUser ? userAvatar : avatarMarkup(member)}
                         <div class="room-message-body">
-                            <div class="room-speaker-name">${isUser ? '你' : escapeHtml(member?.name || '角色')} · #${index + 1}</div>
+                            <div class="room-speaker-name message-locator-link" data-locate-index="${index}">${isUser ? '你' : escapeHtml(member?.name || '角色')} · #${index + 1}</div>
                             <div class="message-bubble" ${member ? `style="border-left:3px solid ${member.color}"` : ''}>
                                 ${formatMessageContent(displayContent)}
+                                <button class="bookmark-btn ${message.bookmarked ? 'active' : ''}" title="${message.bookmarked ? '取消收藏' : '收藏并加入定位列表'}" data-index="${index}">${message.bookmarked ? '★' : '☆'}</button>
                                 <button class="copy-btn" title="复制正文" data-index="${index}">📋 复制</button>
                             </div>
                         </div>`;
                     $messagesContainer.appendChild(row);
                 });
+                appendMessageWindowControls(room.messages.length, range);
                 applyRoomBackground(room);
                 finishMessageRender(viewport);
                 updateToolbarButtons();
@@ -3347,11 +3605,43 @@
                 if (e.target.dataset.action === 'load-earlier') {
                     const previousHeight = $messagesContainer.scrollHeight;
                     const previousTop = $messagesContainer.scrollTop;
-                    renderedMessageLimit += 200;
+                    const messages = getActiveMessages();
+                    const range = getMessageRenderRange(messages.length);
+                    renderedMessageRange = { start: Math.max(0, range.start - MESSAGE_PAGE_SIZE), end: range.end };
                     renderMessages();
                     requestAnimationFrame(() => {
                         $messagesContainer.scrollTop = previousTop + ($messagesContainer.scrollHeight - previousHeight);
                     });
+                    return;
+                }
+                if (e.target.dataset.action === 'load-later') {
+                    const messages = getActiveMessages();
+                    const range = getMessageRenderRange(messages.length);
+                    renderedMessageRange = { start: range.start, end: Math.min(messages.length, range.end + MESSAGE_PAGE_SIZE) };
+                    renderMessages({ preserveScroll: true });
+                    return;
+                }
+                if (e.target.dataset.action === 'load-latest') {
+                    renderedMessageRange = null;
+                    resetScrollIntent();
+                    renderMessages();
+                    return;
+                }
+                if (e.target.dataset.locateIndex !== undefined) {
+                    openConversationNavigator(Number(e.target.dataset.locateIndex));
+                    return;
+                }
+                if (e.target.classList.contains('bookmark-btn')) {
+                    const idx = Number(e.target.dataset.index);
+                    const message = getActiveMessages()[idx];
+                    if (!message) return;
+                    message.bookmarked = !message.bookmarked;
+                    e.target.classList.toggle('active', message.bookmarked);
+                    e.target.textContent = message.bookmarked ? '★' : '☆';
+                    e.target.title = message.bookmarked ? '取消收藏' : '收藏并加入定位列表';
+                    saveData();
+                    if ($navigatorOverlay.style.display === 'flex') renderConversationNavigator();
+                    showToast(message.bookmarked ? `已收藏消息 #${idx + 1}` : `已取消收藏消息 #${idx + 1}`, 'info');
                     return;
                 }
                 if (e.target.classList.contains('copy-btn')) {
@@ -3382,6 +3672,118 @@
                         document.body.removeChild(textarea);
                     }
                 }
+            });
+
+            function getMessageSpeakerLabel(message) {
+                if (message.role === 'user') return '你';
+                if (message.role === 'system') return '场景事件';
+                if (appData.activeMode === 'room') {
+                    return Rooms.getMember(getCurrentRoom(), message.speakerId)?.name || '角色';
+                }
+                return getCurrentAgent()?.name || '智能体';
+            }
+
+            function renderConversationNavigator() {
+                const messages = getActiveMessages();
+                const query = $navigatorSearchInput.value.trim().toLowerCase();
+                let entries = messages.map((message, index) => ({ message, index }));
+                if (navigatorBookmarkedOnly) {
+                    entries = entries.filter(entry => entry.message.bookmarked === true);
+                }
+                if (query) {
+                    entries = entries.filter(entry => {
+                        const haystack = `${getMessageSpeakerLabel(entry.message)} #${entry.index + 1} ${entry.message.content || ''}`.toLowerCase();
+                        return haystack.includes(query);
+                    });
+                } else if (!navigatorBookmarkedOnly && entries.length > 300) {
+                    entries = entries.slice(-300);
+                }
+                const matchedCount = entries.length;
+                if (entries.length > 500) entries = entries.slice(-500);
+                $navigatorSummary.textContent = query || navigatorBookmarkedOnly
+                    ? `共找到 ${matchedCount} 条${matchedCount > entries.length ? `，显示最近 ${entries.length} 条` : ''}；点击结果即可定位。`
+                    : `共 ${messages.length} 条消息，当前显示最近 ${entries.length} 条；可搜索全文、输入编号或收藏关键节点。`;
+                $btnNavigatorBookmarks.classList.toggle('active', navigatorBookmarkedOnly);
+                $btnNavigatorBookmarks.textContent = navigatorBookmarkedOnly ? '★ 显示全部' : '☆ 只看收藏';
+                if (!entries.length) {
+                    $navigatorResults.innerHTML = '<div class="navigator-empty">没有找到匹配的消息</div>';
+                    return;
+                }
+                $navigatorResults.innerHTML = entries.map(({ message, index }) => {
+                    const preview = String(message.content || '').replace(/\s+/g, ' ').trim().slice(0, 180) || '（空消息）';
+                    return `<button type="button" class="navigator-result" data-jump-index="${index}">
+                        <span class="navigator-result-meta">#${index + 1}<br>${escapeHtml(getMessageSpeakerLabel(message))}</span>
+                        <span class="navigator-result-preview">${escapeHtml(preview)}</span>
+                        <span title="${message.bookmarked ? '已收藏' : '未收藏'}">${message.bookmarked ? '★' : '›'}</span>
+                    </button>`;
+                }).join('');
+            }
+
+            function openConversationNavigator(focusIndex = null) {
+                const messages = getActiveMessages();
+                if (!messages.length) {
+                    showToast('当前对话还没有可定位的消息', 'info');
+                    return;
+                }
+                navigatorBookmarkedOnly = false;
+                $navigatorSearchInput.value = Number.isInteger(focusIndex) ? `#${focusIndex + 1}` : '';
+                $navigatorNumberInput.value = Number.isInteger(focusIndex) ? String(focusIndex + 1) : '';
+                $navigatorOverlay.style.display = 'flex';
+                renderConversationNavigator();
+                setTimeout(() => (Number.isInteger(focusIndex) ? $navigatorNumberInput : $navigatorSearchInput).focus(), 50);
+            }
+
+            function closeConversationNavigator() {
+                $navigatorOverlay.style.display = 'none';
+            }
+
+            function jumpToMessage(index) {
+                const messages = getActiveMessages();
+                const targetIndex = Number(index);
+                if (!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= messages.length) {
+                    showToast(`请输入 1—${messages.length} 之间的消息编号`, 'error');
+                    return;
+                }
+                const start = Math.max(0, targetIndex - 70);
+                renderedMessageRange = {
+                    start,
+                    end: Math.min(messages.length, Math.max(start + MESSAGE_PAGE_SIZE, targetIndex + 80)),
+                };
+                isUserScrolledUp = true;
+                closeConversationNavigator();
+                renderMessages({ preserveScroll: true });
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    const target = $messagesContainer.querySelector(`[data-message-index="${targetIndex}"]`);
+                    if (!target) return;
+                    target.scrollIntoView({ block: 'center', behavior: 'auto' });
+                    target.classList.add('message-jump-highlight');
+                    setTimeout(() => target.classList.remove('message-jump-highlight'), 2200);
+                }));
+            }
+
+            $btnLocate.addEventListener('click', () => openConversationNavigator());
+            $navigatorSearchInput.addEventListener('input', renderConversationNavigator);
+            $btnNavigatorBookmarks.addEventListener('click', () => {
+                navigatorBookmarkedOnly = !navigatorBookmarkedOnly;
+                renderConversationNavigator();
+            });
+            $btnNavigatorJump.addEventListener('click', () => jumpToMessage(Number($navigatorNumberInput.value) - 1));
+            $navigatorNumberInput.addEventListener('keydown', event => {
+                if (event.key === 'Enter') jumpToMessage(Number($navigatorNumberInput.value) - 1);
+            });
+            $navigatorResults.addEventListener('click', event => {
+                const result = event.target.closest('[data-jump-index]');
+                if (result) jumpToMessage(Number(result.dataset.jumpIndex));
+            });
+            $btnNavigatorClose.addEventListener('click', closeConversationNavigator);
+            $btnNavigatorLatest.addEventListener('click', () => {
+                renderedMessageRange = null;
+                resetScrollIntent();
+                closeConversationNavigator();
+                renderMessages();
+            });
+            $navigatorOverlay.addEventListener('click', event => {
+                if (event.target === $navigatorOverlay) closeConversationNavigator();
             });
 
             function formatMessageContent(content) {
@@ -3718,9 +4120,11 @@
                 const summarySystemPrompt = [
                     '你是长期对话的记忆整理器。只提取给定记录中明确出现的事实，严禁推测或补写。',
                     '你必须输出合法 json 对象，且只输出 json。格式：',
-                    '{"core_memory":"持续有效的角色状态、关系、世界规则、承诺、偏好、关键事实与未解决事项","episode_summary":"按发生顺序保留这一段独有事件、关键对话、因果与情绪变化，保留专名和必要细节","keywords":["用于以后检索的专名或主题"]}',
-                    'core_memory 必须在旧核心记忆基础上做保守更新：保留仍有效的重要信息，明确记录被更正或已失效的状态，不得因篇幅删除身份、关系、承诺和未解决线索。',
-                    'episode_summary 要信息密集、忠于原文，不评价文笔，不把提示词写入故事记忆。',
+                    '{"core_memory":"结构化持续记忆","episode_title":"本段短标题","episode_summary":"按发生顺序的详细篇章记忆","keywords":["专名或主题"],"importance":3}',
+                    'core_memory 必须在旧核心记忆基础上保守更新，并按“稳定身份与设定、当前人物状态、关系变化、时间地点、承诺与约定、未解决线索、更正与失效信息”组织。',
+                    '角色已经发生的成长、立场变化与关系变化必须保留；新状态不能被早期静态描述覆盖。存在矛盾时记录变化的前后顺序。',
+                    'episode_summary 要保留事件顺序、关键原话含义、因果、参与者、地点、物件、情绪与关系变化；不评价文笔，不把提示词写入故事记忆。',
+                    'importance 为1到5的整数：日常过渡为1，普通事件为2到3，改变关系、角色或主线的事件为4到5。',
                 ].join('\n');
                 const summaryUserPrompt = [
                     '请把下面内容整理为 json 长期记忆。',
@@ -3741,8 +4145,10 @@
                     id: `memory_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
                     startIndex: chunk.startIndex,
                     endIndex: chunk.endIndex,
-                    summary: episode.slice(0, 16000),
+                    title: typeof result.episode_title === 'string' ? result.episode_title.trim().slice(0, 200) : '',
+                    summary: episode.slice(0, 24000),
                     keywords: Array.isArray(result.keywords) ? result.keywords.map(String).slice(0, 40) : [],
+                    importance: Math.max(1, Math.min(5, Number(result.importance) || 3)),
                     createdAt: Date.now(),
                 });
                 memory.summarizedUntil = chunk.endIndex;
@@ -3760,15 +4166,13 @@
 
                 isOrganizingMemory = true;
                 try {
-                    while (chunk && rounds < 6) {
+                    while (chunk && rounds < 2) {
                         rounds += 1;
                         updateMemoryStatus(`正在整理长期记忆：旧消息 #${chunk.startIndex + 1}—#${chunk.endIndex}…`, true);
                         await summarizeMemoryChunk(agent, chunk);
                         chunk = Memory.findSummaryChunk(agent.conversations, agent.memory, settings);
                     }
-                    if (chunk) {
-                        throw new Error('待整理的旧对话过多，请再次发送以继续整理（原文已安全保留）');
-                    }
+                    if (chunk) updateMemoryStatus('仍有较早内容等待分批整理；本轮会继续使用安全的最近上下文', false);
                 } finally {
                     isOrganizingMemory = false;
                     updateMemoryStatus();
@@ -3795,8 +4199,10 @@
                             '你是多人房间的长期记忆整理器。只记录原文中明确发生的事实，严禁补写。',
                             '公共记忆只能包含所有在场者可观察或已公开的信息；角色独立记忆可以保留该角色的个人感受、关系认知、私人目标与只对其公开的信息。',
                             '不要把提示词、人设原文或亲密度隐藏判定写入记忆。保留专名、承诺、关系变化、未完成事件和场景状态。',
-                            '只输出合法JSON：{"shared_core":"持续有效的公共状态","episode_summary":"本段事件摘要","keywords":["关键词"],"character_memory":{"角色id":"该角色更新后的持续独立记忆"}}',
-                            'character_memory必须使用给定角色id作为键，并在旧独立记忆基础上保守更新。',
+                            '只输出合法JSON：{"shared_core":"结构化公共持续状态","episode_title":"本段短标题","episode_summary":"详细事件摘要","keywords":["关键词"],"importance":3,"character_memory":{"角色id":"该角色更新后的持续独立记忆"},"character_episode":{"角色id":"该角色对此段经历可记住的个人版本"}}',
+                            'shared_core按“时间地点、公开事实、场景状态、关系变化、承诺、关键物件、未解决线索”组织，并明确新旧状态的变化顺序。',
+                            'character_memory必须使用给定角色id作为键，在旧独立记忆基础上保守更新角色的感受、认知、秘密、目标和成长。character_episode只记录该角色确实经历或能够知道的本段内容。',
+                            'importance 为1到5的整数；改变角色、关系或主线的事件应为4到5。',
                         ].join('\n'),
                     },
                     {
@@ -3817,8 +4223,10 @@
                     id: Rooms.createId('roommemory'),
                     startIndex: chunk.startIndex,
                     endIndex: chunk.endIndex,
-                    summary: episode.slice(0, 16000),
+                    title: typeof result.episode_title === 'string' ? result.episode_title.trim().slice(0, 200) : '',
+                    summary: episode.slice(0, 24000),
                     keywords: Array.isArray(result.keywords) ? result.keywords.map(String).slice(0, 40) : [],
+                    importance: Math.max(1, Math.min(5, Number(result.importance) || 3)),
                     createdAt: Date.now(),
                 });
                 shared.summarizedUntil = chunk.endIndex;
@@ -3829,6 +4237,19 @@
                     const state = Memory.normalizeMemory(room.characterMemories[member.id], room.messages.length);
                     const nextCore = result.character_memory?.[member.id];
                     if (typeof nextCore === 'string' && nextCore.trim()) state.core = nextCore.trim().slice(0, 24000);
+                    const characterEpisode = result.character_episode?.[member.id];
+                    if (typeof characterEpisode === 'string' && characterEpisode.trim()) {
+                        state.segments.push({
+                            id: Rooms.createId('charmemory'),
+                            startIndex: chunk.startIndex,
+                            endIndex: chunk.endIndex,
+                            title: typeof result.episode_title === 'string' ? result.episode_title.trim().slice(0, 200) : '',
+                            summary: characterEpisode.trim().slice(0, 16000),
+                            keywords: Array.isArray(result.keywords) ? result.keywords.map(String).slice(0, 40) : [],
+                            importance: Math.max(1, Math.min(5, Number(result.importance) || 3)),
+                            createdAt: Date.now(),
+                        });
+                    }
                     state.summarizedUntil = chunk.endIndex;
                     state.updatedAt = Date.now();
                     room.characterMemories[member.id] = state;
@@ -3846,13 +4267,13 @@
                 if (!chunk) return;
                 isOrganizingMemory = true;
                 try {
-                    while (chunk && rounds < 4) {
+                    while (chunk && rounds < 2) {
                         rounds += 1;
                         updateMemoryStatus(`正在整理房间长期记忆：消息 #${chunk.startIndex + 1}—#${chunk.endIndex}…`, true);
                         await summarizeRoomMemoryChunk(room, chunk);
                         chunk = Memory.findSummaryChunk(conversation, room.sharedMemory, settings);
                     }
-                    if (chunk) throw new Error('待整理的房间旧对话较多，请再次发送以继续整理（原文仍完整保存）');
+                    if (chunk) updateMemoryStatus('仍有较早房间内容等待分批整理；原文保持完整', false);
                 } finally {
                     isOrganizingMemory = false;
                     updateMemoryStatus();
@@ -3861,12 +4282,13 @@
 
             function getRoomMemoryContexts(room, memberId, query) {
                 const settings = Memory.normalizeConfig(appData.memorySettings);
-                if (!settings.enabled) return { sharedMemory: '', characterMemory: '' };
-                const sharedMemory = Memory.buildMemoryContext(room.sharedMemory, query || '', settings);
+                if (!settings.enabled) return { sharedMemory: '', characterMemory: '', liveContextTokenBudget: settings.liveContextTokenBudget };
+                const sharedMemory = Memory.buildMemoryContext(room.sharedMemory, query || '', settings, { tokenBudget: 24000 });
                 const characterState = Memory.normalizeMemory(room.characterMemories?.[memberId], room.messages.length);
                 return {
                     sharedMemory,
-                    characterMemory: characterState.core || '',
+                    characterMemory: Memory.buildMemoryContext(characterState, query || '', settings, { tokenBudget: 14000 }),
+                    liveContextTokenBudget: settings.liveContextTokenBudget,
                 };
             }
 
@@ -3894,7 +4316,13 @@
                 }
 
                 const historyStart = settings.enabled ? memory.summarizedUntil : 0;
-                const recentHistory = agent.conversations.slice(historyStart);
+                const recentWindow = Memory.takeRecentMessages(
+                    agent.conversations,
+                    historyStart,
+                    settings.liveContextTokenBudget,
+                    1200
+                );
+                const recentHistory = recentWindow.messages;
                 const latestMessage = recentHistory[recentHistory.length - 1];
                 const earlierMessages = recentHistory.slice(0, -1);
                 messages.push(...earlierMessages);
@@ -4005,6 +4433,7 @@
                     createdAt: Date.now(),
                 });
                 room.updatedAt = Date.now();
+                renderedMessageRange = null;
                 saveData();
                 renderMessages();
                 $messageInput.value = '';
@@ -4016,7 +4445,13 @@
                 updateToolbarButtons();
                 let generatedCount = 0;
                 try {
-                    await ensureRoomLongTermMemory(room);
+                    try {
+                        await ensureRoomLongTermMemory(room);
+                    } catch (memoryError) {
+                        if (memoryError.name === 'AbortError' || !isGenerating) throw memoryError;
+                        console.error('房间长期记忆整理暂未完成:', memoryError);
+                        showToast('长期记忆本轮未整理完成，已使用受控最近上下文继续生成；原文没有丢失', 'info');
+                    }
                     if (!isGenerating) return;
                     updateMemoryStatus('正在判断本轮发言角色…', true);
                     const selection = await selectRoomSpeakers(room, content, forcedMemberId, isContinue);
@@ -4044,7 +4479,7 @@
                         if (!member) continue;
                         updateMemoryStatus(`${member.name}正在组织回应（${index + 1}/${selection.speakerIds.length}）…`, true);
                         const contexts = getRoomMemoryContexts(room, memberId, content);
-                        const messages = Rooms.buildCharacterMessages(room, memberId, contexts, 100);
+                        const messages = Rooms.buildCharacterMessages(room, memberId, contexts, 100, Memory);
                         const response = await generateValidRoomResponse(room, messages, member, index + 1, selection.speakerIds.length);
                         if (response.content === null || response.content === undefined || !isGenerating) break;
                         const responseText = Rooms.cleanCharacterOutput(response.content, member.name);
@@ -4106,7 +4541,8 @@
                 }
                 if (!userContent.trim()) return;
 
-                agent.conversations.push({ role: 'user', content: userContent.trim() });
+                agent.conversations.push({ role: 'user', content: userContent.trim(), createdAt: Date.now(), bookmarked: false });
+                renderedMessageRange = null;
                 saveData();
                 renderMessages();
                 updateToolbarButtons();
@@ -4122,13 +4558,14 @@
                     await ensureLongTermMemory(agent);
                     if (!isGenerating) return;
                 } catch (error) {
-                    isGenerating = false;
-                    updateSendButton();
-                    updateToolbarButtons();
-                    if (error.name !== 'AbortError') {
-                        showToast('长期记忆整理未完成：' + error.message, 'error');
+                    if (error.name === 'AbortError' || !isGenerating) {
+                        isGenerating = false;
+                        updateSendButton();
+                        updateToolbarButtons();
+                        return;
                     }
-                    return;
+                    console.error('长期记忆整理暂未完成:', error);
+                    showToast('长期记忆本轮未整理完成，已使用受控最近上下文继续生成；原文没有丢失', 'info');
                 }
                 bubble = createStreamingMessage();
                 const messagesForAPI = buildMessagesForAPI();
@@ -4141,9 +4578,9 @@
                         updateSendButton();
                         if (fullContent !== null && fullContent !== undefined) {
                             if (fullContent.trim()) {
-                                agent.conversations.push({ role: 'assistant', content: fullContent });
+                                agent.conversations.push({ role: 'assistant', content: fullContent, createdAt: Date.now(), bookmarked: false });
                             } else {
-                                agent.conversations.push({ role: 'assistant', content: '（回复为空）' });
+                                agent.conversations.push({ role: 'assistant', content: '（回复为空）', createdAt: Date.now(), bookmarked: false });
                             }
                             saveData();
                             finalizeStreamingMessage(fullContent);
@@ -4196,7 +4633,7 @@
                 try {
                     const latestUser = [...room.messages].reverse().find(message => message.role === 'user');
                     const contexts = getRoomMemoryContexts(room, member.id, latestUser?.content || '');
-                    const messages = Rooms.buildCharacterMessages(room, member.id, contexts, 100);
+                    const messages = Rooms.buildCharacterMessages(room, member.id, contexts, 100, Memory);
                     const response = await generateValidRoomResponse(room, messages, member, 1, 1);
                     if (response.content !== null && response.content !== undefined && isGenerating) {
                         const cleaned = Rooms.cleanCharacterOutput(response.content, member.name);
@@ -4254,15 +4691,16 @@
                     await ensureLongTermMemory(agent);
                     if (!isGenerating) return;
                 } catch (error) {
-                    isGenerating = false;
-                    restoreOriginalResponse();
-                    updateSendButton();
-                    updateToolbarButtons();
-                    renderMessages({ preserveScroll: true });
-                    if (error.name !== 'AbortError') {
-                        showToast('长期记忆整理未完成：' + error.message, 'error');
+                    if (error.name === 'AbortError' || !isGenerating) {
+                        isGenerating = false;
+                        restoreOriginalResponse();
+                        updateSendButton();
+                        updateToolbarButtons();
+                        renderMessages({ preserveScroll: true });
+                        return;
                     }
-                    return;
+                    console.error('长期记忆整理暂未完成:', error);
+                    showToast('长期记忆本轮未整理完成，已使用受控最近上下文继续重新生成', 'info');
                 }
                 bubble = createStreamingMessage();
                 const messagesForAPI = buildMessagesForAPI();
@@ -4274,7 +4712,7 @@
                         isGenerating = false;
                         updateSendButton();
                         if (fullContent !== null && fullContent !== undefined) {
-                            agent.conversations.push({ role: 'assistant', content: fullContent || '（回复为空）' });
+                            agent.conversations.push({ role: 'assistant', content: fullContent || '（回复为空）', createdAt: Date.now(), bookmarked: false });
                             replacementCommitted = true;
                             saveData();
                             finalizeStreamingMessage(fullContent);
@@ -4302,6 +4740,15 @@
             }
 
             // ==================== 撤回消息 ====================
+            function normalizeMemoryAfterUndo(memory, conversationLength) {
+                const previous = Memory.normalizeMemory(memory);
+                const containsRemovedMessages = previous.summarizedUntil > conversationLength
+                    || previous.segments.some(segment => segment.endIndex > conversationLength);
+                return containsRemovedMessages
+                    ? Memory.createEmptyMemory()
+                    : Memory.normalizeMemory(previous, conversationLength);
+            }
+
             function undoMessage() {
                 if (isGenerating) return;
                 if (appData.activeMode === 'room') {
@@ -4321,6 +4768,14 @@
                             lastIntimacyDelta = null;
                         }
                     }
+                    room.sharedMemory = normalizeMemoryAfterUndo(room.sharedMemory, room.messages.length);
+                    Object.keys(room.characterMemories || {}).forEach(memberId => {
+                        room.characterMemories[memberId] = normalizeMemoryAfterUndo(
+                            room.characterMemories[memberId],
+                            room.messages.length
+                        );
+                    });
+                    renderedMessageRange = null;
                     saveData();
                     renderRoomContext();
                     renderRoomMessages();
@@ -4340,6 +4795,8 @@
                 } else if (lastMsg.role === 'user') {
                     agent.conversations.pop();
                 }
+                agent.memory = normalizeMemoryAfterUndo(agent.memory, agent.conversations.length);
+                renderedMessageRange = null;
                 saveData();
                 renderMessages();
                 updateToolbarButtons();
@@ -4369,7 +4826,7 @@
                         room.intimacy.lastReason = '';
                     }
                     lastIntimacyDelta = null;
-                    renderedMessageLimit = 200;
+                    renderedMessageRange = null;
                     saveData();
                     renderRoomContext();
                     renderRoomMessages();
@@ -4387,7 +4844,7 @@
                 if (!confirm('确定要清空当前智能体的所有对话历史吗？对话历史真的回不来了！')) return;
                 agent.conversations = [];
                 agent.memory = Memory.createEmptyMemory();
-                renderedMessageLimit = 200;
+                renderedMessageRange = null;
                 saveData();
                 renderMessages();
                 updateToolbarButtons();

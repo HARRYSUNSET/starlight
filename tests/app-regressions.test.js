@@ -54,9 +54,9 @@ test('全局智能体菜单监听器不会在每次渲染时重复注册', () =>
 
 test('应用版本号在 npm 与 Android 配置中一致', () => {
     const gradle = fs.readFileSync(path.join(root, 'android', 'app', 'build.gradle'), 'utf8');
-    assert.equal(packageJson.version, '1.3.3');
-    assert.match(gradle, /versionCode\s+7/);
-    assert.match(gradle, /versionName\s+"1\.3\.3"/);
+    assert.equal(packageJson.version, '1.4.0');
+    assert.match(gradle, /versionCode\s+8/);
+    assert.match(gradle, /versionName\s+"1\.4\.0"/);
 });
 
 test('模型列表只保留 DeepSeek 官方当前模型标识', () => {
@@ -64,6 +64,27 @@ test('模型列表只保留 DeepSeek 官方当前模型标识', () => {
     assert.match(html, /value="deepseek-v4-pro"/);
     assert.doesNotMatch(html, /OpenRouter|liquid\/lfm/i);
     assert.doesNotMatch(html, /value="deepseek-v4-flash"/);
+});
+
+test('长对话定位器支持搜索、收藏和分窗跳转', () => {
+    assert.match(html, /id="btnLocate"/);
+    assert.match(html, /id="navigatorSearchInput"/);
+    assert.match(html, /function jumpToMessage/);
+    assert.match(html, /MESSAGE_PAGE_SIZE\s*=\s*200/);
+    assert.doesNotMatch(html, /renderedMessageLimit/);
+});
+
+test('剧情房间使用全屏结构化编辑器', () => {
+    assert.match(html, /room-editor-overlay/);
+    assert.match(html, /id="roomStyleExamplesInput"/);
+    assert.match(html, /class="member-growth"/);
+    assert.match(html, /class="member-knowledge"/);
+});
+
+test('记忆整理失败不会直接阻断普通发送', () => {
+    const send = functionBody('sendMessage', 'regenerateRoomLastMessage');
+    assert.match(send, /使用受控最近上下文继续生成/);
+    assert.doesNotMatch(send, /长期记忆整理未完成：[\s\S]*?return;/);
 });
 
 test('GitHub Actions 按锁文件进行可复现安装', () => {
