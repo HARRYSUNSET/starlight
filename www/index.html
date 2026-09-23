@@ -1716,6 +1716,97 @@
         .story-form-grid textarea:focus,
         .memory-editor input:focus,
         .memory-editor textarea:focus { border-color: var(--accent-light); box-shadow: 0 0 0 3px var(--accent-glow); }
+        .story-characters-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 14px;
+        }
+        .story-characters-header .section-description { margin-bottom: 0; }
+        .story-add-character-btn,
+        .story-add-field-btn,
+        .story-remove-character-btn,
+        .story-remove-field-btn {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font: inherit;
+            font-size: .72rem;
+            font-weight: 700;
+            transition: border-color var(--transition), color var(--transition), background var(--transition);
+        }
+        .story-add-character-btn { flex: 0 0 auto; padding: 9px 13px; color: var(--accent); border-color: var(--accent-light); }
+        .story-add-character-btn:hover,
+        .story-add-field-btn:hover { background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
+        .story-character-list { display: flex; flex-direction: column; gap: 16px; }
+        .story-character-card {
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            background: var(--card-bg);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+        .story-character-card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 13px 15px;
+            border-bottom: 1px solid var(--border);
+            background: color-mix(in srgb, var(--accent) 6%, var(--card-bg));
+        }
+        .story-character-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 58px;
+            padding: 5px 9px;
+            border-radius: 999px;
+            background: var(--accent);
+            color: #fff;
+            font-size: .7rem;
+            font-weight: 800;
+        }
+        .story-character-preview {
+            min-width: 0;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: var(--text-secondary);
+            font-size: .75rem;
+        }
+        .story-remove-character-btn { padding: 7px 10px; color: var(--danger); }
+        .story-remove-character-btn:disabled,
+        .story-remove-field-btn:disabled { cursor: not-allowed; opacity: .35; }
+        .story-character-fields { display: flex; flex-direction: column; gap: 11px; padding: 15px; }
+        .story-character-field {
+            display: grid;
+            grid-template-columns: minmax(150px, .42fr) minmax(0, 1fr) 38px;
+            gap: 10px;
+            align-items: stretch;
+        }
+        .story-character-field-label,
+        .story-character-field-value {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            padding: 10px 11px;
+            background: var(--bg);
+            color: var(--text-primary);
+            font: inherit;
+            line-height: 1.5;
+            outline: none;
+        }
+        .story-character-field-label { font-weight: 700; }
+        .story-character-field-value { min-height: 86px; resize: vertical; }
+        .story-character-field-label:focus,
+        .story-character-field-value:focus { border-color: var(--accent-light); box-shadow: 0 0 0 3px var(--accent-glow); }
+        .story-remove-field-btn { align-self: stretch; padding: 0; color: var(--danger); font-size: 1rem; }
+        .story-character-card-footer { display: flex; justify-content: flex-end; padding: 0 15px 15px; }
+        .story-add-field-btn { padding: 8px 12px; }
         .memory-overview {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -1757,6 +1848,10 @@
             .memory-segment-body { grid-template-columns: 1fr; }
             .story-form-grid .full,
             .memory-segment-body .full { grid-column: auto; }
+            .story-characters-header { flex-direction: column; }
+            .story-add-character-btn { width: 100%; }
+            .story-character-field { grid-template-columns: minmax(0, 1fr) 38px; }
+            .story-character-field-label { grid-column: 1 / -1; }
             .memory-overview { grid-template-columns: 1fr; }
         }
     </style>
@@ -1935,10 +2030,10 @@
 
             <section class="story-editor-section">
                 <h4>基本信息</h4>
-                <div class="section-description">聊天页会使用角色名称和一句话简介展示当前剧情。</div>
+                <div class="section-description">聊天页会使用剧情名称和一句话简介展示当前作品。</div>
                 <div class="story-form-grid">
-                    <div><label for="newAgentName">角色名称</label><input type="text" id="newAgentName" placeholder="例如：林澈"></div>
-                    <div><label for="storySubtitleInput">一句话简介</label><input type="text" id="storySubtitleInput" placeholder="例如：住在旧书店楼上的青梅竹马"></div>
+                    <div><label for="newAgentName">剧情名称</label><input type="text" id="newAgentName" placeholder="例如：海边旧书店"></div>
+                    <div><label for="storySubtitleInput">一句话简介</label><input type="text" id="storySubtitleInput" placeholder="例如：雨季里几名旧友重逢的日常故事"></div>
                     <div class="full"><label for="storyRulesInput">本剧情底层规则</label><textarea id="storyRulesInput" style="min-height:150px" placeholder="只对当前剧情生效的不可违背规则"></textarea></div>
                 </div>
             </section>
@@ -1954,19 +2049,14 @@
             </section>
 
             <section class="story-editor-section">
-                <h4>角色档案</h4>
-                <div class="section-description">稳定底色负责“她是谁”，当前状态和成长记录负责“她现在已经变成了怎样的人”。</div>
-                <div class="story-form-grid">
-                    <div class="full"><label for="newAgentPrompt">基础人设与稳定性格</label><textarea id="newAgentPrompt" style="min-height:210px" placeholder="身份、经历、性格底色、价值观、习惯、能力与弱点"></textarea></div>
-                    <div><label for="storyAppearanceInput">外貌与可观察特征</label><textarea id="storyAppearanceInput" style="min-height:140px" placeholder="外貌、服装、姿态、常用物品等"></textarea></div>
-                    <div><label for="storyCurrentStateInput">当前状态</label><textarea id="storyCurrentStateInput" style="min-height:140px" placeholder="当前身体、情绪、处境和短期关注点"></textarea></div>
-                    <div><label for="storyGrowthInput">成长与变化记录</label><textarea id="storyGrowthInput" style="min-height:160px" placeholder="已经形成的新认知、性格变化、能力成长、立场变化"></textarea></div>
-                    <div><label for="storyRelationshipsInput">关系网络</label><textarea id="storyRelationshipsInput" style="min-height:160px" placeholder="与用户及其他人物的关系、称呼、信任与矛盾"></textarea></div>
-                    <div><label for="storyKnowledgeInput">知识边界、误解与秘密</label><textarea id="storyKnowledgeInput" style="min-height:160px" placeholder="知道、不知道、误以为知道的事情，以及不能自动获知的秘密"></textarea></div>
-                    <div><label for="storyGoalInput">私人目标与动机</label><textarea id="storyGoalInput" style="min-height:160px" placeholder="短期愿望、长期目标、顾虑和不会公开说出的动机"></textarea></div>
-                    <div><label for="storySpeakingInput">说话与行动方式</label><textarea id="storySpeakingInput" style="min-height:170px" placeholder="措辞、语速、口头习惯、行动倾向和不同情绪下的表现"></textarea></div>
-                    <div><label for="storyDialogueInput">对白语感示例</label><textarea id="storyDialogueInput" style="min-height:170px" placeholder="写几句角色在不同情绪下会怎么说，只参考语感，不要求复读"></textarea></div>
+                <div class="story-characters-header">
+                    <div>
+                        <h4>角色设定</h4>
+                        <div class="section-description">每名角色拥有独立的可编辑栏位。新增角色会复制上一名角色的栏名和顺序，但不会复制内容。</div>
+                    </div>
+                    <button type="button" class="story-add-character-btn" id="btnAddStoryCharacter">＋ 添加角色</button>
                 </div>
+                <div class="story-character-list" id="storyCharactersEditor"></div>
             </section>
 
             <section class="story-editor-section">
@@ -2212,21 +2302,14 @@
             const $btnSend = document.getElementById('btnSend');
             const $modalOverlay = document.getElementById('modalOverlay');
             const $newAgentName = document.getElementById('newAgentName');
-            const $newAgentPrompt = document.getElementById('newAgentPrompt');
             const $storyEditorTitle = document.getElementById('storyEditorTitle');
             const $storySubtitleInput = document.getElementById('storySubtitleInput');
             const $storyRulesInput = document.getElementById('storyRulesInput');
             const $storyWorldInput = document.getElementById('storyWorldInput');
             const $storyOpeningInput = document.getElementById('storyOpeningInput');
             const $storyUserPersonaInput = document.getElementById('storyUserPersonaInput');
-            const $storyAppearanceInput = document.getElementById('storyAppearanceInput');
-            const $storyCurrentStateInput = document.getElementById('storyCurrentStateInput');
-            const $storyGrowthInput = document.getElementById('storyGrowthInput');
-            const $storyRelationshipsInput = document.getElementById('storyRelationshipsInput');
-            const $storyKnowledgeInput = document.getElementById('storyKnowledgeInput');
-            const $storyGoalInput = document.getElementById('storyGoalInput');
-            const $storySpeakingInput = document.getElementById('storySpeakingInput');
-            const $storyDialogueInput = document.getElementById('storyDialogueInput');
+            const $storyCharactersEditor = document.getElementById('storyCharactersEditor');
+            const $btnAddStoryCharacter = document.getElementById('btnAddStoryCharacter');
             const $storyStyleInput = document.getElementById('storyStyleInput');
             const $storyStyleExamplesInput = document.getElementById('storyStyleExamplesInput');
             const $storyOtherInfoInput = document.getElementById('storyOtherInfoInput');
@@ -2369,6 +2452,7 @@
             let isOrganizingMemory = false;
             let abortController = null;
             let editingAgentId = null;
+            let storyDraftCharacters = [];
             let editingRoomId = null;
             let roomDraftType = 'double';
             let roomDraftParticipants = [];
@@ -2664,10 +2748,13 @@
                 appData.providerModels.deepseek = appData.model;
 
                 if (appData.agents.length === 0) {
+                    const starterCharacter = Story.createCharacter();
+                    starterCharacter.fields[0].value = '请填写角色名称';
+                    starterCharacter.fields[2].value = '在这里填写角色的性格底色、价值观、习惯、能力与弱点。';
                     const defaultAgent = Story.createAgent({
-                        name: '创建你的第一个剧情角色',
+                        name: '创建你的第一个剧情',
                         subtitle: '打开设定页，逐项补全人物与世界',
-                        characterPrompt: '在这里填写角色的身份、经历、性格底色、价值观、习惯、能力和弱点。',
+                        characters: [starterCharacter],
                     }, Memory);
                     appData.agents = [defaultAgent];
                     appData.currentAgentId = defaultAgent.id;
@@ -3085,8 +3172,11 @@
             }
 
             function refreshImportAgentSelect() {
-                $importAgentSelect.innerHTML = '<option value="">从剧情模式复制角色（不会同步）……</option>' + appData.agents
-                    .map(agent => `<option value="${escapeHtml(agent.id)}">${escapeHtml(agent.name)}</option>`).join('');
+                const options = appData.agents.flatMap(agent => agent.characters.map((character, characterIndex) => {
+                    const characterName = Story.getCharacterName(character, characterIndex);
+                    return `<option value="${escapeHtml(`${agent.id}|${character.id}`)}">${escapeHtml(`${agent.name} / 角色${characterIndex + 1} · ${characterName}`)}</option>`;
+                }));
+                $importAgentSelect.innerHTML = '<option value="">从剧情模式复制角色（不会同步）……</option>' + options.join('');
             }
 
             function addDraftParticipant(member) {
@@ -3396,23 +3486,13 @@
             });
             $btnAddRoomParticipant.addEventListener('click', () => addDraftParticipant());
             $btnImportAgent.addEventListener('click', () => {
-                const agent = appData.agents.find(item => item.id === $importAgentSelect.value);
+                const [agentId, characterId] = $importAgentSelect.value.split('|');
+                const agent = appData.agents.find(item => item.id === agentId);
                 if (!agent) {
                     showToast('请先选择要复制的剧情角色', 'info');
                     return;
                 }
-                addDraftParticipant({
-                    name: agent.name,
-                    personaPrompt: Story.composePersonaForRoom(agent),
-                    publicProfile: '',
-                    speakingStyle: agent.speakingStyle,
-                    privateGoal: agent.privateGoal,
-                    currentState: agent.currentState,
-                    growthNotes: agent.growthNotes,
-                    relationships: agent.relationships,
-                    knowledgeBoundary: agent.knowledgeBoundary,
-                    dialogueExamples: agent.dialogueExamples,
-                });
+                addDraftParticipant(Story.characterToRoomMember(agent, characterId));
                 $importAgentSelect.value = '';
             });
             $btnAddIntimacyNode.addEventListener('click', () => {
@@ -3615,10 +3695,106 @@
             });
 
             // ==================== 剧情智能体全屏编辑页 ====================
+            function renderStoryCharactersEditor(focusCharacterId = '') {
+                $storyCharactersEditor.innerHTML = storyDraftCharacters.map((character, characterIndex) => {
+                    const preview = Story.getCharacterName(character, characterIndex);
+                    const characterRemoveDisabled = storyDraftCharacters.length <= 1 ? 'disabled' : '';
+                    const fields = character.fields.map((field, fieldIndex) => `
+                        <div class="story-character-field" data-field-id="${escapeHtml(field.id)}">
+                            <input class="story-character-field-label" type="text" value="${escapeHtml(field.label)}" aria-label="角色${characterIndex + 1}栏位${fieldIndex + 1}名称" placeholder="栏位名称">
+                            <textarea class="story-character-field-value" aria-label="${escapeHtml(field.label)}的内容" placeholder="填写这一栏的人物设定">${escapeHtml(field.value)}</textarea>
+                            <button type="button" class="story-remove-field-btn" title="删除这一栏" ${character.fields.length <= 1 ? 'disabled' : ''}>−</button>
+                        </div>
+                    `).join('');
+                    return `
+                        <article class="story-character-card" data-character-id="${escapeHtml(character.id)}">
+                            <div class="story-character-card-header">
+                                <span class="story-character-number">角色${characterIndex + 1}</span>
+                                <span class="story-character-preview">${escapeHtml(preview)}</span>
+                                <button type="button" class="story-remove-character-btn" title="删除这个角色" ${characterRemoveDisabled}>− 删除角色</button>
+                            </div>
+                            <div class="story-character-fields">${fields}</div>
+                            <div class="story-character-card-footer">
+                                <button type="button" class="story-add-field-btn">＋ 添加栏位</button>
+                            </div>
+                        </article>
+                    `;
+                }).join('');
+
+                $storyCharactersEditor.querySelectorAll('.story-character-card').forEach((card, characterIndex) => {
+                    const character = storyDraftCharacters[characterIndex];
+                    const updatePreview = () => {
+                        card.querySelector('.story-character-preview').textContent = Story.getCharacterName(character, characterIndex);
+                    };
+                    card.querySelectorAll('.story-character-field').forEach((row, fieldIndex) => {
+                        const field = character.fields[fieldIndex];
+                        row.querySelector('.story-character-field-label').addEventListener('input', event => {
+                            field.label = event.target.value;
+                            updatePreview();
+                        });
+                        row.querySelector('.story-character-field-value').addEventListener('input', event => {
+                            field.value = event.target.value;
+                            updatePreview();
+                        });
+                        row.querySelector('.story-remove-field-btn').addEventListener('click', () => {
+                            if (character.fields.length <= 1) {
+                                showToast('每名角色至少需要保留一个栏位', 'info');
+                                return;
+                            }
+                            character.fields.splice(fieldIndex, 1);
+                            renderStoryCharactersEditor(character.id);
+                        });
+                    });
+                    card.querySelector('.story-add-field-btn').addEventListener('click', () => {
+                        character.fields.push(Story.createCharacterField(`新增栏位${character.fields.length + 1}`, ''));
+                        renderStoryCharactersEditor(character.id);
+                        const refreshedCard = $storyCharactersEditor.querySelector(`[data-character-id="${character.id}"]`);
+                        refreshedCard?.querySelector('.story-character-field:last-child .story-character-field-label')?.focus();
+                    });
+                    card.querySelector('.story-remove-character-btn').addEventListener('click', () => {
+                        if (storyDraftCharacters.length <= 1) {
+                            showToast('剧情中至少需要保留一个角色', 'info');
+                            return;
+                        }
+                        storyDraftCharacters.splice(characterIndex, 1);
+                        renderStoryCharactersEditor();
+                    });
+                });
+
+                if (focusCharacterId) {
+                    $storyCharactersEditor.querySelector(`[data-character-id="${focusCharacterId}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+
+            function addStoryCharacter() {
+                const previous = storyDraftCharacters[storyDraftCharacters.length - 1] || Story.createCharacter();
+                const character = Story.cloneCharacterSchema(previous);
+                storyDraftCharacters.push(character);
+                renderStoryCharactersEditor(character.id);
+                setTimeout(() => {
+                    $storyCharactersEditor.querySelector(`[data-character-id="${character.id}"] .story-character-field-value`)?.focus();
+                }, 250);
+            }
+
+            function collectStoryCharacters() {
+                if (storyDraftCharacters.length === 0) throw new Error('剧情中至少需要保留一个角色');
+                return storyDraftCharacters.map((character, characterIndex) => {
+                    if (!Array.isArray(character.fields) || character.fields.length === 0) {
+                        throw new Error(`角色${characterIndex + 1}至少需要保留一个栏位`);
+                    }
+                    const fields = character.fields.map((field, fieldIndex) => {
+                        const label = String(field.label || '').trim();
+                        if (!label) throw new Error(`角色${characterIndex + 1}的第${fieldIndex + 1}栏缺少名称`);
+                        return { id: field.id, label, value: String(field.value || '').trim() };
+                    });
+                    return Story.normalizeCharacter({ id: character.id, fields });
+                });
+            }
+
             function fillStoryEditor(agent) {
                 const story = agent ? Story.normalizeAgent(agent, Memory) : Story.normalizeAgent({
                     name: '',
-                    characterPrompt: '',
+                    characters: [Story.createCharacter()],
                     storyRules: Story.DEFAULT_STORY_RULES,
                     stylePrompt: Story.DEFAULT_STORY_STYLE,
                 }, Memory);
@@ -3628,15 +3804,8 @@
                 $storyWorldInput.value = story.worldPrompt;
                 $storyOpeningInput.value = story.openingScene;
                 $storyUserPersonaInput.value = story.userPersona;
-                $newAgentPrompt.value = story.characterPrompt;
-                $storyAppearanceInput.value = story.appearance;
-                $storyCurrentStateInput.value = story.currentState;
-                $storyGrowthInput.value = story.growthNotes;
-                $storyRelationshipsInput.value = story.relationships;
-                $storyKnowledgeInput.value = story.knowledgeBoundary;
-                $storyGoalInput.value = story.privateGoal;
-                $storySpeakingInput.value = story.speakingStyle;
-                $storyDialogueInput.value = story.dialogueExamples;
+                storyDraftCharacters = story.characters.map(Story.normalizeCharacter);
+                renderStoryCharactersEditor();
                 $storyStyleInput.value = story.stylePrompt;
                 $storyStyleExamplesInput.value = story.styleExamples;
                 $storyOtherInfoInput.value = story.otherInfo;
@@ -3670,20 +3839,21 @@
             function closeCreateModal() {
                 $modalOverlay.style.display = 'none';
                 editingAgentId = null;
+                storyDraftCharacters = [];
             }
 
             function saveAgent() {
                 const name = $newAgentName.value.trim();
-                const characterPrompt = $newAgentPrompt.value.trim();
-                
                 if (!name) {
-                    showToast('请输入角色名称', 'error');
+                    showToast('请输入剧情名称', 'error');
                     $newAgentName.focus();
                     return;
                 }
-                if (!characterPrompt) {
-                    showToast('请填写角色的基础人设', 'error');
-                    $newAgentPrompt.focus();
+                let characters;
+                try {
+                    characters = collectStoryCharacters();
+                } catch (error) {
+                    showToast(error.message, 'error');
                     return;
                 }
 
@@ -3694,15 +3864,7 @@
                     worldPrompt: $storyWorldInput.value.trim(),
                     openingScene: $storyOpeningInput.value.trim(),
                     userPersona: $storyUserPersonaInput.value.trim(),
-                    characterPrompt,
-                    appearance: $storyAppearanceInput.value.trim(),
-                    currentState: $storyCurrentStateInput.value.trim(),
-                    growthNotes: $storyGrowthInput.value.trim(),
-                    relationships: $storyRelationshipsInput.value.trim(),
-                    knowledgeBoundary: $storyKnowledgeInput.value.trim(),
-                    privateGoal: $storyGoalInput.value.trim(),
-                    speakingStyle: $storySpeakingInput.value.trim(),
-                    dialogueExamples: $storyDialogueInput.value.trim(),
+                    characters,
                     stylePrompt: $storyStyleInput.value.trim() || Story.DEFAULT_STORY_STYLE,
                     styleExamples: $storyStyleExamplesInput.value.trim(),
                     otherInfo: $storyOtherInfoInput.value.trim(),
@@ -3742,6 +3904,7 @@
             $btnStoryEditorClose.addEventListener('click', closeCreateModal);
             $btnCancelModal.addEventListener('click', closeCreateModal);
             $btnConfirmCreate.addEventListener('click', saveAgent);
+            $btnAddStoryCharacter.addEventListener('click', addStoryCharacter);
             
             $modalOverlay.addEventListener('click', (e) => {
                 if (e.target === $modalOverlay) closeCreateModal();

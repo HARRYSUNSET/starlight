@@ -54,9 +54,9 @@ test('全局智能体菜单监听器不会在每次渲染时重复注册', () =>
 
 test('应用版本号在 npm 与 Android 配置中一致', () => {
     const gradle = fs.readFileSync(path.join(root, 'android', 'app', 'build.gradle'), 'utf8');
-    assert.equal(packageJson.version, '1.5.0');
-    assert.match(gradle, /versionCode\s+9/);
-    assert.match(gradle, /versionName\s+"1\.5\.0"/);
+    assert.equal(packageJson.version, '1.6.0');
+    assert.match(gradle, /versionCode\s+10/);
+    assert.match(gradle, /versionName\s+"1\.6\.0"/);
 });
 
 test('模型列表只保留 DeepSeek 官方当前模型标识', () => {
@@ -85,8 +85,14 @@ test('剧情定位与收藏入口不会渗入房间消息页面', () => {
 
 test('剧情智能体和房间分别使用自己的全屏结构化编辑器', () => {
     assert.match(html, /id="storyEditor"/);
-    assert.match(html, /id="storyGrowthInput"/);
-    assert.match(html, /id="storyKnowledgeInput"/);
+    assert.match(html, /id="storyCharactersEditor"/);
+    assert.match(html, /id="btnAddStoryCharacter"/);
+    assert.match(html, /story-character-field-label/);
+    assert.match(html, /story-character-field-value/);
+    assert.match(html, /function addStoryCharacter/);
+    assert.match(functionBody('addStoryCharacter', 'collectStoryCharacters'), /Story\.cloneCharacterSchema\(previous\)/);
+    assert.match(html, /storyDraftCharacters\.length <= 1/);
+    assert.match(html, /character\.fields\.length <= 1/);
     assert.match(html, /room-editor-overlay/);
     assert.match(html, /id="roomStyleExamplesInput"/);
     assert.match(html, /class="member-growth"/);
