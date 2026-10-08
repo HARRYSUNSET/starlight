@@ -1854,6 +1854,232 @@
             .story-character-field-label { grid-column: 1 / -1; }
             .memory-overview { grid-template-columns: 1fr; }
         }
+
+        /* ==================== v1.7 文风工坊 ==================== */
+        .btn-toolbar.has-style {
+            color: var(--accent);
+            border-color: color-mix(in srgb, var(--accent) 48%, var(--border));
+            background: color-mix(in srgb, var(--accent) 9%, var(--card-bg));
+        }
+        .style-lab-overlay {
+            padding: 0;
+            background: var(--card-bg);
+            align-items: stretch;
+            justify-content: stretch;
+            z-index: 260;
+        }
+        .modal.style-lab {
+            width: 100vw;
+            max-width: none;
+            height: 100dvh;
+            max-height: none;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            box-shadow: none;
+            overflow: hidden;
+            animation: none;
+            display: flex;
+            flex-direction: column;
+        }
+        .style-lab-header {
+            min-height: 72px;
+            padding: 13px max(20px, calc((100vw - 1320px) / 2));
+            border-bottom: 1px solid var(--border);
+            background: color-mix(in srgb, var(--card-bg) 94%, transparent);
+            backdrop-filter: blur(16px);
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex: 0 0 auto;
+        }
+        .style-lab-title { flex: 1; min-width: 0; }
+        .style-lab-title h3 { margin: 0 0 3px; }
+        .style-lab-title p { margin: 0; color: var(--text-muted); font-size: .7rem; }
+        .style-target-badge {
+            max-width: min(38vw, 420px);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            padding: 7px 11px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text-secondary);
+            font-size: .7rem;
+        }
+        .style-lab-body {
+            width: min(1320px, 100%);
+            margin: 0 auto;
+            min-height: 0;
+            flex: 1;
+            display: grid;
+            grid-template-columns: 270px minmax(0, 1fr);
+        }
+        .style-library-panel {
+            min-height: 0;
+            border-right: 1px solid var(--border);
+            background: color-mix(in srgb, var(--bg) 72%, var(--card-bg));
+            display: flex;
+            flex-direction: column;
+            padding: 18px 14px;
+        }
+        .style-library-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .style-library-heading strong { flex: 1; font-size: .82rem; }
+        .style-library-add,
+        .style-action {
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            border-radius: 10px;
+            padding: 8px 11px;
+            cursor: pointer;
+            font: inherit;
+            font-size: .71rem;
+            font-weight: 700;
+        }
+        .style-library-add { color: var(--accent); border-color: var(--accent-light); }
+        .style-action.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+        .style-action.danger { color: var(--danger); }
+        .style-action:disabled,
+        .style-library-add:disabled { opacity: .45; cursor: wait; }
+        .style-library-note { color: var(--text-muted); font-size: .65rem; line-height: 1.5; margin-bottom: 12px; }
+        .style-profile-list { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 7px; }
+        .style-profile-item {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 11px 12px;
+            background: var(--card-bg);
+            color: var(--text-primary);
+            cursor: pointer;
+            text-align: left;
+        }
+        .style-profile-item.active { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+        .style-profile-item strong { display: block; font-size: .76rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .style-profile-item span { display: block; color: var(--text-muted); font-size: .63rem; margin-top: 4px; }
+        .style-profile-item .applied { color: var(--accent); }
+        .style-workspace {
+            min-height: 0;
+            overflow-y: auto;
+            padding: 22px clamp(18px, 4vw, 52px) 46px;
+            scroll-behavior: smooth;
+        }
+        .style-empty-state {
+            min-height: 62vh;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            color: var(--text-muted);
+        }
+        .style-empty-state strong { display: block; color: var(--text-primary); font-size: 1.05rem; margin-bottom: 7px; }
+        .style-editor-content { display: flex; flex-direction: column; gap: 16px; }
+        .style-editor-content[hidden], .style-empty-state[hidden] { display: none; }
+        .style-card {
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 19px;
+            background: color-mix(in srgb, var(--bg) 55%, var(--card-bg));
+        }
+        .style-card-heading { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
+        .style-card-heading > div:first-child { flex: 1; }
+        .style-card h4 { margin: 0 0 4px; font-size: .9rem; }
+        .style-card-copy { margin: 0; color: var(--text-muted); font-size: .69rem; line-height: 1.55; }
+        .style-profile-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(230px, .8fr) auto; gap: 14px; align-items: end; }
+        .style-field label { display: block; color: var(--text-secondary); font-size: .7rem; font-weight: 700; margin-bottom: 6px; }
+        .style-field input,
+        .style-field textarea,
+        .style-field select {
+            width: 100%;
+            border: 1px solid var(--border);
+            border-radius: 11px;
+            padding: 10px 12px;
+            background: var(--card-bg);
+            color: var(--text-primary);
+            font: inherit;
+            font-size: .78rem;
+            line-height: 1.55;
+            outline: none;
+            resize: vertical;
+        }
+        .style-field input:focus,
+        .style-field textarea:focus,
+        .style-field select:focus { border-color: var(--accent-light); box-shadow: 0 0 0 3px var(--accent-glow); }
+        .style-strength-row { display: flex; align-items: center; gap: 10px; }
+        .style-strength-row input { padding: 0; box-shadow: none; accent-color: var(--accent); }
+        .style-strength-value { min-width: 48px; color: var(--accent); font-weight: 800; text-align: right; font-size: .78rem; }
+        .style-profile-actions { display: flex; gap: 7px; }
+        .style-source-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(220px, .8fr); gap: 13px; }
+        .style-text-counter { margin-top: 5px; color: var(--text-muted); font-size: .63rem; text-align: right; }
+        .style-analysis-status { color: var(--text-muted); font-size: .68rem; line-height: 1.5; }
+        .style-analysis-status.ready { color: #2a9d8f; }
+        .style-analysis-status.busy { color: var(--accent); }
+        .style-analysis-summary {
+            padding: 13px 14px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            font-size: .75rem;
+            line-height: 1.65;
+            white-space: pre-wrap;
+        }
+        .style-factor-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 11px; }
+        .style-factor {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: var(--card-bg);
+            padding: 12px 13px;
+        }
+        .style-factor strong { display: block; color: var(--accent); font-size: .74rem; margin-bottom: 5px; }
+        .style-factor p { margin: 0; color: var(--text-secondary); font-size: .69rem; line-height: 1.55; white-space: pre-wrap; }
+        .style-detail-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; margin-top: 11px; }
+        .style-detail-box { border: 1px solid var(--border); border-radius: 12px; background: var(--card-bg); padding: 12px 14px; }
+        .style-detail-box strong { display: block; font-size: .72rem; margin-bottom: 6px; }
+        .style-detail-box ul { margin: 0; padding-left: 18px; color: var(--text-secondary); font-size: .68rem; line-height: 1.6; }
+        .style-apply-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .style-applied-status { flex: 1; min-width: 220px; color: var(--text-secondary); font-size: .72rem; line-height: 1.55; }
+        .style-preview-controls { display: grid; grid-template-columns: 180px minmax(0, 1fr) auto; gap: 10px; align-items: end; }
+        .style-preview-output {
+            min-height: 180px;
+            margin-top: 13px;
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            background: var(--card-bg);
+            padding: 15px;
+            color: var(--text-primary);
+            font-family: var(--font-serif);
+            font-size: .82rem;
+            line-height: 1.82;
+            white-space: pre-wrap;
+        }
+        .style-sandbox-note {
+            margin-top: 9px;
+            padding: 9px 11px;
+            border-radius: 10px;
+            background: color-mix(in srgb, var(--accent) 8%, var(--card-bg));
+            color: var(--text-secondary);
+            font-size: .66rem;
+            line-height: 1.5;
+        }
+        @media (max-width: 860px) {
+            .style-lab-header { min-height: 64px; padding: 11px 14px; }
+            .style-target-badge { display: none; }
+            .style-lab-body { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+            .style-library-panel { border-right: 0; border-bottom: 1px solid var(--border); padding: 10px 12px; }
+            .style-library-note { display: none; }
+            .style-library-heading { margin-bottom: 7px; }
+            .style-profile-list { flex-direction: row; overflow-x: auto; }
+            .style-profile-item { min-width: 158px; width: 158px; }
+            .style-workspace { padding: 16px 13px 34px; }
+            .style-profile-toolbar,
+            .style-source-grid,
+            .style-preview-controls { grid-template-columns: 1fr; }
+            .style-factor-list,
+            .style-detail-columns { grid-template-columns: 1fr; }
+            .style-profile-actions { justify-content: stretch; }
+            .style-profile-actions button { flex: 1; }
+        }
     </style>
 </head>
 <body>
@@ -1978,6 +2204,7 @@
                 <button class="btn-toolbar story-only-control" id="btnEditStory" title="打开全屏剧情智能体设定" disabled>✎ 设定</button>
                 <button class="btn-toolbar story-only-control" id="btnMemoryManager" title="查看并修改当前剧情长期记忆" disabled>🧠 记忆</button>
                 <button class="btn-toolbar" id="btnEditRoom" title="打开房间设置" hidden>⚙️ 房间设置</button>
+                <button class="btn-toolbar" id="btnStyleLab" title="打开独立文风工坊">🎛 文风</button>
                 <button class="btn-toolbar story-only-control" id="btnLocate" title="搜索、收藏或按编号跳转剧情消息" disabled>🧭 定位</button>
                 <button class="btn-toolbar" id="btnRegenerate" title="重新生成最后一条回复" disabled>🔄 重新生成</button>
                 <button class="btn-toolbar" id="btnUndo" title="撤回最后一轮对话" disabled>↩️ 撤回</button>
@@ -2256,9 +2483,115 @@
         </div>
     </div>
 
+    <div class="modal-overlay style-lab-overlay" id="styleLabOverlay" style="display:none;">
+        <div class="modal style-lab" id="styleLab">
+            <header class="style-lab-header">
+                <div class="style-lab-title">
+                    <h3>🎛 文风工坊</h3>
+                    <p>从参考文本提炼表达规律，以独立快照应用到当前剧情或房间</p>
+                </div>
+                <div class="style-target-badge" id="styleTargetBadge">当前未选择作品</div>
+                <button type="button" class="mini-action-btn" id="btnStyleLabClose">关闭工坊</button>
+            </header>
+            <div class="style-lab-body">
+                <aside class="style-library-panel">
+                    <div class="style-library-heading">
+                        <strong>综合因子库</strong>
+                        <button type="button" class="style-library-add" id="btnAddStyleProfile">＋ 新建</button>
+                    </div>
+                    <div class="style-library-note">因子库可被多个作品使用；应用时会复制一份独立快照，后续编辑不会串到其他对话。</div>
+                    <div class="style-profile-list" id="styleProfileList"></div>
+                </aside>
+                <main class="style-workspace">
+                    <div class="style-empty-state" id="styleEmptyState">
+                        <div><strong>建立第一份文风因子</strong><span>粘贴一段参考文本，分析后即可生成沙盒样稿或应用到当前作品。</span></div>
+                    </div>
+                    <div class="style-editor-content" id="styleEditorContent" hidden>
+                        <section class="style-card">
+                            <div class="style-profile-toolbar">
+                                <div class="style-field">
+                                    <label for="styleProfileNameInput">综合因子名称</label>
+                                    <input id="styleProfileNameInput" type="text" maxlength="80" placeholder="例如：轻松日常对白">
+                                </div>
+                                <div class="style-field">
+                                    <label for="styleProfileStrengthRange">总体影响强度</label>
+                                    <div class="style-strength-row">
+                                        <input id="styleProfileStrengthRange" type="range" min="0" max="100" step="1">
+                                        <span class="style-strength-value" id="styleProfileStrengthValue">70%</span>
+                                    </div>
+                                </div>
+                                <div class="style-profile-actions">
+                                    <button type="button" class="style-action" id="btnResetStyleProfile">重置</button>
+                                    <button type="button" class="style-action danger" id="btnDeleteStyleProfile">删除</button>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="style-card">
+                            <div class="style-card-heading">
+                                <div><h4>① 输入参考文本</h4><p class="style-card-copy">样本文本只在你点击分析时发送给 DeepSeek；提取表达规律，不继承人物、剧情或具体句子。</p></div>
+                                <button type="button" class="style-action primary" id="btnAnalyzeStyle">分析并生成因子</button>
+                            </div>
+                            <div class="style-source-grid">
+                                <div class="style-field">
+                                    <label for="styleSourceTextInput">参考文本</label>
+                                    <textarea id="styleSourceTextInput" rows="13" maxlength="30000" placeholder="建议粘贴至少 500 字、对白与叙述都较有代表性的文本……"></textarea>
+                                    <div class="style-text-counter" id="styleSourceCounter">0 / 30000</div>
+                                </div>
+                                <div class="style-field">
+                                    <label for="styleSourceNotesInput">希望重点保留／避免的方向（可选）</label>
+                                    <textarea id="styleSourceNotesInput" rows="13" maxlength="4000" placeholder="例如：保留对白的松弛感；不要照搬原文人物和事件；避免无厘头比喻……"></textarea>
+                                </div>
+                            </div>
+                            <div class="style-analysis-status" id="styleAnalysisStatus">尚未分析</div>
+                        </section>
+
+                        <section class="style-card" id="styleAnalysisCard">
+                            <div class="style-card-heading"><div><h4>② 查看细分因子</h4><p class="style-card-copy">细分因子按重要程度排列，用于解释这份综合因子；强度只由上方总滑杆统一控制。</p></div></div>
+                            <div class="style-analysis-summary" id="styleAnalysisSummary">分析完成后会在这里展示文风概述。</div>
+                            <div class="style-factor-list" id="styleFactorList"></div>
+                            <div class="style-detail-columns">
+                                <div class="style-detail-box"><strong>避免的 AI 化表达</strong><ul id="styleAvoidanceList"><li>等待分析</li></ul></div>
+                                <div class="style-detail-box"><strong>自然度检查</strong><ul id="styleNaturalnessList"><li>等待分析</li></ul></div>
+                            </div>
+                            <div class="style-analysis-status" id="styleConfidenceNotes"></div>
+                        </section>
+
+                        <section class="style-card">
+                            <div class="style-card-heading"><div><h4>③ 应用到当前作品</h4><p class="style-card-copy">应用的是此刻的独立快照。以后修改或删除因子库条目，都不会暗中改变其他剧情或房间。</p></div></div>
+                            <div class="style-apply-row">
+                                <div class="style-applied-status" id="styleAppliedStatus">当前未选择可应用的作品。</div>
+                                <button type="button" class="style-action" id="btnRemoveAppliedStyle">停用当前文风</button>
+                                <button type="button" class="style-action primary" id="btnApplyStyle">应用这份因子</button>
+                            </div>
+                        </section>
+
+                        <section class="style-card">
+                            <div class="style-card-heading"><div><h4>④ 沙盒参考文本</h4><p class="style-card-copy">可按你的要求生成，也可借用当前剧情／房间的设定快照。生成结果永远不会写入正式对话。</p></div></div>
+                            <div class="style-preview-controls">
+                                <div class="style-field">
+                                    <label for="stylePreviewModeSelect">参考范围</label>
+                                    <select id="stylePreviewModeSelect"><option value="custom">仅按我的要求</option><option value="current">结合当前作品设定</option></select>
+                                </div>
+                                <div class="style-field">
+                                    <label for="stylePreviewRequestInput">本次创作要求（可选）</label>
+                                    <textarea id="stylePreviewRequestInput" rows="3" maxlength="4000" placeholder="例如：写一段两名同学放学后争论晚饭吃什么的轻松互动"></textarea>
+                                </div>
+                                <button type="button" class="style-action primary" id="btnGenerateStylePreview">生成参考文本</button>
+                            </div>
+                            <div class="style-sandbox-note">🔒 隔离沙盒：这里的文本不是已发生剧情，不会进入消息、长期记忆、关系、亲密度、场景状态或定位记录。</div>
+                            <div class="style-preview-output" id="stylePreviewOutput">参考文本会显示在这里。</div>
+                        </section>
+                    </div>
+                </main>
+            </div>
+        </div>
+    </div>
+
     <div id="toastContainer"></div>
 
     <script src="memory.js"></script>
+    <script src="style-lab.js"></script>
     <script src="story.js"></script>
     <script src="rooms.js"></script>
     <script>
@@ -2292,6 +2625,7 @@
             const $modelBadge = document.getElementById('modelBadge');
             const $btnEditStory = document.getElementById('btnEditStory');
             const $btnMemoryManager = document.getElementById('btnMemoryManager');
+            const $btnStyleLab = document.getElementById('btnStyleLab');
             const $btnLocate = document.getElementById('btnLocate');
             const $btnRegenerate = document.getElementById('btnRegenerate');
             const $btnUndo = document.getElementById('btnUndo');
@@ -2390,10 +2724,41 @@
             const $btnResetStoryMemory = document.getElementById('btnResetStoryMemory');
             const $btnCancelMemoryEdit = document.getElementById('btnCancelMemoryEdit');
             const $btnSaveMemoryEdit = document.getElementById('btnSaveMemoryEdit');
+            const $styleLabOverlay = document.getElementById('styleLabOverlay');
+            const $styleTargetBadge = document.getElementById('styleTargetBadge');
+            const $btnStyleLabClose = document.getElementById('btnStyleLabClose');
+            const $btnAddStyleProfile = document.getElementById('btnAddStyleProfile');
+            const $styleProfileList = document.getElementById('styleProfileList');
+            const $styleEmptyState = document.getElementById('styleEmptyState');
+            const $styleEditorContent = document.getElementById('styleEditorContent');
+            const $styleProfileNameInput = document.getElementById('styleProfileNameInput');
+            const $styleProfileStrengthRange = document.getElementById('styleProfileStrengthRange');
+            const $styleProfileStrengthValue = document.getElementById('styleProfileStrengthValue');
+            const $btnResetStyleProfile = document.getElementById('btnResetStyleProfile');
+            const $btnDeleteStyleProfile = document.getElementById('btnDeleteStyleProfile');
+            const $styleSourceTextInput = document.getElementById('styleSourceTextInput');
+            const $styleSourceNotesInput = document.getElementById('styleSourceNotesInput');
+            const $styleSourceCounter = document.getElementById('styleSourceCounter');
+            const $btnAnalyzeStyle = document.getElementById('btnAnalyzeStyle');
+            const $styleAnalysisStatus = document.getElementById('styleAnalysisStatus');
+            const $styleAnalysisSummary = document.getElementById('styleAnalysisSummary');
+            const $styleFactorList = document.getElementById('styleFactorList');
+            const $styleAvoidanceList = document.getElementById('styleAvoidanceList');
+            const $styleNaturalnessList = document.getElementById('styleNaturalnessList');
+            const $styleConfidenceNotes = document.getElementById('styleConfidenceNotes');
+            const $styleAppliedStatus = document.getElementById('styleAppliedStatus');
+            const $btnRemoveAppliedStyle = document.getElementById('btnRemoveAppliedStyle');
+            const $btnApplyStyle = document.getElementById('btnApplyStyle');
+            const $stylePreviewModeSelect = document.getElementById('stylePreviewModeSelect');
+            const $stylePreviewRequestInput = document.getElementById('stylePreviewRequestInput');
+            const $btnGenerateStylePreview = document.getElementById('btnGenerateStylePreview');
+            const $stylePreviewOutput = document.getElementById('stylePreviewOutput');
 
             // ==================== 状态 ====================
             const Memory = window.StarlightMemory;
             if (!Memory) throw new Error('长期记忆模块加载失败');
+            const StyleLab = window.StarlightStyleLab;
+            if (!StyleLab) throw new Error('文风工坊模块加载失败');
             const Story = window.StarlightStory;
             if (!Story) throw new Error('剧情模式模块加载失败');
             const Rooms = window.StarlightRooms;
@@ -2445,6 +2810,7 @@
                 activeMode: 'story',
                 rooms: [],
                 currentRoomId: null,
+                styleProfiles: [],
                 updatedAt: 0,
             };
 
@@ -2472,6 +2838,8 @@
             let roomRenderedMessageRange = null;
             let navigatorBookmarkedOnly = false;
             let memoryDraftSegments = [];
+            let selectedStyleProfileId = null;
+            let styleLabBusy = false;
             
             // 安全读取本地主题配置，防止浏览器严格隐私模式拦截报错
             let isDarkMode = false;
@@ -2665,12 +3033,21 @@
                 appData.storyMemorySettings = Memory.normalizeConfig(parsed.storyMemorySettings || legacyMemorySettings);
                 appData.roomMemorySettings = Memory.normalizeConfig(parsed.roomMemorySettings || legacyMemorySettings);
                 appData.agents = (Array.isArray(parsed.agents) ? parsed.agents : [])
-                    .map(agent => Story.normalizeAgent(agent, Memory));
+                    .map(agent => {
+                        const normalized = Story.normalizeAgent(agent, Memory);
+                        normalized.styleInfluence = StyleLab.normalizeAppliedStyle(normalized.styleInfluence);
+                        return normalized;
+                    });
                 appData.currentAgentId = parsed.currentAgentId || null;
                 appData.activeMode = parsed.activeMode === 'room' ? 'room' : 'story';
                 appData.rooms = (Array.isArray(parsed.rooms) ? parsed.rooms : [])
-                    .map(room => Rooms.normalizeRoom(room, Memory, Memory.NATURAL_STYLE_GUIDE));
+                    .map(room => {
+                        const normalized = Rooms.normalizeRoom(room, Memory, Memory.NATURAL_STYLE_GUIDE);
+                        normalized.styleInfluence = StyleLab.normalizeAppliedStyle(normalized.styleInfluence);
+                        return normalized;
+                    });
                 appData.currentRoomId = parsed.currentRoomId || null;
+                appData.styleProfiles = StyleLab.normalizeProfiles(parsed.styleProfiles);
                 appData.updatedAt = Number(parsed.updatedAt) || 0;
 
                 if (legacyModel === 'deepseek-chat') {
@@ -2809,6 +3186,357 @@
             function getCurrentRoom() {
                 return appData.rooms.find(room => room.id === appData.currentRoomId) || null;
             }
+
+            // ==================== 独立文风工坊 ====================
+            function getCurrentStyleTarget() {
+                return appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
+            }
+
+            function getCurrentStyleTargetLabel() {
+                const target = getCurrentStyleTarget();
+                if (!target) return '当前未选择可应用的作品';
+                return `${appData.activeMode === 'room' ? '房间' : '剧情'} · ${target.name}`;
+            }
+
+            function getSelectedStyleProfile() {
+                return appData.styleProfiles.find(profile => profile.id === selectedStyleProfileId) || null;
+            }
+
+            function updateStyleLabButton() {
+                const target = getCurrentStyleTarget();
+                const applied = StyleLab.normalizeAppliedStyle(target?.styleInfluence);
+                $btnStyleLab.classList.toggle('has-style', !!applied);
+                $btnStyleLab.title = applied
+                    ? `文风工坊 · 当前已应用“${applied.name}” (${applied.strength}%)`
+                    : '打开独立文风工坊';
+            }
+
+            function setStyleLabBusy(busy, statusText = '') {
+                styleLabBusy = busy;
+                $styleLabOverlay.querySelectorAll('button, input, textarea, select').forEach(control => {
+                    control.disabled = busy;
+                });
+                if (busy && statusText) {
+                    $styleAnalysisStatus.textContent = statusText;
+                    $styleAnalysisStatus.className = 'style-analysis-status busy';
+                }
+            }
+
+            function renderStyleList() {
+                const target = getCurrentStyleTarget();
+                const applied = StyleLab.normalizeAppliedStyle(target?.styleInfluence);
+                if (!appData.styleProfiles.length) {
+                    $styleProfileList.innerHTML = '<div class="style-library-note">还没有综合因子，点击“新建”开始。</div>';
+                    return;
+                }
+                $styleProfileList.innerHTML = appData.styleProfiles.map(profile => {
+                    const isAppliedSource = applied?.sourceProfileId === profile.id;
+                    const factorCount = profile.analysis?.factors?.length || 0;
+                    return `<button type="button" class="style-profile-item ${profile.id === selectedStyleProfileId ? 'active' : ''}" data-style-profile-id="${escapeHtml(profile.id)}">
+                        <strong>${escapeHtml(profile.name)}</strong>
+                        <span class="${isAppliedSource ? 'applied' : ''}">${isAppliedSource ? '● 当前作品使用其快照' : `${factorCount ? `${factorCount} 项因子` : '待分析'} · 强度 ${profile.strength}%`}</span>
+                    </button>`;
+                }).join('');
+            }
+
+            function renderStyleDetailsList(element, values, emptyText) {
+                const items = Array.isArray(values) ? values.filter(Boolean) : [];
+                element.innerHTML = items.length
+                    ? items.map(item => `<li>${escapeHtml(item)}</li>`).join('')
+                    : `<li>${escapeHtml(emptyText)}</li>`;
+            }
+
+            function renderStyleLab() {
+                const profile = getSelectedStyleProfile();
+                const target = getCurrentStyleTarget();
+                const applied = StyleLab.normalizeAppliedStyle(target?.styleInfluence);
+                $styleTargetBadge.textContent = getCurrentStyleTargetLabel();
+                $styleEmptyState.hidden = !!profile;
+                $styleEditorContent.hidden = !profile;
+                renderStyleList();
+                if (!profile) return;
+
+                $styleProfileNameInput.value = profile.name;
+                $styleProfileStrengthRange.value = String(profile.strength);
+                $styleProfileStrengthValue.textContent = `${profile.strength}%`;
+                $styleSourceTextInput.value = profile.sourceText;
+                $styleSourceNotesInput.value = profile.sourceNotes;
+                $styleSourceCounter.textContent = `${profile.sourceText.length} / ${StyleLab.MAX_SOURCE_LENGTH}`;
+                $stylePreviewRequestInput.value = profile.previewRequest || '';
+                $stylePreviewOutput.textContent = profile.previewText || '参考文本会显示在这里。';
+
+                const analysis = profile.analysis || StyleLab.normalizeAnalysis();
+                const hasAnalysis = analysis.factors.length > 0;
+                const sourceChangedAfterAnalysis = hasAnalysis && (
+                    profile.sourceText !== profile.baseline?.sourceText
+                    || profile.sourceNotes !== profile.baseline?.sourceNotes
+                );
+                $styleAnalysisStatus.textContent = sourceChangedAfterAnalysis
+                    ? `参考文本或重点说明已修改 · 当前 ${analysis.factors.length} 项因子仍来自上次分析，请重新分析后再应用`
+                    : (hasAnalysis
+                        ? `分析完成 · 共 ${analysis.factors.length} 项细分因子`
+                        : '尚未分析');
+                $styleAnalysisStatus.className = `style-analysis-status${hasAnalysis && !sourceChangedAfterAnalysis ? ' ready' : ''}`;
+                $styleAnalysisSummary.textContent = analysis.summary || '分析完成后会在这里展示文风概述。';
+                $styleFactorList.innerHTML = hasAnalysis
+                    ? analysis.factors.map((factor, index) => `<div class="style-factor"><strong>${index + 1}. ${escapeHtml(factor.name)}</strong><p>${escapeHtml(factor.description)}${factor.description && factor.instruction ? '\n\n' : ''}${escapeHtml(factor.instruction)}</p></div>`).join('')
+                    : '';
+                renderStyleDetailsList($styleAvoidanceList, analysis.avoidances, '等待分析');
+                renderStyleDetailsList($styleNaturalnessList, analysis.naturalnessChecks, '等待分析');
+                $styleConfidenceNotes.textContent = analysis.confidenceNotes ? `分析说明：${analysis.confidenceNotes}` : '';
+
+                if (!target) {
+                    $styleAppliedStatus.textContent = '当前未选择剧情或房间。你仍可分析和生成参考文本，选择作品后再应用。';
+                } else if (!applied) {
+                    $styleAppliedStatus.textContent = `${getCurrentStyleTargetLabel()}尚未应用综合文风因子。`;
+                } else {
+                    const sameSnapshot = applied.sourceProfileId === profile.id
+                        && applied.name === profile.name
+                        && applied.strength === profile.strength
+                        && JSON.stringify(applied.analysis) === JSON.stringify(profile.analysis);
+                    $styleAppliedStatus.textContent = `${getCurrentStyleTargetLabel()}当前使用“${applied.name}” (${applied.strength}%) 的独立快照。${applied.sourceProfileId === profile.id && !sameSnapshot ? '因子库内容已有变化，如需同步请重新应用。' : ''}`;
+                }
+                $btnApplyStyle.disabled = styleLabBusy || !target || !hasAnalysis || sourceChangedAfterAnalysis;
+                $btnRemoveAppliedStyle.disabled = styleLabBusy || !target || !applied;
+                $btnGenerateStylePreview.disabled = styleLabBusy || !hasAnalysis;
+            }
+
+            function openStyleLab() {
+                if (!canChangeConversationTarget()) return;
+                if (!selectedStyleProfileId || !appData.styleProfiles.some(profile => profile.id === selectedStyleProfileId)) {
+                    selectedStyleProfileId = appData.styleProfiles[0]?.id || null;
+                }
+                renderStyleLab();
+                $styleLabOverlay.style.display = 'flex';
+            }
+
+            function closeStyleLab() {
+                if (styleLabBusy) {
+                    showToast('请等待当前文风任务完成', 'info');
+                    return;
+                }
+                $styleLabOverlay.style.display = 'none';
+            }
+
+            function addStyleProfile() {
+                const profile = StyleLab.createProfile({ name: `文风因子 ${appData.styleProfiles.length + 1}` });
+                appData.styleProfiles.push(profile);
+                selectedStyleProfileId = profile.id;
+                saveData();
+                renderStyleLab();
+                setTimeout(() => $styleProfileNameInput.focus(), 40);
+            }
+
+            function updateSelectedStyleProfile(patch) {
+                const index = appData.styleProfiles.findIndex(profile => profile.id === selectedStyleProfileId);
+                if (index < 0) return;
+                appData.styleProfiles[index] = StyleLab.normalizeProfile({
+                    ...appData.styleProfiles[index],
+                    ...patch,
+                    updatedAt: Date.now(),
+                });
+                saveData();
+            }
+
+            function deleteSelectedStyleProfile() {
+                const profile = getSelectedStyleProfile();
+                if (!profile) return;
+                if (!confirm(`确定从因子库删除“${profile.name}”吗？已经应用到剧情或房间的独立快照会继续保留。`)) return;
+                const index = appData.styleProfiles.findIndex(item => item.id === profile.id);
+                appData.styleProfiles.splice(index, 1);
+                selectedStyleProfileId = appData.styleProfiles[index]?.id || appData.styleProfiles[index - 1]?.id || null;
+                saveData();
+                renderStyleLab();
+                showToast('已删除因子库条目；已有应用快照未受影响', 'success');
+            }
+
+            function resetSelectedStyleProfile() {
+                const profile = getSelectedStyleProfile();
+                if (!profile || !confirm('将名称、强度、参考文本和分析结果恢复到上次分析完成时的状态吗？')) return;
+                const index = appData.styleProfiles.findIndex(item => item.id === profile.id);
+                appData.styleProfiles[index] = StyleLab.resetProfile(profile);
+                saveData();
+                renderStyleLab();
+                showToast('已重置这份综合因子', 'success');
+            }
+
+            async function analyzeSelectedStyle() {
+                const profile = getSelectedStyleProfile();
+                if (!profile) return;
+                if (!appData.apiKey) {
+                    showToast('请先在侧边栏设置 DeepSeek API Key', 'error');
+                    return;
+                }
+                const sourceText = $styleSourceTextInput.value.trim();
+                const sourceNotes = $styleSourceNotesInput.value.trim();
+                try {
+                    const messages = StyleLab.buildAnalysisMessages(sourceText, sourceNotes);
+                    setStyleLabBusy(true, '正在分析表达规律并排除人物、事件与提示注入……');
+                    const result = await callDeepSeekJSON(messages, { temperature: 0.1, maxTokens: 6000, thinkingMode: 'disabled' });
+                    const currentIndex = appData.styleProfiles.findIndex(item => item.id === profile.id);
+                    if (currentIndex < 0) return;
+                    appData.styleProfiles[currentIndex] = StyleLab.profileFromAnalysis(
+                        appData.styleProfiles[currentIndex],
+                        result,
+                        sourceText,
+                        sourceNotes
+                    );
+                    selectedStyleProfileId = appData.styleProfiles[currentIndex].id;
+                    saveData();
+                    showToast('文风因子分析完成', 'success');
+                } catch (error) {
+                    if (error.name !== 'AbortError') showToast('文风分析失败：' + error.message, 'error');
+                } finally {
+                    setStyleLabBusy(false);
+                    renderStyleLab();
+                }
+            }
+
+            function buildCurrentStylePreviewContext() {
+                if (appData.activeMode === 'story') {
+                    const agent = getCurrentAgent();
+                    if (!agent) return '';
+                    const characters = (agent.characters || []).map((character, index) => {
+                        const fields = (character.fields || []).map(field => `${field.label}：${field.value || '（未填写）'}`).join('\n');
+                        return `角色${index + 1}\n${fields}`;
+                    }).join('\n\n');
+                    return [
+                        `模式：剧情`,
+                        `作品：${agent.name}`,
+                        `世界观：${agent.worldPrompt || '（未设定）'}`,
+                        `当前或开场场景：${agent.openingScene || '（未设定）'}`,
+                        `用户角色：${agent.userPersona || '（未设定）'}`,
+                        `角色设定：\n${characters || '（未设定）'}`,
+                        `其他设定：${agent.otherInfo || '（无）'}`,
+                    ].join('\n\n');
+                }
+                const room = getCurrentRoom();
+                if (!room) return '';
+                const participants = (room.participants || []).map((member, index) => [
+                    `角色${index + 1}：${member.name}`,
+                    member.personaPrompt && `基础设定：${member.personaPrompt}`,
+                    member.currentState && `当前状态：${member.currentState}`,
+                    member.growthNotes && `成长变化：${member.growthNotes}`,
+                    member.relationships && `关系：${member.relationships}`,
+                    member.knowledgeBoundary && `知识边界：${member.knowledgeBoundary}`,
+                    member.speakingStyle && `说话风格：${member.speakingStyle}`,
+                ].filter(Boolean).join('\n')).join('\n\n');
+                return [
+                    `模式：房间`,
+                    `作品：${room.name}`,
+                    `世界观：${room.worldPrompt || '（未设定）'}`,
+                    `当前场景设定：${room.scenePrompt || '（未设定）'}`,
+                    `用户角色：${room.userPersona || '（未设定）'}`,
+                    `在场角色：\n${participants || '（未设定）'}`,
+                    `其他设定：${room.otherInfo || '（无）'}`,
+                ].join('\n\n');
+            }
+
+            function callStylePreview(messages) {
+                return new Promise((resolve, reject) => {
+                    callDeepSeekAPI(
+                        messages,
+                        content => { $stylePreviewOutput.textContent = content || '正在生成……'; },
+                        (content, metadata) => resolve({ content, metadata }),
+                        reject,
+                        { temperature: 0.72, maxTokens: 4000, thinkingMode: 'disabled' }
+                    );
+                });
+            }
+
+            async function generateStylePreview() {
+                const profile = getSelectedStyleProfile();
+                if (!profile) return;
+                if (!appData.apiKey) {
+                    showToast('请先在侧边栏设置 DeepSeek API Key', 'error');
+                    return;
+                }
+                try {
+                    const request = $stylePreviewRequestInput.value.trim();
+                    const context = $stylePreviewModeSelect.value === 'current' ? buildCurrentStylePreviewContext() : '';
+                    const messages = StyleLab.buildPreviewMessages(profile, request, context);
+                    setStyleLabBusy(true, '文风分析已就绪');
+                    $stylePreviewOutput.textContent = '正在隔离沙盒中生成参考文本……';
+                    const response = await callStylePreview(messages);
+                    if (response.content === null) return;
+                    const current = getSelectedStyleProfile();
+                    if (current?.id === profile.id) {
+                        updateSelectedStyleProfile({
+                            previewRequest: request,
+                            previewText: String(response.content || '').trim(),
+                        });
+                    }
+                    if (response.metadata?.finishReason === 'length') showToast('参考文本达到输出长度上限', 'info');
+                    else showToast('沙盒参考文本已生成', 'success');
+                } catch (error) {
+                    if (error.name !== 'AbortError') showToast('参考文本生成失败：' + error.message, 'error');
+                } finally {
+                    setStyleLabBusy(false);
+                    renderStyleLab();
+                }
+            }
+
+            function applySelectedStyle() {
+                const target = getCurrentStyleTarget();
+                const profile = getSelectedStyleProfile();
+                if (!target || !profile) return;
+                try {
+                    target.styleInfluence = StyleLab.createAppliedStyle(profile);
+                    target.updatedAt = Date.now();
+                    saveData();
+                    renderStyleLab();
+                    updateStyleLabButton();
+                    showToast(`已将“${profile.name}”的独立快照应用到当前${appData.activeMode === 'room' ? '房间' : '剧情'}`, 'success');
+                } catch (error) {
+                    showToast(error.message, 'error');
+                }
+            }
+
+            function removeCurrentStyle() {
+                const target = getCurrentStyleTarget();
+                if (!target?.styleInfluence) return;
+                target.styleInfluence = null;
+                target.updatedAt = Date.now();
+                saveData();
+                renderStyleLab();
+                updateStyleLabButton();
+                showToast('当前作品已停用综合文风因子', 'success');
+            }
+
+            $btnStyleLab.addEventListener('click', openStyleLab);
+            $btnStyleLabClose.addEventListener('click', closeStyleLab);
+            $btnAddStyleProfile.addEventListener('click', addStyleProfile);
+            $styleProfileList.addEventListener('click', event => {
+                const item = event.target.closest('[data-style-profile-id]');
+                if (!item || styleLabBusy) return;
+                selectedStyleProfileId = item.dataset.styleProfileId;
+                renderStyleLab();
+            });
+            $styleProfileNameInput.addEventListener('input', event => {
+                updateSelectedStyleProfile({ name: event.target.value.trim() || '未命名文风' });
+                renderStyleList();
+            });
+            $styleProfileStrengthRange.addEventListener('input', event => {
+                const strength = Number(event.target.value);
+                updateSelectedStyleProfile({ strength });
+                $styleProfileStrengthValue.textContent = `${strength}%`;
+                renderStyleList();
+            });
+            $styleSourceTextInput.addEventListener('input', event => {
+                updateSelectedStyleProfile({ sourceText: event.target.value });
+                $styleSourceCounter.textContent = `${event.target.value.length} / ${StyleLab.MAX_SOURCE_LENGTH}`;
+            });
+            $styleSourceNotesInput.addEventListener('input', event => updateSelectedStyleProfile({ sourceNotes: event.target.value }));
+            $stylePreviewRequestInput.addEventListener('input', event => updateSelectedStyleProfile({ previewRequest: event.target.value }));
+            $btnResetStyleProfile.addEventListener('click', resetSelectedStyleProfile);
+            $btnDeleteStyleProfile.addEventListener('click', deleteSelectedStyleProfile);
+            $btnAnalyzeStyle.addEventListener('click', analyzeSelectedStyle);
+            $btnApplyStyle.addEventListener('click', applySelectedStyle);
+            $btnRemoveAppliedStyle.addEventListener('click', removeCurrentStyle);
+            $btnGenerateStylePreview.addEventListener('click', generateStylePreview);
+            $styleLabOverlay.addEventListener('click', event => {
+                if (event.target === $styleLabOverlay) closeStyleLab();
+            });
 
             function canChangeConversationTarget() {
                 if (!isGenerating) return true;
@@ -3923,6 +4651,9 @@
                 if (e.key === 'Escape' && $memoryEditorOverlay.style.display === 'flex') {
                     closeStoryMemoryManager();
                 }
+                if (e.key === 'Escape' && $styleLabOverlay.style.display === 'flex') {
+                    closeStyleLab();
+                }
             });
 
             // ==================== 聊天UI更新 ====================
@@ -3944,6 +4675,7 @@
                     updateToolbarButtons();
                     updateSendButton();
                     updateMemoryStatus();
+                    updateStyleLabButton();
                     return;
                 }
                 const agent = getCurrentAgent();
@@ -3964,6 +4696,7 @@
                 updateToolbarButtons();
                 updateSendButton();
                 updateMemoryStatus();
+                updateStyleLabButton();
             }
 
             function updateMemoryStatus(message, busy = false) {
@@ -4049,6 +4782,7 @@
                     $btnEditStory,
                     $btnMemoryManager,
                     $btnEditRoom,
+                    $btnStyleLab,
                 ].forEach(control => {
                     if (control) control.disabled = isGenerating;
                 });
@@ -5018,12 +5752,14 @@
             function buildSystemPrompt() {
                 const agent = getCurrentAgent();
                 const settings = Memory.normalizeConfig(appData.storyMemorySettings);
+                const styleInfluencePrompt = StyleLab.buildInfluencePrompt(agent?.styleInfluence);
                 return Story.buildSystemPrompt(
                     agent,
                     appData.storyGlobalPrompt,
                     settings,
                     appData.storyNaturalStylePrompt,
-                    Memory
+                    Memory,
+                    styleInfluencePrompt
                 );
             }
 
@@ -5061,7 +5797,8 @@
                         appData.storyGlobalPrompt,
                         settings,
                         appData.storyNaturalStylePrompt,
-                        Memory
+                        Memory,
+                        StyleLab.buildInfluencePrompt(agent?.styleInfluence)
                     ),
                 });
                 if (latestMessage) messages.push(latestMessage);
@@ -5191,7 +5928,11 @@
                     const selection = await selectRoomSpeakers(room, content, forcedMemberId, isContinue);
                     if (selection.narrationNeeded && isGenerating) {
                         updateMemoryStatus('正在生成必要的场景衔接…', true);
-                        const narration = await callDeepSeekStreamPromise(Rooms.buildNarrationMessages(room, selection.narrationHint), null, { maxTokens: 800 });
+                        const narration = await callDeepSeekStreamPromise(Rooms.buildNarrationMessages(
+                            room,
+                            selection.narrationHint,
+                            StyleLab.buildInfluencePrompt(room.styleInfluence)
+                        ), null, { maxTokens: 800 });
                         if (narration.content?.trim()) {
                             room.messages.push({
                                 id: Rooms.createId('roommsg'),
@@ -5213,7 +5954,14 @@
                         if (!member) continue;
                         updateMemoryStatus(`${member.name}正在组织回应（${index + 1}/${selection.speakerIds.length}）…`, true);
                         const contexts = getRoomMemoryContexts(room, memberId, content);
-                        const messages = Rooms.buildCharacterMessages(room, memberId, contexts, 100, Memory);
+                        const messages = Rooms.buildCharacterMessages(
+                            room,
+                            memberId,
+                            contexts,
+                            100,
+                            Memory,
+                            StyleLab.buildInfluencePrompt(room.styleInfluence)
+                        );
                         const response = await generateValidRoomResponse(room, messages, member, index + 1, selection.speakerIds.length);
                         if (response.content === null || response.content === undefined || !isGenerating) break;
                         const responseText = Rooms.cleanCharacterOutput(response.content, member.name);
@@ -5367,7 +6115,14 @@
                 try {
                     const latestUser = [...room.messages].reverse().find(message => message.role === 'user');
                     const contexts = getRoomMemoryContexts(room, member.id, latestUser?.content || '');
-                    const messages = Rooms.buildCharacterMessages(room, member.id, contexts, 100, Memory);
+                    const messages = Rooms.buildCharacterMessages(
+                        room,
+                        member.id,
+                        contexts,
+                        100,
+                        Memory,
+                        StyleLab.buildInfluencePrompt(room.styleInfluence)
+                    );
                     const response = await generateValidRoomResponse(room, messages, member, 1, 1);
                     if (response.content !== null && response.content !== undefined && isGenerating) {
                         const cleaned = Rooms.cleanCharacterOutput(response.content, member.name);

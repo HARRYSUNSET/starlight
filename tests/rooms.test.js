@@ -195,3 +195,15 @@ test('房间消息收藏状态在标准化后保留', () => {
     }, Memory, Memory.NATURAL_STYLE_GUIDE);
     assert.equal(room.messages[0].bookmarked, true);
 });
+
+test('角色回应与旁白都可使用当前房间的独立文风快照', () => {
+    const room = createGroupRoom();
+    room.styleInfluence = { name: '房间专用', analysis: { factors: [{ name: '松弛感', instruction: '先回应场景' }] } };
+    room.messages = [{ role: 'user', content: '雨停了吗？' }];
+    const influence = '【当前对话独立文风档案｜房间专用】\n只控制表达方式。';
+    const characterPrompt = Rooms.buildCharacterMessages(room, 'alice', {}, 100, Memory, influence)[0].content;
+    const narrationPrompt = Rooms.buildNarrationMessages(room, '雨势减弱', influence)[0].content;
+    assert.match(characterPrompt, /房间专用/);
+    assert.match(narrationPrompt, /房间专用/);
+    assert.equal(room.styleInfluence.name, '房间专用');
+});

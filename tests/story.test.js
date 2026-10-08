@@ -118,3 +118,15 @@ test('复制到房间时可以准确选择剧情中的某一名角色', () => {
     assert.match(copied.personaPrompt, /角色目标：找到失踪的站长/);
     assert.doesNotMatch(copied.personaPrompt, /林澈|沉静而敏锐/);
 });
+
+test('剧情提示词可注入独立文风快照且保留事实优先级', () => {
+    const story = Story.normalizeAgent({
+        name: '测试剧情',
+        styleInfluence: { name: '保留字段', analysis: { factors: [{ name: '节奏', instruction: '自然停顿' }] } },
+    }, Memory);
+    const influence = '【当前对话独立文风档案】\n文风低于人物事实与历史。';
+    const prompt = Story.buildSystemPrompt(story, '', Memory.normalizeConfig(), '', Memory, influence);
+    assert.match(prompt, /当前对话独立文风档案/);
+    assert.match(prompt, /文风低于人物事实与历史/);
+    assert.equal(story.styleInfluence.name, '保留字段');
+});

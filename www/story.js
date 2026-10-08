@@ -175,6 +175,9 @@
             stylePrompt: asString(source.stylePrompt, DEFAULT_STORY_STYLE).trim() || DEFAULT_STORY_STYLE,
             styleExamples: asString(source.styleExamples).trim(),
             otherInfo: asString(source.otherInfo).trim(),
+            styleInfluence: source.styleInfluence && typeof source.styleInfluence === 'object'
+                ? JSON.parse(JSON.stringify(source.styleInfluence))
+                : null,
             conversations,
             memory: memoryApi && typeof memoryApi.normalizeMemory === 'function'
                 ? memoryApi.normalizeMemory(source.memory, conversations.length)
@@ -202,7 +205,7 @@
         return normalizeAgent(source, memoryApi);
     }
 
-    function buildStructuredPrompt(agent) {
+    function buildStructuredPrompt(agent, styleInfluencePrompt) {
         const story = normalizeAgent(agent);
         const characterBlocks = story.characters.map(buildCharacterBlock).join('\n\n');
         const sections = [
@@ -216,12 +219,15 @@
         if (story.styleExamples) {
             sections.push('【文风示例｜只参考笔触，不继承内容】\n' + story.styleExamples);
         }
+        if (asString(styleInfluencePrompt).trim()) {
+            sections.push(asString(styleInfluencePrompt).trim());
+        }
         if (story.otherInfo) sections.push('【其他剧情信息】\n' + story.otherInfo);
         return sections.join('\n\n');
     }
 
-    function buildSystemPrompt(agent, globalPrompt, settings, naturalStylePrompt, memoryApi) {
-        const structured = buildStructuredPrompt(agent);
+    function buildSystemPrompt(agent, globalPrompt, settings, naturalStylePrompt, memoryApi, styleInfluencePrompt) {
+        const structured = buildStructuredPrompt(agent, styleInfluencePrompt);
         if (memoryApi && typeof memoryApi.buildSystemPrompt === 'function') {
             return memoryApi.buildSystemPrompt(
                 asString(globalPrompt).trim(),
@@ -233,8 +239,8 @@
         return [asString(globalPrompt).trim(), structured, asString(naturalStylePrompt).trim()].filter(Boolean).join('\n\n');
     }
 
-    function buildTurnReminder(agent, globalPrompt, settings, naturalStylePrompt, memoryApi) {
-        const structured = buildStructuredPrompt(agent);
+    function buildTurnReminder(agent, globalPrompt, settings, naturalStylePrompt, memoryApi, styleInfluencePrompt) {
+        const structured = buildStructuredPrompt(agent, styleInfluencePrompt);
         if (memoryApi && typeof memoryApi.buildTurnReminder === 'function') {
             return memoryApi.buildTurnReminder(
                 asString(globalPrompt).trim(),

@@ -54,9 +54,9 @@ test('全局智能体菜单监听器不会在每次渲染时重复注册', () =>
 
 test('应用版本号在 npm 与 Android 配置中一致', () => {
     const gradle = fs.readFileSync(path.join(root, 'android', 'app', 'build.gradle'), 'utf8');
-    assert.equal(packageJson.version, '1.6.0');
-    assert.match(gradle, /versionCode\s+10/);
-    assert.match(gradle, /versionName\s+"1\.6\.0"/);
+    assert.equal(packageJson.version, '1.7.0');
+    assert.match(gradle, /versionCode\s+11/);
+    assert.match(gradle, /versionName\s+"1\.7\.0"/);
 });
 
 test('模型列表只保留 DeepSeek 官方当前模型标识', () => {
@@ -115,6 +115,28 @@ test('剧情长期记忆提供可查看、编辑和重建页面', () => {
     assert.match(html, /memory-segment-summary/);
     assert.match(html, /function saveStoryMemoryEdits/);
     assert.match(html, /btnResetStoryMemory/);
+});
+
+test('文风工坊具有独立全屏页面、因子库和应用快照', () => {
+    assert.match(html, /<script src="style-lab\.js"><\/script>/);
+    assert.match(html, /id="styleLabOverlay"/);
+    assert.match(html, /id="styleProfileList"/);
+    assert.match(html, /id="styleProfileStrengthRange"/);
+    assert.match(html, /id="styleFactorList"/);
+    assert.match(html, /styleProfiles:\s*\[\]/);
+    assert.match(html, /StyleLab\.createAppliedStyle\(profile\)/);
+    assert.match(html, /StyleLab\.buildInfluencePrompt\(agent\?\.styleInfluence\)/);
+    assert.match(html, /StyleLab\.buildInfluencePrompt\(room\.styleInfluence\)/);
+});
+
+test('沙盒参考文本不写入对话、记忆或房间状态', () => {
+    const preview = functionBody('generateStylePreview', 'applySelectedStyle');
+    assert.match(preview, /StyleLab\.buildPreviewMessages/);
+    assert.match(preview, /previewText/);
+    assert.doesNotMatch(preview, /\.conversations\.push|\.messages\.push|sharedMemory|characterMemories|intimacy|turnEffects/);
+    const context = functionBody('buildCurrentStylePreviewContext', 'callStylePreview');
+    assert.doesNotMatch(context, /\.conversations|\.messages|sharedMemory|characterMemories|intimacy/);
+    assert.match(html, /隔离沙盒：这里的文本不是已发生剧情/);
 });
 
 test('记忆整理失败不会直接阻断普通发送', () => {

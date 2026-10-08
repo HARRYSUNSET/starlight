@@ -255,6 +255,9 @@
             userPersona: asString(source.userPersona).trim(),
             styleExamples: asString(source.styleExamples).trim(),
             otherInfo: asString(source.otherInfo).trim(),
+            styleInfluence: source.styleInfluence && typeof source.styleInfluence === 'object'
+                ? JSON.parse(JSON.stringify(source.styleInfluence))
+                : null,
             styleEnabled: source.styleEnabled !== false,
             stylePrompt: legacyDefaultStyle
                 ? STORY_STYLE_GUIDE
@@ -378,7 +381,7 @@
         return room.intimacy.nodes.filter(node => node.value <= room.intimacy.value);
     }
 
-    function buildCharacterSystemPrompt(room, member, contexts) {
+    function buildCharacterSystemPrompt(room, member, contexts, styleInfluencePrompt) {
         const availableNodes = getAvailableNodes(room);
         const characterMemory = asString(contexts.characterMemory).trim();
         const sharedMemory = asString(contexts.sharedMemory).trim();
@@ -414,11 +417,14 @@
         if (room.styleExamples) {
             sections.push('【用户提供的文风示例｜只参考笔触，不继承内容】\n' + room.styleExamples);
         }
+        if (asString(styleInfluencePrompt).trim()) {
+            sections.push(asString(styleInfluencePrompt).trim());
+        }
         sections.push('【本轮强制要求】\n' + ROOM_TURN_REMINDER);
         return sections.join('\n\n');
     }
 
-    function buildCharacterMessages(room, memberId, contexts, recentLimit, memoryApi) {
+    function buildCharacterMessages(room, memberId, contexts, recentLimit, memoryApi, styleInfluencePrompt) {
         const member = getMember(room, memberId);
         if (!member) throw new Error('找不到待发言角色');
         const summarizedUntil = Number(room.sharedMemory?.summarizedUntil) || 0;
@@ -435,7 +441,7 @@
         const latestInput = [...recentMessages].reverse().find(message => message.role === 'user' || message.kind === 'control');
         const pacing = buildTurnPacing(latestInput?.content || '');
         return [
-            { role: 'system', content: buildCharacterSystemPrompt(room, member, contexts || {}) + `\n\n【本轮节奏】\n${pacing}` },
+            { role: 'system', content: buildCharacterSystemPrompt(room, member, contexts || {}, styleInfluencePrompt) + `\n\n【本轮节奏】\n${pacing}` },
             ...recentMessages.map(message => roomMessageForModel(room, message, memberId)).filter(Boolean),
         ];
     }
@@ -485,7 +491,7 @@
         ];
     }
 
-    function buildNarrationMessages(room, hint) {
+    function buildNarrationMessages(room, hint, styleInfluencePrompt) {
         const recent = room.messages.slice(-18).map(message => {
             if (message.role === 'assistant') return `${getMember(room, message.speakerId)?.name || '角色'}：${message.content}`;
             if (message.role === 'user') return `用户：${message.content}`;
@@ -498,7 +504,8 @@
                     '你是房间场景旁白，只描写所有在场者可以观察到的环境变化、时间推进或必要动作衔接。',
                     '不得替用户行动、发言、思考或感受；不得替任何角色写台词或内心；不得泄露秘密。',
                     '只有确有必要时才写一到三句简短旁白，直接输出正文，不要加标题和解释。',
-                ].join('\n'),
+                    asString(styleInfluencePrompt).trim(),
+                ].filter(Boolean).join('\n\n'),
             },
             {
                 role: 'user',
