@@ -53,7 +53,7 @@ test('旧版通用智能体会无损迁移为角色1的自定义栏位', () => {
     assert.equal(fields['知识边界、误解与秘密'], '不知道储物柜密码。');
     assert.equal(story.conversations.length, 2);
     assert.equal(story.conversations[0].bookmarked, true);
-    assert.equal(story.memory.version, 2);
+    assert.equal(story.memory.version, 3);
 });
 
 test('损坏的空角色或空栏位数据会恢复最低可编辑结构', () => {
@@ -129,4 +129,12 @@ test('剧情提示词可注入独立文风快照且保留事实优先级', () =>
     assert.match(prompt, /当前对话独立文风档案/);
     assert.match(prompt, /文风低于人物事实与历史/);
     assert.equal(story.styleInfluence.name, '保留字段');
+});
+
+test('世界书替代旧世界观进入剧情系统提示词', () => {
+    const story = Story.normalizeAgent({ name: '迁移测试', worldPrompt: '旧版世界设定原文。' }, Memory);
+    const prompt = Story.buildStructuredPrompt(story, '');
+    assert.match(prompt, /世界书｜初始世界设定/);
+    assert.match(prompt, /旧版世界设定原文/);
+    assert.doesNotMatch(prompt, /【世界观与背景】/);
 });

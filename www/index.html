@@ -1805,6 +1805,9 @@
         .story-character-field-label:focus,
         .story-character-field-value:focus { border-color: var(--accent-light); box-shadow: 0 0 0 3px var(--accent-glow); }
         .story-remove-field-btn { align-self: stretch; padding: 0; color: var(--danger); font-size: 1rem; }
+        .field-order-actions { display:grid; grid-template-rows:repeat(3,1fr); gap:4px; }
+        .field-order-actions button { min-height:26px; border:1px solid var(--border); border-radius:8px; background:var(--card-bg); color:var(--text-secondary); cursor:pointer; }
+        .field-order-actions button:disabled { opacity:.32; cursor:not-allowed; }
         .story-character-card-footer { display: flex; justify-content: flex-end; padding: 0 15px 15px; }
         .story-add-field-btn { padding: 8px 12px; }
         .memory-overview {
@@ -2080,10 +2083,147 @@
             .style-profile-actions { justify-content: stretch; }
             .style-profile-actions button { flex: 1; }
         }
+        /* ==================== v2.0 多级界面 ==================== */
+        body { overflow: hidden; }
+        .is-hidden { display: none !important; }
+        .home-shell { min-height:100dvh; background:radial-gradient(circle at 12% -8%,rgba(124,92,255,.13),transparent 32%),var(--bg); color:var(--text-primary); display:flex; flex-direction:column; }
+        .home-header { padding:calc(24px + env(safe-area-inset-top)) max(22px,calc((100vw - 820px)/2)) 12px; }
+        .home-brand { display:flex; align-items:center; gap:12px; }
+        .home-brand-mark { width:42px; height:42px; border-radius:14px; display:grid; place-items:center; background:linear-gradient(145deg,#8d76ff,#6350dc); color:#fff; box-shadow:0 10px 28px rgba(100,80,220,.28); }
+        .home-brand h1 { margin:0; font-size:1.45rem; }
+        .home-brand p { margin:3px 0 0; color:var(--text-secondary); font-size:.82rem; }
+        .home-main { flex:1; min-height:0; overflow-y:auto; padding:18px max(18px,calc((100vw - 820px)/2)) calc(98px + env(safe-area-inset-bottom)); }
+        .home-page[hidden] { display:none !important; }
+        .library-page-heading { margin-bottom:18px; }
+        .library-page-heading h2 { margin:0 0 6px; font-size:1.32rem; }
+        .library-page-heading p { margin:0; color:var(--text-secondary); line-height:1.6; font-size:.9rem; }
+        .v2-library-list { display:flex; flex-direction:column; gap:12px; margin-bottom:12px; }
+        .v2-work-card { width:100%; min-height:92px; display:grid; grid-template-columns:1fr auto; align-items:center; gap:12px; padding:18px 14px 18px 20px; text-align:left; color:var(--text-primary); background:var(--card-bg); border:1px solid var(--border); border-radius:18px; box-shadow:0 8px 28px rgba(30,30,50,.055); transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease; }
+        .v2-work-card:active { transform:scale(.986); }
+        @media (hover:hover) { .v2-work-card:hover { transform:translateY(-2px); border-color:rgba(124,92,255,.38); box-shadow:0 13px 34px rgba(50,40,100,.11); } }
+        .v2-work-copy { min-width:0; cursor:pointer; }
+        .v2-work-name { display:block; font-size:1.02rem; font-weight:750; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .v2-work-intro { display:block; margin-top:7px; color:var(--text-secondary); font-size:.85rem; line-height:1.45; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .v2-card-menu-wrap { position:relative; }
+        .v2-card-more { width:42px; height:42px; border:0; border-radius:12px; background:transparent; color:var(--text-secondary); font-size:1.4rem; cursor:pointer; }
+        .v2-card-more:hover { background:var(--ai-bubble); color:var(--text-primary); }
+        .v2-card-menu { position:absolute; z-index:30; right:0; top:45px; min-width:138px; padding:7px; border:1px solid var(--border); border-radius:13px; background:var(--card-bg); box-shadow:0 16px 42px rgba(0,0,0,.18); display:none; }
+        .v2-card-menu.show { display:block; animation:v2Pop .16s ease; }
+        .v2-card-menu button { width:100%; padding:10px 12px; text-align:left; border:0; border-radius:9px; background:transparent; color:var(--text-primary); cursor:pointer; }
+        .v2-card-menu button:hover { background:var(--ai-bubble); }
+        .v2-card-menu .danger { color:#d85666; }
+        .v2-add-card { min-height:86px; width:100%; border:1.5px dashed rgba(124,92,255,.5); border-radius:18px; background:rgba(124,92,255,.035); color:var(--accent); display:grid; place-items:center; gap:4px; cursor:pointer; font-weight:700; }
+        .v2-add-card span:first-child { font-size:1.65rem; line-height:1; }
+        .v2-empty-note { padding:38px 18px; text-align:center; color:var(--text-secondary); border:1px dashed var(--border); border-radius:18px; }
+        .bottom-nav { position:fixed; z-index:80; left:50%; transform:translateX(-50%); bottom:0; width:min(100%,860px); padding:8px 14px calc(8px + env(safe-area-inset-bottom)); background:color-mix(in srgb,var(--card-bg) 90%,transparent); backdrop-filter:blur(18px); border-top:1px solid var(--border); display:grid; grid-template-columns:repeat(3,1fr); }
+        .bottom-nav button { border:0; background:transparent; color:var(--text-secondary); padding:8px; border-radius:13px; cursor:pointer; display:grid; gap:2px; place-items:center; font-size:.76rem; }
+        .bottom-nav button span:first-child { font-size:1.1rem; }
+        .bottom-nav button.active { color:var(--accent); background:rgba(124,92,255,.1); font-weight:750; }
+        .my-panel { max-width:760px; margin:0 auto; }
+        .my-panel .settings-group { display:block; border:0; background:transparent; margin:0; }
+        .my-panel .settings-group-header { display:none; }
+        .my-panel .settings-group-body { display:block !important; padding:0; }
+        .my-section-title { margin:22px 0 10px; font-size:.78rem; font-weight:800; letter-spacing:.12em; color:var(--text-secondary); }
+        .my-version-card { margin-top:18px; padding:18px; border:1px solid var(--border); border-radius:16px; background:var(--card-bg); color:var(--text-secondary); line-height:1.65; }
+        #chatShell { width:100%; height:100dvh; }
+        #chatShell .sidebar,#chatShell .sidebar-overlay { display:none !important; }
+        #chatShell .main-area { width:100%; min-width:0; }
+        #chatShell .chat-topbar { min-height:62px; padding-top:env(safe-area-inset-top); display:grid; grid-template-columns:46px minmax(0,1fr) 46px; align-items:center; border-bottom:0; }
+        #chatShell .workspace-tabs,#chatShell #modelBadge,#chatShell #roomTypeBadge,#chatShell #btnEditStory,#chatShell #btnEditRoom,#chatShell #btnRegenerate,#chatShell #btnUndo,#chatShell #btnRestart,#chatShell .chat-mode-eyebrow { display:none !important; }
+        .chat-title-stack { justify-self:center; text-align:center; min-width:0; }
+        .current-agent-name { font-size:1rem; max-width:min(66vw,520px); display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .btn-hamburger,.chat-settings-btn { width:42px; height:42px; padding:0; display:grid; place-items:center; border:0; border-radius:13px; background:transparent; color:var(--text-primary); font-size:1.55rem; cursor:pointer; }
+        .chat-settings-btn { justify-self:end; font-size:1.35rem; }
+        .btn-hamburger:hover,.chat-settings-btn:hover { background:var(--ai-bubble); }
+        .chat-quick-tools { display:flex; gap:8px; padding:7px max(12px,calc((100vw - 900px)/2)); overflow-x:auto; border-bottom:1px solid var(--border); background:var(--card-bg); scrollbar-width:none; }
+        .chat-quick-tools::-webkit-scrollbar { display:none; }
+        .chat-quick-tools .btn-toolbar { display:inline-flex !important; flex:0 0 auto; border:0; border-radius:999px; padding:8px 13px; background:var(--bg); color:var(--text-secondary); font-size:.78rem; }
+        .chat-quick-tools .btn-toolbar:disabled { display:none !important; }
+        .message-bubble .copy-btn,.message-bubble .bookmark-btn { display:none !important; }
+        .message-bubble { -webkit-touch-callout:none; user-select:text; }
+        .input-area { padding-bottom:calc(10px + env(safe-area-inset-bottom)); }
+        .composer-tools { display:flex; gap:8px; margin:0 auto 8px; width:min(100%,900px); }
+        .composer-tools button { border:1px solid var(--border); border-radius:999px; background:var(--card-bg); color:var(--text-secondary); padding:7px 12px; font-size:.76rem; cursor:pointer; white-space:nowrap; }
+        .composer-tools button:hover { color:var(--accent); border-color:rgba(124,92,255,.45); }
+        .last-input-popover { position:fixed; z-index:190; left:50%; transform:translateX(-50%); bottom:calc(118px + env(safe-area-inset-bottom)); width:min(88vw,620px); padding:15px 17px; border:1px solid rgba(124,92,255,.25); border-radius:16px; background:color-mix(in srgb,var(--card-bg) 88%,transparent); backdrop-filter:blur(18px); box-shadow:0 18px 48px rgba(0,0,0,.2); color:var(--text-primary); line-height:1.65; animation:v2Pop .18s ease; }
+        .last-input-popover[hidden],.sheet-overlay[hidden] { display:none !important; }
+        .last-input-popover strong { display:block; margin-bottom:5px; color:var(--accent); font-size:.78rem; }
+        .sheet-overlay { position:fixed; z-index:220; inset:0; background:rgba(12,12,20,.34); display:flex; align-items:flex-end; justify-content:center; padding:18px; }
+        .action-sheet { width:min(100%,520px); padding:9px; border:1px solid var(--border); border-radius:20px; background:var(--card-bg); box-shadow:0 24px 70px rgba(0,0,0,.28); animation:v2Sheet .2s ease; }
+        .action-sheet-title { padding:10px 12px 12px; color:var(--text-secondary); font-size:.78rem; border-bottom:1px solid var(--border); }
+        .action-sheet button { width:100%; border:0; background:transparent; color:var(--text-primary); padding:13px 14px; border-radius:12px; text-align:left; cursor:pointer; }
+        .action-sheet button:hover { background:var(--ai-bubble); }
+        .action-sheet button.danger { color:#d85666; }
+        .tool-panel { width:min(94vw,720px); max-height:84dvh; overflow:auto; }
+        .tool-panel-list { display:flex; flex-direction:column; gap:10px; margin:16px 0; }
+        .suggestion-card,.snippet-row { padding:15px; border:1px solid var(--border); border-radius:14px; background:var(--bg); }
+        .suggestion-card strong { display:block; margin-bottom:7px; }
+        .suggestion-card p { margin:0 0 12px; white-space:pre-wrap; line-height:1.65; }
+        .suggestion-actions,.snippet-actions { display:flex; justify-content:flex-end; gap:8px; }
+        .snippet-row textarea { width:100%; min-height:80px; margin-bottom:8px; }
+        .worldbook-editor { display:flex; flex-direction:column; gap:24px; margin:14px 0 20px; }
+        .worldbook-section-head { display:flex; justify-content:space-between; gap:14px; align-items:flex-start; margin-bottom:11px; }
+        .worldbook-section-head h5 { margin:0 0 5px; font-size:1rem; }
+        .worldbook-section-head p { margin:0; color:var(--text-secondary); font-size:.82rem; line-height:1.55; }
+        .worldbook-entry-list { display:flex; flex-direction:column; gap:13px; }
+        .worldbook-entry { border:1px solid var(--border); border-radius:16px; padding:15px; background:var(--bg); }
+        .worldbook-entry-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }
+        .worldbook-entry-head strong { color:var(--accent); }
+        .worldbook-fields { display:flex; flex-direction:column; gap:9px; }
+        .worldbook-field { display:grid; grid-template-columns:minmax(120px,.36fr) minmax(0,1fr) 42px; gap:8px; align-items:start; }
+        .worldbook-field textarea { min-height:80px; }
+        .worldbook-advanced { margin-top:12px; padding-top:10px; border-top:1px dashed var(--border); }
+        .worldbook-advanced-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; padding-top:10px; }
+        .worldbook-character-scope { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:8px; }
+        .worldbook-character-scope label { display:flex; align-items:center; gap:5px; padding:6px 9px; border:1px solid var(--border); border-radius:999px; }
+        .my-panel .settings-group-body { max-height:none !important; overflow:visible; }
+        .my-panel .settings-group-body input,.my-panel .settings-group-body textarea,.my-panel .settings-group-body select { background:var(--card-bg); color:var(--text-primary); border-color:var(--border); }
+        .my-panel .settings-group-body label,.my-panel .settings-toggle-row label { color:var(--text-secondary); }
+        .my-panel .theme-toggle-btn { color:var(--text-primary); border-color:var(--border); margin-top:12px; }
+        @keyframes v2Pop { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes v2Sheet { from { opacity:0; transform:translateY(22px); } to { opacity:1; transform:translateY(0); } }
+        @media (max-width:700px) {
+            .worldbook-field { grid-template-columns:1fr 38px; }
+            .worldbook-field textarea { grid-column:1/-1; grid-row:2; }
+            .worldbook-field .field-order-actions { grid-column:2; grid-row:1 / span 2; }
+            .worldbook-advanced-grid { grid-template-columns:1fr; }
+            .composer-tools { overflow-x:auto; scrollbar-width:none; }
+            .home-header { padding-left:18px; padding-right:18px; }
+        }
+        @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto !important; animation-duration:.01ms !important; transition-duration:.01ms !important; } }
     </style>
 </head>
 <body>
-    <div class="app-container">
+    <div class="home-shell" id="homeShell">
+        <header class="home-header">
+            <div class="home-brand"><div class="home-brand-mark">✦</div><div><h1>星陽之语</h1><p>把漫长的故事，慢慢写下去</p></div></div>
+        </header>
+        <main class="home-main">
+            <section class="home-page" id="homeStoryPage">
+                <div class="library-page-heading"><h2>剧情</h2><p>每段剧情都有独立的人物、世界书、长期记忆与文风。</p></div>
+                <div class="v2-library-list" id="homeStoryList"></div>
+                <button type="button" class="v2-add-card" id="homeAddStory"><span>＋</span><span>新建剧情</span></button>
+            </section>
+            <section class="home-page" id="homeRoomPage" hidden>
+                <div class="library-page-heading"><h2>房间</h2><p>双人攻略或多人互动，角色知识与记忆彼此隔离。</p></div>
+                <div class="v2-library-list" id="homeRoomList"></div>
+                <button type="button" class="v2-add-card" id="homeAddRoom"><span>＋</span><span>新建房间</span></button>
+            </section>
+            <section class="home-page my-panel" id="homeMyPage" hidden>
+                <div class="library-page-heading"><h2>我的</h2><p>管理全局 API、模型、外观与存储设置。</p></div>
+                <div id="mySettingsMount"></div>
+                <div class="my-section-title">应用信息</div>
+                <div class="my-version-card"><strong>星陽之语 2.0</strong><br>本地优先 · 剧情与房间独立 · 世界书与分层长期记忆</div>
+            </section>
+        </main>
+        <nav class="bottom-nav" aria-label="主导航">
+            <button type="button" class="active" data-home-tab="story"><span>✦</span><span>剧情</span></button>
+            <button type="button" data-home-tab="room"><span>⌂</span><span>房间</span></button>
+            <button type="button" data-home-tab="my"><span>○</span><span>我的</span></button>
+        </nav>
+    </div>
+
+    <div class="app-container is-hidden" id="chatShell">
         <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
         <aside class="sidebar" id="sidebar">
@@ -2190,7 +2330,7 @@
 
         <main class="main-area">
             <div class="chat-topbar">
-                <button class="btn-hamburger" id="btnHamburger" title="打开当前页面的作品列表">☰</button>
+                <button class="btn-hamburger" id="btnHamburger" title="返回作品库">‹</button>
                 <div class="workspace-tabs" aria-label="独立功能页面">
                     <button type="button" class="workspace-tab active" id="btnStoryMode">✦ 剧情</button>
                     <button type="button" class="workspace-tab" id="btnRoomMode">⌂ 房间</button>
@@ -2209,7 +2349,10 @@
                 <button class="btn-toolbar" id="btnRegenerate" title="重新生成最后一条回复" disabled>🔄 重新生成</button>
                 <button class="btn-toolbar" id="btnUndo" title="撤回最后一轮对话" disabled>↩️ 撤回</button>
                 <button class="btn-toolbar danger" id="btnRestart" title="清空当前对话" disabled>🗑️ 重启对话</button>
+                <button type="button" class="chat-settings-btn" id="btnChatSettings" title="打开当前作品设定">⋯</button>
             </div>
+
+            <div class="chat-quick-tools" id="chatQuickTools"></div>
 
             <div class="room-context-bar" id="roomContextBar" hidden>
                 <div class="room-participants-strip" id="roomParticipantsStrip"></div>
@@ -2236,6 +2379,11 @@
                         <option value="">智能选择发言者</option>
                     </select>
                     <button type="button" id="btnContinueScene">▶ 让场景继续</button>
+                </div>
+                <div class="composer-tools">
+                    <button type="button" id="btnLastInput">上次输入</button>
+                    <button type="button" id="btnInspiration">灵感推荐</button>
+                    <button type="button" id="btnSnippets">常用语段</button>
                 </div>
                 <div class="message-entry-row">
                     <textarea id="messageInput" placeholder="输入消息... (Enter发送，Shift+Enter换行)" rows="1" disabled></textarea>
@@ -2267,9 +2415,9 @@
 
             <section class="story-editor-section">
                 <h4>世界与开场</h4>
-                <div class="section-description">先确定故事发生在哪里、用户扮演谁，以及当前从哪个场景开始。</div>
+                <div class="section-description">世界书分为初始设定与后续进展；后续进展是经你确认的正史，不会被自动记忆擅自覆盖。</div>
+                <div class="worldbook-editor" id="storyWorldBookEditor"></div>
                 <div class="story-form-grid">
-                    <div><label for="storyWorldInput">世界观背景</label><textarea id="storyWorldInput" style="min-height:180px" placeholder="时代、地点、组织、社会规则、力量体系等"></textarea></div>
                     <div><label for="storyOpeningInput">当前／开场场景</label><textarea id="storyOpeningInput" style="min-height:180px" placeholder="时间、地点、正在发生的事件和人物位置"></textarea></div>
                     <div class="full"><label for="storyUserPersonaInput">用户所扮演的角色</label><textarea id="storyUserPersonaInput" style="min-height:150px" placeholder="姓名、身份、性格、外貌、能力、与AI角色的关系以及知识边界"></textarea></div>
                 </div>
@@ -2330,6 +2478,10 @@
                     <input type="text" id="roomNameInput" placeholder="例如：雨夜旅店">
                 </div>
                 <div>
+                    <label for="roomSubtitleInput">一句话简介</label>
+                    <input type="text" id="roomSubtitleInput" placeholder="例如：旅店里几名住客的雨夜闲谈">
+                </div>
+                <div>
                     <label for="roomNarrationToggle">旁白</label>
                     <select id="roomNarrationToggle">
                         <option value="off">关闭旁白</option>
@@ -2339,10 +2491,6 @@
                 <div class="full">
                     <label for="roomBasePromptInput">房间底层规则</label>
                     <textarea id="roomBasePromptInput" style="min-height:130px" placeholder="所有参与角色必须遵循的固定规则"></textarea>
-                </div>
-                <div>
-                    <label for="roomWorldPromptInput">世界观设定</label>
-                    <textarea id="roomWorldPromptInput" style="min-height:130px" placeholder="时代、地点、规则、组织、力量体系等"></textarea>
                 </div>
                 <div>
                     <label for="roomScenePromptInput">当前场景</label>
@@ -2366,6 +2514,12 @@
                     </div>
                     <div class="room-form-hint">图片只保存在本机 IndexedDB 中；上传时会自动压缩，原图不会上传到服务器。</div>
                 </div>
+            </div>
+
+            <div class="room-form-section">
+                <h4>🌍 世界书</h4>
+                <div class="room-form-hint">初始世界与后续进展分开管理；房间条目还可以限制为指定角色私下知晓。</div>
+                <div class="worldbook-editor" id="roomWorldBookEditor"></div>
             </div>
 
             <div class="room-form-section">
@@ -2473,6 +2627,20 @@
                 <h4>可检索篇章记忆</h4>
                 <div class="section-description">系统会根据当前话题召回相关篇章。标题、关键词、重要度和摘要都可以修改。</div>
                 <div class="memory-segment-list" id="memorySegmentList"></div>
+            </section>
+
+            <section class="memory-editor-section">
+                <div class="story-characters-header">
+                    <div><h4>结构化事实</h4><div class="section-description">锁定重要事实、标记失效状态，或把确认内容加入世界书。</div></div>
+                    <button type="button" class="mini-action-btn" id="btnAddMemoryFact">＋ 添加事实</button>
+                </div>
+                <div class="memory-segment-list" id="memoryFactsList"></div>
+            </section>
+
+            <section class="memory-editor-section" id="roomCharacterMemorySection" hidden>
+                <h4>角色独立记忆</h4>
+                <div class="section-description">每名角色只使用自己能够知道的经历、感受与秘密。</div>
+                <div class="memory-segment-list" id="roomCharacterMemoryList"></div>
             </section>
 
             <div class="full-page-actions">
@@ -2588,8 +2756,38 @@
         </div>
     </div>
 
+    <div class="last-input-popover" id="lastInputPopover" hidden></div>
+
+    <div class="sheet-overlay" id="messageActionOverlay" hidden>
+        <div class="action-sheet" id="messageActionSheet"></div>
+    </div>
+
+    <div class="modal-overlay" id="inspirationOverlay" style="display:none;">
+        <div class="modal tool-panel">
+            <div class="full-page-header">
+                <div><h3>✦ 灵感推荐</h3><div class="full-page-header-copy">只生成候选提示词，不写入剧情、房间或长期记忆</div></div>
+                <button type="button" class="mini-action-btn" id="btnCloseInspiration">关闭</button>
+            </div>
+            <div class="style-field"><label for="inspirationRequestInput">希望发展的方向（可选）</label><textarea id="inspirationRequestInput" rows="3" placeholder="例如：想推进主线，但不要突然制造大冲突"></textarea></div>
+            <div class="tool-panel-list" id="inspirationResults"><div class="v2-empty-note">点击生成后，将根据当前剧情与已经发生的内容提供候选输入。</div></div>
+            <div class="full-page-actions"><button type="button" class="btn-confirm" id="btnGenerateInspiration">生成候选</button></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="snippetsOverlay" style="display:none;">
+        <div class="modal tool-panel">
+            <div class="full-page-header">
+                <div><h3>常用语段</h3><div class="full-page-header-copy">点击使用会追加到输入框末尾，不会自动发送</div></div>
+                <button type="button" class="mini-action-btn" id="btnCloseSnippets">关闭</button>
+            </div>
+            <div class="tool-panel-list" id="snippetsList"></div>
+            <div class="full-page-actions"><button type="button" class="btn-cancel" id="btnAddSnippet">＋ 新增语段</button><button type="button" class="btn-confirm" id="btnSaveSnippets">保存</button></div>
+        </div>
+    </div>
+
     <div id="toastContainer"></div>
 
+    <script src="worldbook.js"></script>
     <script src="memory.js"></script>
     <script src="style-lab.js"></script>
     <script src="story.js"></script>
@@ -2597,6 +2795,16 @@
     <script>
         (function() {
             // ==================== DOM元素 ====================
+            const $homeShell = document.getElementById('homeShell');
+            const $chatShell = document.getElementById('chatShell');
+            const $homeStoryPage = document.getElementById('homeStoryPage');
+            const $homeRoomPage = document.getElementById('homeRoomPage');
+            const $homeMyPage = document.getElementById('homeMyPage');
+            const $homeStoryList = document.getElementById('homeStoryList');
+            const $homeRoomList = document.getElementById('homeRoomList');
+            const $homeAddStory = document.getElementById('homeAddStory');
+            const $homeAddRoom = document.getElementById('homeAddRoom');
+            const $mySettingsMount = document.getElementById('mySettingsMount');
             const $sidebar = document.getElementById('sidebar');
             const $sidebarOverlay = document.getElementById('sidebarOverlay');
             const $btnHamburger = document.getElementById('btnHamburger');
@@ -2639,7 +2847,7 @@
             const $storyEditorTitle = document.getElementById('storyEditorTitle');
             const $storySubtitleInput = document.getElementById('storySubtitleInput');
             const $storyRulesInput = document.getElementById('storyRulesInput');
-            const $storyWorldInput = document.getElementById('storyWorldInput');
+            const $storyWorldBookEditor = document.getElementById('storyWorldBookEditor');
             const $storyOpeningInput = document.getElementById('storyOpeningInput');
             const $storyUserPersonaInput = document.getElementById('storyUserPersonaInput');
             const $storyCharactersEditor = document.getElementById('storyCharactersEditor');
@@ -2677,9 +2885,10 @@
             const $roomModalLoadingText = document.getElementById('roomModalLoadingText');
             const $roomTypeSelector = document.getElementById('roomTypeSelector');
             const $roomNameInput = document.getElementById('roomNameInput');
+            const $roomSubtitleInput = document.getElementById('roomSubtitleInput');
             const $roomNarrationToggle = document.getElementById('roomNarrationToggle');
             const $roomBasePromptInput = document.getElementById('roomBasePromptInput');
-            const $roomWorldPromptInput = document.getElementById('roomWorldPromptInput');
+            const $roomWorldBookEditor = document.getElementById('roomWorldBookEditor');
             const $roomScenePromptInput = document.getElementById('roomScenePromptInput');
             const $roomUserPersonaInput = document.getElementById('roomUserPersonaInput');
             const $roomOtherInfoInput = document.getElementById('roomOtherInfoInput');
@@ -2753,10 +2962,34 @@
             const $stylePreviewRequestInput = document.getElementById('stylePreviewRequestInput');
             const $btnGenerateStylePreview = document.getElementById('btnGenerateStylePreview');
             const $stylePreviewOutput = document.getElementById('stylePreviewOutput');
+            const $btnChatSettings = document.getElementById('btnChatSettings');
+            const $chatQuickTools = document.getElementById('chatQuickTools');
+            const $btnLastInput = document.getElementById('btnLastInput');
+            const $btnInspiration = document.getElementById('btnInspiration');
+            const $btnSnippets = document.getElementById('btnSnippets');
+            const $lastInputPopover = document.getElementById('lastInputPopover');
+            const $messageActionOverlay = document.getElementById('messageActionOverlay');
+            const $messageActionSheet = document.getElementById('messageActionSheet');
+            const $inspirationOverlay = document.getElementById('inspirationOverlay');
+            const $inspirationRequestInput = document.getElementById('inspirationRequestInput');
+            const $inspirationResults = document.getElementById('inspirationResults');
+            const $btnGenerateInspiration = document.getElementById('btnGenerateInspiration');
+            const $btnCloseInspiration = document.getElementById('btnCloseInspiration');
+            const $snippetsOverlay = document.getElementById('snippetsOverlay');
+            const $snippetsList = document.getElementById('snippetsList');
+            const $btnAddSnippet = document.getElementById('btnAddSnippet');
+            const $btnSaveSnippets = document.getElementById('btnSaveSnippets');
+            const $btnCloseSnippets = document.getElementById('btnCloseSnippets');
+            const $memoryFactsList = document.getElementById('memoryFactsList');
+            const $btnAddMemoryFact = document.getElementById('btnAddMemoryFact');
+            const $roomCharacterMemorySection = document.getElementById('roomCharacterMemorySection');
+            const $roomCharacterMemoryList = document.getElementById('roomCharacterMemoryList');
 
             // ==================== 状态 ====================
             const Memory = window.StarlightMemory;
             if (!Memory) throw new Error('长期记忆模块加载失败');
+            const WorldBook = window.StarlightWorldBook;
+            if (!WorldBook) throw new Error('世界书模块加载失败');
             const StyleLab = window.StarlightStyleLab;
             if (!StyleLab) throw new Error('文风工坊模块加载失败');
             const Story = window.StarlightStory;
@@ -2811,6 +3044,7 @@
                 rooms: [],
                 currentRoomId: null,
                 styleProfiles: [],
+                commonSnippets: [],
                 updatedAt: 0,
             };
 
@@ -2819,11 +3053,13 @@
             let abortController = null;
             let editingAgentId = null;
             let storyDraftCharacters = [];
+            let storyDraftWorldBook = WorldBook.normalizeWorldBook();
             let editingRoomId = null;
             let roomDraftType = 'double';
             let roomDraftParticipants = [];
             let roomDraftBackground = '';
             let roomDraftNodes = [];
+            let roomDraftWorldBook = WorldBook.normalizeWorldBook();
             let roomDraftSessionId = 0;
             let roomDraftBackgroundRevision = 0;
             let roomDraftAvatarRevisions = new Map();
@@ -2838,8 +3074,14 @@
             let roomRenderedMessageRange = null;
             let navigatorBookmarkedOnly = false;
             let memoryDraftSegments = [];
+            let memoryDraftFacts = [];
+            let roomCharacterMemoryDrafts = {};
+            let memoryEditorMode = 'story';
             let selectedStyleProfileId = null;
             let styleLabBusy = false;
+            let snippetsDraft = [];
+            let homeTab = 'story';
+            let activeMessageActionIndex = null;
             
             // 安全读取本地主题配置，防止浏览器严格隐私模式拦截报错
             let isDarkMode = false;
@@ -3048,6 +3290,9 @@
                     });
                 appData.currentRoomId = parsed.currentRoomId || null;
                 appData.styleProfiles = StyleLab.normalizeProfiles(parsed.styleProfiles);
+                appData.commonSnippets = Array.isArray(parsed.commonSnippets)
+                    ? parsed.commonSnippets.map(String).filter(Boolean).slice(0, 80)
+                    : [];
                 appData.updatedAt = Number(parsed.updatedAt) || 0;
 
                 if (legacyModel === 'deepseek-chat') {
@@ -3124,19 +3369,6 @@
                 appData.model = getActiveModel();
                 appData.providerModels.deepseek = appData.model;
 
-                if (appData.agents.length === 0) {
-                    const starterCharacter = Story.createCharacter();
-                    starterCharacter.fields[0].value = '请填写角色名称';
-                    starterCharacter.fields[2].value = '在这里填写角色的性格底色、价值观、习惯、能力与弱点。';
-                    const defaultAgent = Story.createAgent({
-                        name: '创建你的第一个剧情',
-                        subtitle: '打开设定页，逐项补全人物与世界',
-                        characters: [starterCharacter],
-                    }, Memory);
-                    appData.agents = [defaultAgent];
-                    appData.currentAgentId = defaultAgent.id;
-                    saveData();
-                }
                 if (appData.currentAgentId && !appData.agents.find(a => a.id === appData.currentAgentId)) {
                     appData.currentAgentId = appData.agents[0]?.id || null;
                     saveData();
@@ -3185,6 +3417,124 @@
 
             function getCurrentRoom() {
                 return appData.rooms.find(room => room.id === appData.currentRoomId) || null;
+            }
+
+            function prepareV2Shell() {
+                const appearance = document.createElement('div');
+                appearance.className = 'my-version-card';
+                appearance.innerHTML = '<strong>显示模式</strong><br><span>在明亮与深色界面之间切换</span>';
+                appearance.appendChild($themeToggleBtn);
+                $mySettingsMount.appendChild(appearance);
+                $settingsGroup.classList.remove('collapsed');
+                $mySettingsMount.appendChild($settingsGroup);
+                [$btnLocate, $btnMemoryManager, $btnStyleLab].forEach(button => {
+                    button.classList.remove('story-only-control');
+                    $chatQuickTools.appendChild(button);
+                });
+                $btnLocate.textContent = '⌕ 搜索定位';
+                $btnMemoryManager.textContent = '◫ 长期记忆';
+                $btnStyleLab.textContent = '✦ 文风因子';
+            }
+
+            function setHomeTab(tab) {
+                homeTab = ['story', 'room', 'my'].includes(tab) ? tab : 'story';
+                $homeStoryPage.hidden = homeTab !== 'story';
+                $homeRoomPage.hidden = homeTab !== 'room';
+                $homeMyPage.hidden = homeTab !== 'my';
+                document.querySelectorAll('[data-home-tab]').forEach(button => button.classList.toggle('active', button.dataset.homeTab === homeTab));
+                if (homeTab === 'my') syncSettingsControls();
+            }
+
+            function showHome(tab) {
+                if (!canChangeConversationTarget()) return;
+                const activeTarget = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
+                if (activeTarget) activeTarget.draft = $messageInput.value;
+                setHomeTab(tab || (appData.activeMode === 'room' ? 'room' : 'story'));
+                renderHomeLibraries();
+                $chatShell.classList.add('is-hidden');
+                $homeShell.classList.remove('is-hidden');
+                document.body.classList.remove('chat-open');
+            }
+
+            function showChatScreen() {
+                $homeShell.classList.add('is-hidden');
+                $chatShell.classList.remove('is-hidden');
+                document.body.classList.add('chat-open');
+                updateModeUI();
+                renderMessages();
+                requestAnimationFrame(() => scrollToBottom());
+            }
+
+            function enterWork(mode, id) {
+                if (!canChangeConversationTarget()) return;
+                const previousTarget = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
+                if (previousTarget) previousTarget.draft = $messageInput.value;
+                appData.activeMode = mode === 'room' ? 'room' : 'story';
+                if (appData.activeMode === 'room') {
+                    appData.currentRoomId = id;
+                    roomRenderedMessageRange = null;
+                } else {
+                    appData.currentAgentId = id;
+                    storyRenderedMessageRange = null;
+                }
+                appData.model = getActiveModel();
+                appData.providerModels.deepseek = appData.model;
+                const nextTarget = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
+                $messageInput.value = nextTarget?.draft || '';
+                $messageInput.dispatchEvent(new Event('input'));
+                resetScrollIntent();
+                saveData();
+                showChatScreen();
+            }
+
+            function renameWork(mode, id) {
+                const list = mode === 'room' ? appData.rooms : appData.agents;
+                const item = list.find(entry => entry.id === id);
+                if (!item || !canChangeConversationTarget()) return;
+                const name = prompt(`重命名${mode === 'room' ? '房间' : '剧情'}`, item.name);
+                if (name === null) return;
+                const trimmed = name.trim();
+                if (!trimmed) return showToast('名称不能为空', 'error');
+                item.name = trimmed;
+                item.updatedAt = Date.now();
+                saveData();
+                renderHomeLibraries();
+                renderAgentsList();
+                renderRoomsList();
+            }
+
+            function renderHomeCollection(container, items, mode) {
+                if (!items.length) {
+                    container.innerHTML = '<div class="v2-empty-note">这里还没有内容，点击下方加号开始创建。</div>';
+                    return;
+                }
+                container.innerHTML = items.map(item => `
+                    <article class="v2-work-card" data-work-id="${escapeHtml(item.id)}" data-work-mode="${mode}">
+                        <div class="v2-work-copy"><span class="v2-work-name">${escapeHtml(item.name)}</span><span class="v2-work-intro">${escapeHtml(item.subtitle || '还没有填写简介')}</span></div>
+                        <div class="v2-card-menu-wrap"><button type="button" class="v2-card-more" aria-label="作品选项">⋯</button><div class="v2-card-menu"><button type="button" data-card-action="rename">重命名</button><button type="button" class="danger" data-card-action="delete">删除</button></div></div>
+                    </article>`).join('');
+                container.querySelectorAll('.v2-work-card').forEach(card => {
+                    const id = card.dataset.workId;
+                    card.querySelector('.v2-work-copy').addEventListener('click', () => enterWork(mode, id));
+                    const menu = card.querySelector('.v2-card-menu');
+                    card.querySelector('.v2-card-more').addEventListener('click', event => {
+                        event.stopPropagation();
+                        document.querySelectorAll('.v2-card-menu.show').forEach(other => { if (other !== menu) other.classList.remove('show'); });
+                        menu.classList.toggle('show');
+                    });
+                    menu.querySelector('[data-card-action="rename"]').addEventListener('click', event => { event.stopPropagation(); menu.classList.remove('show'); renameWork(mode, id); });
+                    menu.querySelector('[data-card-action="delete"]').addEventListener('click', event => {
+                        event.stopPropagation();
+                        menu.classList.remove('show');
+                        if (mode === 'room') deleteRoom(id); else deleteAgent(id);
+                        renderHomeLibraries();
+                    });
+                });
+            }
+
+            function renderHomeLibraries() {
+                renderHomeCollection($homeStoryList, appData.agents, 'story');
+                renderHomeCollection($homeRoomList, appData.rooms, 'room');
             }
 
             // ==================== 独立文风工坊 ====================
@@ -3364,7 +3714,7 @@
                 const profile = getSelectedStyleProfile();
                 if (!profile) return;
                 if (!appData.apiKey) {
-                    showToast('请先在侧边栏设置 DeepSeek API Key', 'error');
+                    showToast('请先在“我的”中设置 DeepSeek API Key', 'error');
                     return;
                 }
                 const sourceText = $styleSourceTextInput.value.trim();
@@ -3403,7 +3753,7 @@
                     return [
                         `模式：剧情`,
                         `作品：${agent.name}`,
-                        `世界观：${agent.worldPrompt || '（未设定）'}`,
+                        WorldBook.buildWorldBookPrompt(agent.worldBook, '') || '世界书：（未设定）',
                         `当前或开场场景：${agent.openingScene || '（未设定）'}`,
                         `用户角色：${agent.userPersona || '（未设定）'}`,
                         `角色设定：\n${characters || '（未设定）'}`,
@@ -3424,7 +3774,7 @@
                 return [
                     `模式：房间`,
                     `作品：${room.name}`,
-                    `世界观：${room.worldPrompt || '（未设定）'}`,
+                    WorldBook.buildWorldBookPrompt(room.worldBook, '') || '世界书：（未设定）',
                     `当前场景设定：${room.scenePrompt || '（未设定）'}`,
                     `用户角色：${room.userPersona || '（未设定）'}`,
                     `在场角色：\n${participants || '（未设定）'}`,
@@ -3448,7 +3798,7 @@
                 const profile = getSelectedStyleProfile();
                 if (!profile) return;
                 if (!appData.apiKey) {
-                    showToast('请先在侧边栏设置 DeepSeek API Key', 'error');
+                    showToast('请先在“我的”中设置 DeepSeek API Key', 'error');
                     return;
                 }
                 try {
@@ -3572,7 +3922,7 @@
             function getIntimacyRulesSignature(room) {
                 const member = room?.participants?.[0];
                 return JSON.stringify([
-                    room?.worldPrompt || '',
+                    room?.worldBook || null,
                     room?.scenePrompt || '',
                     room?.userPersona || '',
                     room?.otherInfo || '',
@@ -3645,6 +3995,7 @@
                 resetScrollIntent();
                 saveData();
                 renderRoomsList();
+                renderHomeLibraries();
                 renderRoomContext();
                 updateChatUI();
                 renderMessages();
@@ -3659,6 +4010,7 @@
                 if (appData.currentRoomId === roomId) appData.currentRoomId = appData.rooms[0]?.id || null;
                 saveData();
                 renderRoomsList();
+                renderHomeLibraries();
                 renderRoomContext();
                 updateChatUI();
                 renderMessages();
@@ -3803,6 +4155,7 @@
                 if (roomDraftType === 'double' && roomDraftParticipants.length > 1) {
                     roomDraftParticipants = roomDraftParticipants.slice(0, 1);
                     renderRoomParticipantsEditor();
+                    renderWorldBookEditor($roomWorldBookEditor, roomDraftWorldBook, true);
                     showToast('双人房间只保留一名AI角色', 'info');
                 }
                 $participantAddActions.hidden = roomDraftType === 'double' && roomDraftParticipants.length >= 1;
@@ -3853,9 +4206,11 @@
                 roomDraftBackground = room?.backgroundImage || '';
                 roomDraftNodes = room?.intimacy?.nodes?.map(node => ({ ...node })) || [];
                 $roomNameInput.value = room?.name || '';
+                $roomSubtitleInput.value = room?.subtitle || '';
                 $roomNarrationToggle.value = room?.narrationEnabled ? 'on' : 'off';
                 $roomBasePromptInput.value = room?.basePrompt || Rooms.DEFAULT_ROOM_PROMPT;
-                $roomWorldPromptInput.value = room?.worldPrompt || '';
+                roomDraftWorldBook = WorldBook.normalizeWorldBook(room?.worldBook, room?.worldPrompt);
+                renderWorldBookEditor($roomWorldBookEditor, roomDraftWorldBook, true);
                 $roomScenePromptInput.value = room?.scenePrompt || '';
                 $roomUserPersonaInput.value = room?.userPersona || '';
                 $roomOtherInfoInput.value = room?.otherInfo || '';
@@ -3897,6 +4252,7 @@
                 roomDraftParticipants = [];
                 roomDraftNodes = [];
                 roomDraftBackground = '';
+                roomDraftWorldBook = WorldBook.normalizeWorldBook();
             }
 
             function refreshImportAgentSelect() {
@@ -3930,6 +4286,7 @@
                     color: Rooms.memberColor(roomDraftParticipants.length),
                 }, roomDraftParticipants.length));
                 renderRoomParticipantsEditor();
+                renderWorldBookEditor($roomWorldBookEditor, roomDraftWorldBook, true);
                 $participantAddActions.hidden = roomDraftType === 'double' && roomDraftParticipants.length >= 1;
             }
 
@@ -4028,6 +4385,7 @@
                         event.preventDefault();
                         roomDraftParticipants = roomDraftParticipants.filter(item => item.id !== member.id);
                         renderRoomParticipantsEditor();
+                        renderWorldBookEditor($roomWorldBookEditor, roomDraftWorldBook, true);
                         $participantAddActions.hidden = roomDraftType === 'double' && roomDraftParticipants.length >= 1;
                     });
                     editor.querySelector('.member-avatar-file').addEventListener('change', async event => {
@@ -4099,8 +4457,10 @@
                 const input = {
                     roomType: roomDraftType,
                     name: $roomNameInput.value.trim(),
+                    subtitle: $roomSubtitleInput.value.trim(),
                     basePrompt: $roomBasePromptInput.value.trim(),
-                    worldPrompt: $roomWorldPromptInput.value.trim(),
+                    worldPrompt: '',
+                    worldBook: collectWorldBook(roomDraftWorldBook),
                     scenePrompt: $roomScenePromptInput.value.trim(),
                     userPersona: $roomUserPersonaInput.value.trim(),
                     otherInfo: $roomOtherInfoInput.value.trim(),
@@ -4147,7 +4507,7 @@
                 if (room.roomType === 'group' && room.participants.length < 2) throw new Error('多人房间至少需要两名AI角色');
                 const invalid = room.participants.find(member => !member.name || !member.personaPrompt);
                 if (invalid) throw new Error('每名角色都必须填写名称和完整人设');
-                if (room.roomType === 'double' && !appData.apiKey) throw new Error('请先在侧边栏填写API Key，以生成亲密度隐藏判定');
+                if (room.roomType === 'double' && !appData.apiKey) throw new Error('请先在“我的”中填写 API Key，以生成亲密度隐藏判定');
             }
 
             async function generateIntimacyRules(room) {
@@ -4191,8 +4551,10 @@
                     saveData();
                     await persistFullState();
                     closeRoomModal(true);
+                    renderHomeLibraries();
                     updateModeUI();
                     renderMessages();
+                    showChatScreen();
                     showToast(room.roomType === 'double' ? '判定已启用，可进行攻略' : '多人房间已创建', 'success');
                 } catch (error) {
                     showToast('房间保存失败：' + error.message, 'error');
@@ -4316,9 +4678,25 @@
                 $sidebarOverlay.classList.remove('visible');
             }
 
-            $btnHamburger.addEventListener('click', toggleSidebar);
+            $btnHamburger.addEventListener('click', () => showHome(appData.activeMode === 'room' ? 'room' : 'story'));
             $btnCloseSidebar.addEventListener('click', closeSidebar);
             $sidebarOverlay.addEventListener('click', closeSidebar);
+
+            document.querySelectorAll('[data-home-tab]').forEach(button => button.addEventListener('click', () => setHomeTab(button.dataset.homeTab)));
+            $homeAddStory.addEventListener('click', openCreateModal);
+            $homeAddRoom.addEventListener('click', () => openRoomModal());
+            $btnChatSettings.addEventListener('click', () => {
+                if (appData.activeMode === 'room') {
+                    const room = getCurrentRoom();
+                    if (room) openRoomModal(room.id);
+                } else {
+                    const agent = getCurrentAgent();
+                    if (agent) openEditModal(agent.id);
+                }
+            });
+            document.addEventListener('click', event => {
+                if (!event.target.closest('.v2-card-menu-wrap')) document.querySelectorAll('.v2-card-menu.show').forEach(menu => menu.classList.remove('show'));
+            });
 
             $settingsToggle.addEventListener('click', () => {
                 $settingsGroup.classList.toggle('collapsed');
@@ -4339,18 +4717,15 @@
 
             function deleteAgent(agentId) {
                 if (!canChangeConversationTarget()) return;
-                if (appData.agents.length <= 1) {
-                    showToast('至少需要保留一个剧情智能体', 'error');
-                    return;
-                }
                 if (!confirm('确定要删除这个剧情智能体及其全部设定、对话和长期记忆吗？此操作不可恢复。')) return;
 
                 appData.agents = appData.agents.filter(a => a.id !== agentId);
                 if (appData.currentAgentId === agentId) {
-                    appData.currentAgentId = appData.agents[0].id;
+                    appData.currentAgentId = appData.agents[0]?.id || null;
                 }
                 saveData();
                 renderAgentsList();
+                renderHomeLibraries();
                 updateChatUI();
                 renderMessages();
                 showToast('剧情智能体已删除', 'success');
@@ -4422,6 +4797,121 @@
                 }
             });
 
+            // ==================== 世界书编辑器 ====================
+            function worldBookSectionMarkup(kind, entries, roomMode) {
+                const initial = kind === 'initial';
+                const title = initial ? '初始世界设定' : '后续世界进展';
+                const copy = initial
+                    ? '故事开始前已经成立的世界事实。至少保留一个条目。'
+                    : '剧情发展后由你确认的装备、技能、关系、组织与规则变化。';
+                const cards = entries.length ? entries.map((entry, entryIndex) => {
+                    const fields = entry.fields.map((field, fieldIndex) => `
+                        <div class="worldbook-field" data-field-index="${fieldIndex}">
+                            <input class="worldbook-field-label" value="${escapeHtml(field.label)}" aria-label="栏位名称" placeholder="栏位名称">
+                            <textarea class="worldbook-field-value" aria-label="${escapeHtml(field.label)}内容" placeholder="填写设定内容">${escapeHtml(field.value)}</textarea>
+                            <div class="field-order-actions"><button type="button" class="worldbook-field-up" ${fieldIndex === 0 ? 'disabled' : ''} title="上移">↑</button><button type="button" class="worldbook-field-down" ${fieldIndex === entry.fields.length - 1 ? 'disabled' : ''} title="下移">↓</button><button type="button" class="worldbook-remove-field" ${entry.fields.length <= 1 ? 'disabled' : ''} title="删除栏位">−</button></div>
+                        </div>`).join('');
+                    const characterScope = roomMode && entry.knowledgeScope === 'private'
+                        ? `<div class="worldbook-character-scope">${roomDraftParticipants.map(member => `<label><input type="checkbox" class="worldbook-character-check" value="${escapeHtml(member.id)}" ${entry.characterIds.includes(member.id) ? 'checked' : ''}>${escapeHtml(member.name)}</label>`).join('') || '<span class="room-form-hint">请先添加房间角色</span>'}</div>`
+                        : '';
+                    return `<article class="worldbook-entry" data-entry-index="${entryIndex}">
+                        <div class="worldbook-entry-head"><strong>${initial ? '设定' : '进展'} ${entryIndex + 1}</strong><button type="button" class="mini-action-btn danger worldbook-remove-entry" ${initial && entries.length <= 1 ? 'disabled' : ''}>− 删除条目</button></div>
+                        <div class="worldbook-fields">${fields}</div>
+                        <button type="button" class="mini-action-btn worldbook-add-field">＋ 添加栏位</button>
+                        <details class="worldbook-advanced"><summary>生效与知识范围</summary>
+                            <div class="worldbook-advanced-grid">
+                                <label>启用<select class="worldbook-enabled"><option value="on" ${entry.enabled ? 'selected' : ''}>启用</option><option value="off" ${!entry.enabled ? 'selected' : ''}>停用</option></select></label>
+                                <label>触发方式<select class="worldbook-activation"><option value="always" ${entry.activationMode === 'always' ? 'selected' : ''}>始终生效</option><option value="keywords" ${entry.activationMode === 'keywords' ? 'selected' : ''}>关键词触发</option></select></label>
+                                <label>状态<select class="worldbook-status"><option value="active" ${entry.status === 'active' ? 'selected' : ''}>当前有效</option><option value="expired" ${entry.status === 'expired' ? 'selected' : ''}>已失效</option><option value="replaced" ${entry.status === 'replaced' ? 'selected' : ''}>已被替代</option></select></label>
+                                <label>优先级<select class="worldbook-priority">${[1,2,3,4,5].map(value => `<option value="${value}" ${entry.priority === value ? 'selected' : ''}>${value}</option>`).join('')}</select></label>
+                                <label style="grid-column:span 2">关键词<input class="worldbook-keywords" value="${escapeHtml(entry.keywords.join('，'))}" placeholder="用逗号分隔"></label>
+                                ${roomMode ? `<label>知识范围<select class="worldbook-scope"><option value="public" ${entry.knowledgeScope === 'public' ? 'selected' : ''}>房间公开</option><option value="private" ${entry.knowledgeScope === 'private' ? 'selected' : ''}>仅指定角色知道</option></select></label>${characterScope}` : ''}
+                            </div>
+                        </details>
+                    </article>`;
+                }).join('') : '<div class="v2-empty-note">尚未记录后续进展</div>';
+                return `<section class="worldbook-part" data-world-kind="${kind}">
+                    <div class="worldbook-section-head"><div><h5>${title}</h5><p>${copy}</p></div><button type="button" class="mini-action-btn worldbook-add-entry">＋ 添加${initial ? '设定' : '进展'}</button></div>
+                    <div class="worldbook-entry-list">${cards}</div>
+                </section>`;
+            }
+
+            function renderWorldBookEditor(container, draft, roomMode = false) {
+                if (!container) return;
+                container.innerHTML = worldBookSectionMarkup('initial', draft.initialEntries, roomMode)
+                    + worldBookSectionMarkup('progress', draft.progressEntries, roomMode);
+                container.querySelectorAll('.worldbook-part').forEach(section => {
+                    const kind = section.dataset.worldKind;
+                    const entries = kind === 'initial' ? draft.initialEntries : draft.progressEntries;
+                    section.querySelector('.worldbook-add-entry').addEventListener('click', () => {
+                        const previous = entries[entries.length - 1];
+                        entries.push(previous ? WorldBook.cloneEntrySchema(previous, kind) : WorldBook.createEntry(kind));
+                        draft.updatedAt = Date.now();
+                        renderWorldBookEditor(container, draft, roomMode);
+                    });
+                    section.querySelectorAll('.worldbook-entry').forEach((card, entryIndex) => {
+                        const entry = entries[entryIndex];
+                        card.querySelectorAll('.worldbook-field').forEach((row, fieldIndex) => {
+                            const field = entry.fields[fieldIndex];
+                            row.querySelector('.worldbook-field-label').addEventListener('input', event => field.label = event.target.value);
+                            row.querySelector('.worldbook-field-value').addEventListener('input', event => field.value = event.target.value);
+                            row.querySelector('.worldbook-field-up').addEventListener('click', () => {
+                                if (fieldIndex <= 0) return;
+                                [entry.fields[fieldIndex - 1], entry.fields[fieldIndex]] = [entry.fields[fieldIndex], entry.fields[fieldIndex - 1]];
+                                renderWorldBookEditor(container, draft, roomMode);
+                            });
+                            row.querySelector('.worldbook-field-down').addEventListener('click', () => {
+                                if (fieldIndex >= entry.fields.length - 1) return;
+                                [entry.fields[fieldIndex + 1], entry.fields[fieldIndex]] = [entry.fields[fieldIndex], entry.fields[fieldIndex + 1]];
+                                renderWorldBookEditor(container, draft, roomMode);
+                            });
+                            row.querySelector('.worldbook-remove-field').addEventListener('click', () => {
+                                if (entry.fields.length <= 1) return showToast('每个世界书条目至少保留一个栏位', 'info');
+                                entry.fields.splice(fieldIndex, 1);
+                                renderWorldBookEditor(container, draft, roomMode);
+                            });
+                        });
+                        card.querySelector('.worldbook-add-field').addEventListener('click', () => {
+                            entry.fields.push(WorldBook.createField(`新增栏位${entry.fields.length + 1}`));
+                            renderWorldBookEditor(container, draft, roomMode);
+                        });
+                        card.querySelector('.worldbook-remove-entry').addEventListener('click', () => {
+                            if (kind === 'initial' && entries.length <= 1) return showToast('初始世界设定至少保留一个条目', 'info');
+                            entries.splice(entryIndex, 1);
+                            renderWorldBookEditor(container, draft, roomMode);
+                        });
+                        card.querySelector('.worldbook-enabled').addEventListener('change', event => entry.enabled = event.target.value === 'on');
+                        card.querySelector('.worldbook-activation').addEventListener('change', event => entry.activationMode = event.target.value);
+                        card.querySelector('.worldbook-status').addEventListener('change', event => entry.status = event.target.value);
+                        card.querySelector('.worldbook-priority').addEventListener('change', event => entry.priority = Number(event.target.value));
+                        card.querySelector('.worldbook-keywords').addEventListener('input', event => entry.keywords = event.target.value.split(/[,，\n]/).map(item => item.trim()).filter(Boolean).slice(0, 40));
+                        card.querySelector('.worldbook-scope')?.addEventListener('change', event => {
+                            entry.knowledgeScope = event.target.value;
+                            renderWorldBookEditor(container, draft, roomMode);
+                        });
+                        card.querySelectorAll('.worldbook-character-check').forEach(input => input.addEventListener('change', () => {
+                            entry.characterIds = [...card.querySelectorAll('.worldbook-character-check:checked')].map(item => item.value);
+                        }));
+                    });
+                });
+            }
+
+            function collectWorldBook(draft) {
+                const book = WorldBook.normalizeWorldBook(draft);
+                book.initialEntries.forEach((entry, entryIndex) => entry.fields.forEach((field, fieldIndex) => {
+                    field.label = String(field.label || '').trim();
+                    field.value = String(field.value || '').trim();
+                    if (!field.label) throw new Error(`初始设定${entryIndex + 1}的第${fieldIndex + 1}栏缺少名称`);
+                }));
+                book.progressEntries.forEach((entry, entryIndex) => entry.fields.forEach((field, fieldIndex) => {
+                    field.label = String(field.label || '').trim();
+                    field.value = String(field.value || '').trim();
+                    if (!field.label) throw new Error(`后续进展${entryIndex + 1}的第${fieldIndex + 1}栏缺少名称`);
+                }));
+                book.updatedAt = Date.now();
+                return book;
+            }
+
             // ==================== 剧情智能体全屏编辑页 ====================
             function renderStoryCharactersEditor(focusCharacterId = '') {
                 $storyCharactersEditor.innerHTML = storyDraftCharacters.map((character, characterIndex) => {
@@ -4431,7 +4921,7 @@
                         <div class="story-character-field" data-field-id="${escapeHtml(field.id)}">
                             <input class="story-character-field-label" type="text" value="${escapeHtml(field.label)}" aria-label="角色${characterIndex + 1}栏位${fieldIndex + 1}名称" placeholder="栏位名称">
                             <textarea class="story-character-field-value" aria-label="${escapeHtml(field.label)}的内容" placeholder="填写这一栏的人物设定">${escapeHtml(field.value)}</textarea>
-                            <button type="button" class="story-remove-field-btn" title="删除这一栏" ${character.fields.length <= 1 ? 'disabled' : ''}>−</button>
+                            <div class="field-order-actions"><button type="button" class="story-field-up" title="上移" ${fieldIndex === 0 ? 'disabled' : ''}>↑</button><button type="button" class="story-field-down" title="下移" ${fieldIndex === character.fields.length - 1 ? 'disabled' : ''}>↓</button><button type="button" class="story-remove-field-btn" title="删除这一栏" ${character.fields.length <= 1 ? 'disabled' : ''}>−</button></div>
                         </div>
                     `).join('');
                     return `
@@ -4463,6 +4953,16 @@
                         row.querySelector('.story-character-field-value').addEventListener('input', event => {
                             field.value = event.target.value;
                             updatePreview();
+                        });
+                        row.querySelector('.story-field-up').addEventListener('click', () => {
+                            if (fieldIndex <= 0) return;
+                            [character.fields[fieldIndex - 1], character.fields[fieldIndex]] = [character.fields[fieldIndex], character.fields[fieldIndex - 1]];
+                            renderStoryCharactersEditor(character.id);
+                        });
+                        row.querySelector('.story-field-down').addEventListener('click', () => {
+                            if (fieldIndex >= character.fields.length - 1) return;
+                            [character.fields[fieldIndex + 1], character.fields[fieldIndex]] = [character.fields[fieldIndex], character.fields[fieldIndex + 1]];
+                            renderStoryCharactersEditor(character.id);
                         });
                         row.querySelector('.story-remove-field-btn').addEventListener('click', () => {
                             if (character.fields.length <= 1) {
@@ -4529,7 +5029,8 @@
                 $newAgentName.value = agent ? story.name : '';
                 $storySubtitleInput.value = story.subtitle;
                 $storyRulesInput.value = story.storyRules;
-                $storyWorldInput.value = story.worldPrompt;
+                storyDraftWorldBook = WorldBook.normalizeWorldBook(story.worldBook, story.worldPrompt);
+                renderWorldBookEditor($storyWorldBookEditor, storyDraftWorldBook, false);
                 $storyOpeningInput.value = story.openingScene;
                 $storyUserPersonaInput.value = story.userPersona;
                 storyDraftCharacters = story.characters.map(Story.normalizeCharacter);
@@ -4568,6 +5069,7 @@
                 $modalOverlay.style.display = 'none';
                 editingAgentId = null;
                 storyDraftCharacters = [];
+                storyDraftWorldBook = WorldBook.normalizeWorldBook();
             }
 
             function saveAgent() {
@@ -4578,8 +5080,10 @@
                     return;
                 }
                 let characters;
+                let worldBook;
                 try {
                     characters = collectStoryCharacters();
+                    worldBook = collectWorldBook(storyDraftWorldBook);
                 } catch (error) {
                     showToast(error.message, 'error');
                     return;
@@ -4589,7 +5093,8 @@
                     name,
                     subtitle: $storySubtitleInput.value.trim(),
                     storyRules: $storyRulesInput.value.trim() || Story.DEFAULT_STORY_RULES,
-                    worldPrompt: $storyWorldInput.value.trim(),
+                    worldPrompt: '',
+                    worldBook,
                     openingScene: $storyOpeningInput.value.trim(),
                     userPersona: $storyUserPersonaInput.value.trim(),
                     characters,
@@ -4618,10 +5123,12 @@
 
                 saveData();
                 renderAgentsList();
+                renderHomeLibraries();
                 updateModeUI();
                 renderMessages(); 
                 updateToolbarButtons();
                 closeCreateModal();
+                showChatScreen();
             }
 
             $btnCreateAgent.addEventListener('click', openCreateModal);
@@ -4649,7 +5156,7 @@
                     closeConversationNavigator();
                 }
                 if (e.key === 'Escape' && $memoryEditorOverlay.style.display === 'flex') {
-                    closeStoryMemoryManager();
+                    closeMemoryManager();
                 }
                 if (e.key === 'Escape' && $styleLabOverlay.style.display === 'flex') {
                     closeStyleLab();
@@ -4660,6 +5167,7 @@
             function updateChatUI() {
                 if (appData.activeMode === 'room') {
                     const room = getCurrentRoom();
+                    $btnInspiration.hidden = true;
                     $currentAgentName.textContent = room?.name || '请选择或创建房间';
                     $modelBadge.textContent = getActiveModel();
                     $roomTypeBadge.textContent = room?.roomType === 'group' ? '多人房间' : '双人房间';
@@ -4679,6 +5187,7 @@
                     return;
                 }
                 const agent = getCurrentAgent();
+                $btnInspiration.hidden = false;
                 if (agent) {
                     $currentAgentName.textContent = agent.name;
                     $modelBadge.textContent = getActiveModel();
@@ -4746,9 +5255,9 @@
                         ? [...room.messages].reverse().find(message => message.role === 'assistant' || message.role === 'user')
                         : null;
                     const lastIsAssistant = lastConversational?.role === 'assistant';
-                    $btnLocate.disabled = true;
+                    $btnLocate.disabled = !hasConversation;
                     $btnEditStory.disabled = true;
-                    $btnMemoryManager.disabled = true;
+                    $btnMemoryManager.disabled = !room || isGenerating;
                     $btnRegenerate.disabled = !hasConversation || !lastIsAssistant || isGenerating;
                     $btnUndo.disabled = !hasConversation || isGenerating;
                     $btnRestart.disabled = !hasConversation || isGenerating;
@@ -4918,7 +5427,7 @@
                             <h3>${room ? `进入「${escapeHtml(room.name)}」` : '创建你的第一个房间'}</h3>
                             <p>${room
                                 ? (room.roomType === 'double' ? '隐藏亲密度判定已经准备好，可以开始攻略。' : '发送消息后，系统会按照房间规则调度角色发言。')
-                                : '在左侧创建双人房间或多人房间。'}</p>
+                                : '返回房间库创建双人房间或多人房间。'}</p>
                         </div>`;
                     applyRoomBackground(room);
                     finishMessageRender(viewport);
@@ -5038,6 +5547,10 @@
 
             function getMessageSpeakerLabel(message) {
                 if (message.role === 'user') return '你';
+                if (appData.activeMode === 'room') {
+                    if (message.role === 'system') return '场景';
+                    return Rooms.getMember(getCurrentRoom(), message.speakerId)?.name || '房间角色';
+                }
                 return getCurrentAgent()?.name || '剧情角色';
             }
 
@@ -5078,11 +5591,7 @@
             }
 
             function openConversationNavigator(focusIndex = null) {
-                if (appData.activeMode !== 'story') {
-                    showToast('对话定位属于剧情模式；房间模式保持独立', 'info');
-                    return;
-                }
-                const messages = getCurrentAgent()?.conversations || [];
+                const messages = getActiveMessages();
                 if (!messages.length) {
                     showToast('当前对话还没有可定位的消息', 'info');
                     return;
@@ -5100,17 +5609,17 @@
             }
 
             function jumpToMessage(index) {
-                const messages = getCurrentAgent()?.conversations || [];
+                const messages = getActiveMessages();
                 const targetIndex = Number(index);
                 if (!Number.isInteger(targetIndex) || targetIndex < 0 || targetIndex >= messages.length) {
                     showToast(`请输入 1—${messages.length} 之间的消息编号`, 'error');
                     return;
                 }
                 const start = Math.max(0, targetIndex - 70);
-                storyRenderedMessageRange = {
+                setMessageRenderRange({
                     start,
                     end: Math.min(messages.length, Math.max(start + MESSAGE_PAGE_SIZE, targetIndex + 80)),
-                };
+                });
                 isUserScrolledUp = true;
                 closeConversationNavigator();
                 renderMessages({ preserveScroll: true });
@@ -5149,17 +5658,9 @@
             });
 
             // ==================== 剧情长期记忆查看与编辑 ====================
-            function renderStoryMemoryEditor() {
-                const agent = getCurrentAgent();
-                if (!agent) return;
-                const memory = Memory.normalizeMemory(agent.memory, agent.conversations.length);
-                $memoryEditorSubtitle.textContent = `「${agent.name}」· 原文 ${agent.conversations.length} 条 · 已整理到 #${memory.summarizedUntil}`;
-                $memoryOverview.innerHTML = `
-                    <div class="memory-stat"><strong>${agent.conversations.length}</strong><span>完整原始消息（不会因摘要删除）</span></div>
-                    <div class="memory-stat"><strong>${memory.summarizedUntil}</strong><span>已经进入长期记忆的消息</span></div>
-                    <div class="memory-stat"><strong>${memoryDraftSegments.length}</strong><span>可按话题召回的篇章</span></div>`;
+            function renderMemorySegments() {
                 if (!memoryDraftSegments.length) {
-                    $memorySegmentList.innerHTML = '<div class="memory-empty">目前还没有篇章记忆。对话达到整理阈值后会自动生成；也可以继续保留完整原文而不启用整理。</div>';
+                    $memorySegmentList.innerHTML = '<div class="memory-empty">目前还没有篇章记忆。对话达到整理阈值后会自动生成，完整原文始终保留。</div>';
                     return;
                 }
                 $memorySegmentList.innerHTML = memoryDraftSegments.map((segment, index) => `
@@ -5168,79 +5669,152 @@
                         <div class="memory-segment-body">
                             <div><label>篇章标题</label><input class="memory-segment-title" value="${escapeHtml(segment.title || '')}"></div>
                             <div><label>重要度</label><select class="memory-segment-importance">${[1,2,3,4,5].map(value => `<option value="${value}" ${value === segment.importance ? 'selected' : ''}>${value}</option>`).join('')}</select></div>
-                            <div class="full"><label>检索关键词（用逗号分隔）</label><input class="memory-segment-keywords" value="${escapeHtml((segment.keywords || []).join('，'))}"></div>
+                            <div class="full"><label>检索关键词</label><input class="memory-segment-keywords" value="${escapeHtml((segment.keywords || []).join('，'))}"></div>
                             <div class="full"><label>篇章摘要</label><textarea class="memory-segment-summary" style="min-height:220px">${escapeHtml(segment.summary || '')}</textarea></div>
-                            <div class="full" style="display:flex;justify-content:flex-end"><button type="button" class="mini-action-btn danger memory-segment-delete">删除本段记忆</button></div>
+                            <div class="full" style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="mini-action-btn memory-segment-locate">定位原文</button><button type="button" class="mini-action-btn danger memory-segment-delete">删除本段记忆</button></div>
                         </div>
                     </details>`).join('');
-
                 $memorySegmentList.querySelectorAll('.memory-segment-card').forEach(card => {
                     const index = Number(card.dataset.memoryIndex);
                     const segment = memoryDraftSegments[index];
                     card.querySelector('.memory-segment-title').addEventListener('input', event => segment.title = event.target.value);
                     card.querySelector('.memory-segment-importance').addEventListener('change', event => segment.importance = Number(event.target.value));
-                    card.querySelector('.memory-segment-keywords').addEventListener('input', event => {
-                        segment.keywords = event.target.value.split(/[,，\n]/).map(item => item.trim()).filter(Boolean).slice(0, 40);
-                    });
+                    card.querySelector('.memory-segment-keywords').addEventListener('input', event => segment.keywords = event.target.value.split(/[,，\n]/).map(item => item.trim()).filter(Boolean).slice(0, 40));
                     card.querySelector('.memory-segment-summary').addEventListener('input', event => segment.summary = event.target.value);
-                    card.querySelector('.memory-segment-delete').addEventListener('click', () => {
-                        memoryDraftSegments.splice(index, 1);
-                        renderStoryMemoryEditor();
-                    });
+                    card.querySelector('.memory-segment-locate').addEventListener('click', () => { const target = segment.startIndex; closeMemoryManager(); jumpToMessage(target); });
+                    card.querySelector('.memory-segment-delete').addEventListener('click', () => { memoryDraftSegments.splice(index, 1); renderMemoryManager(); });
                 });
             }
 
-            function openStoryMemoryManager() {
-                if (appData.activeMode !== 'story') return;
-                const agent = getCurrentAgent();
-                if (!agent || !canChangeConversationTarget()) return;
-                const memory = Memory.normalizeMemory(agent.memory, agent.conversations.length);
-                memoryDraftSegments = memory.segments.map(segment => ({
-                    ...segment,
-                    keywords: [...segment.keywords],
-                }));
+            function addMemoryFactToWorldBook(fact) {
+                const target = memoryEditorMode === 'room' ? getCurrentRoom() : getCurrentAgent();
+                if (!target) return;
+                target.worldBook = WorldBook.normalizeWorldBook(target.worldBook, target.worldPrompt);
+                target.worldBook.progressEntries.push(WorldBook.createProgressFromMemory(fact));
+                target.worldBook.updatedAt = Date.now();
+                target.worldPrompt = '';
+                saveData();
+                showToast('已加入当前作品的世界书 · 后续世界进展', 'success');
+            }
+
+            function renderMemoryFacts() {
+                if (!memoryDraftFacts.length) {
+                    $memoryFactsList.innerHTML = '<div class="memory-empty">尚无结构化事实。系统后续整理时会提取，你也可以手动添加。</div>';
+                    return;
+                }
+                $memoryFactsList.innerHTML = memoryDraftFacts.map((fact, index) => `
+                    <div class="memory-segment-card" data-fact-index="${index}" style="padding:14px">
+                        <div class="memory-segment-body">
+                            <div><label>分类</label><select class="memory-fact-category">${Memory.MEMORY_CATEGORIES.map(category => `<option ${category === fact.category ? 'selected' : ''}>${category}</option>`).join('')}</select></div>
+                            <div><label>状态</label><select class="memory-fact-status"><option value="active" ${fact.status === 'active' ? 'selected' : ''}>有效</option><option value="expired" ${fact.status === 'expired' ? 'selected' : ''}>失效</option><option value="corrected" ${fact.status === 'corrected' ? 'selected' : ''}>已更正</option></select></div>
+                            <div><label>重要度</label><select class="memory-fact-importance">${[1,2,3,4,5].map(value => `<option value="${value}" ${value === fact.importance ? 'selected' : ''}>${value}</option>`).join('')}</select></div>
+                            <label style="display:flex;align-items:center;gap:7px"><input type="checkbox" class="memory-fact-locked" ${fact.locked ? 'checked' : ''}> 锁定，不被自动整理覆盖</label>
+                            <div class="full"><label>事实内容</label><textarea class="memory-fact-text" style="min-height:110px">${escapeHtml(fact.text || '')}</textarea></div>
+                            <div class="full" style="display:flex;justify-content:flex-end;gap:8px"><button type="button" class="mini-action-btn memory-fact-locate" ${Number.isInteger(fact.sourceStartIndex) ? '' : 'disabled'}>定位来源</button><button type="button" class="mini-action-btn memory-fact-world">加入世界书</button><button type="button" class="mini-action-btn danger memory-fact-delete">删除</button></div>
+                        </div>
+                    </div>`).join('');
+                $memoryFactsList.querySelectorAll('[data-fact-index]').forEach(card => {
+                    const index = Number(card.dataset.factIndex);
+                    const fact = memoryDraftFacts[index];
+                    card.querySelector('.memory-fact-category').addEventListener('change', event => fact.category = event.target.value);
+                    card.querySelector('.memory-fact-status').addEventListener('change', event => fact.status = event.target.value);
+                    card.querySelector('.memory-fact-importance').addEventListener('change', event => fact.importance = Number(event.target.value));
+                    card.querySelector('.memory-fact-locked').addEventListener('change', event => fact.locked = event.target.checked);
+                    card.querySelector('.memory-fact-text').addEventListener('input', event => fact.text = event.target.value);
+                    card.querySelector('.memory-fact-locate').addEventListener('click', () => { if (Number.isInteger(fact.sourceStartIndex)) { const target = fact.sourceStartIndex; closeMemoryManager(); jumpToMessage(target); } });
+                    card.querySelector('.memory-fact-world').addEventListener('click', () => addMemoryFactToWorldBook(fact));
+                    card.querySelector('.memory-fact-delete').addEventListener('click', () => { memoryDraftFacts.splice(index, 1); renderMemoryManager(); });
+                });
+            }
+
+            function renderRoomCharacterMemories() {
+                if (memoryEditorMode !== 'room') {
+                    $roomCharacterMemorySection.hidden = true;
+                    return;
+                }
+                const room = getCurrentRoom();
+                $roomCharacterMemorySection.hidden = false;
+                $roomCharacterMemoryList.innerHTML = room.participants.map(member => {
+                    const state = roomCharacterMemoryDrafts[member.id] || Memory.createEmptyMemory();
+                    return `<details class="memory-segment-card room-character-memory" data-member-id="${escapeHtml(member.id)}"><summary>${escapeHtml(member.name)} · ${state.segments.length} 段个人经历 · ${state.facts.length} 条事实</summary><div class="memory-segment-body"><div class="full"><label>角色核心记忆</label><textarea class="room-character-core" style="min-height:180px">${escapeHtml(state.core)}</textarea></div>${state.facts.map((fact,index) => `<div class="full"><label>${escapeHtml(fact.category)} · ${fact.status}</label><textarea class="room-character-fact" data-index="${index}" style="min-height:86px">${escapeHtml(fact.text)}</textarea></div>`).join('')}${state.segments.map((segment,index) => `<div class="full"><label>个人篇章 #${segment.startIndex + 1}—#${segment.endIndex}</label><textarea class="room-character-segment" data-index="${index}" style="min-height:120px">${escapeHtml(segment.summary)}</textarea></div>`).join('')}</div></details>`;
+                }).join('');
+                $roomCharacterMemoryList.querySelectorAll('[data-member-id]').forEach(card => {
+                    const state = roomCharacterMemoryDrafts[card.dataset.memberId];
+                    card.querySelector('.room-character-core').addEventListener('input', event => state.core = event.target.value);
+                    card.querySelectorAll('.room-character-fact').forEach(input => input.addEventListener('input', event => state.facts[Number(input.dataset.index)].text = event.target.value));
+                    card.querySelectorAll('.room-character-segment').forEach(input => input.addEventListener('input', event => state.segments[Number(input.dataset.index)].summary = event.target.value));
+                });
+            }
+
+            function renderMemoryManager() {
+                const target = memoryEditorMode === 'room' ? getCurrentRoom() : getCurrentAgent();
+                if (!target) return;
+                const total = memoryEditorMode === 'room' ? target.messages.length : target.conversations.length;
+                const memory = memoryEditorMode === 'room'
+                    ? Memory.normalizeMemory(target.sharedMemory, total)
+                    : Memory.normalizeMemory(target.memory, total);
+                $memoryEditor.querySelector('h3').textContent = memoryEditorMode === 'room' ? '🧠 房间长期记忆' : '🧠 剧情长期记忆';
+                $memoryEditorSubtitle.textContent = `「${target.name}」· 原文 ${total} 条 · 已整理到 #${memory.summarizedUntil}`;
+                $memoryOverview.innerHTML = `<div class="memory-stat"><strong>${total}</strong><span>完整原始消息</span></div><div class="memory-stat"><strong>${memory.summarizedUntil}</strong><span>已整理消息</span></div><div class="memory-stat"><strong>${memoryDraftSegments.length}</strong><span>可检索篇章</span></div>`;
+                renderMemorySegments();
+                renderMemoryFacts();
+                renderRoomCharacterMemories();
+            }
+
+            function openMemoryManager() {
+                const target = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
+                if (!target || !canChangeConversationTarget()) return;
+                memoryEditorMode = appData.activeMode;
+                const total = memoryEditorMode === 'room' ? target.messages.length : target.conversations.length;
+                const memory = Memory.normalizeMemory(memoryEditorMode === 'room' ? target.sharedMemory : target.memory, total);
+                memoryDraftSegments = memory.segments.map(segment => ({ ...segment, keywords: [...segment.keywords] }));
+                memoryDraftFacts = memory.facts.map(fact => ({ ...fact }));
                 $memoryCoreInput.value = memory.core;
-                renderStoryMemoryEditor();
+                roomCharacterMemoryDrafts = {};
+                if (memoryEditorMode === 'room') target.participants.forEach(member => roomCharacterMemoryDrafts[member.id] = Memory.normalizeMemory(target.characterMemories?.[member.id], total));
+                renderMemoryManager();
                 $memoryEditorOverlay.style.display = 'flex';
                 $memoryEditor.scrollTop = 0;
             }
 
-            function closeStoryMemoryManager() {
+            function closeMemoryManager() {
                 $memoryEditorOverlay.style.display = 'none';
                 memoryDraftSegments = [];
+                memoryDraftFacts = [];
+                roomCharacterMemoryDrafts = {};
             }
 
-            function saveStoryMemoryEdits() {
-                const agent = getCurrentAgent();
-                if (!agent) return;
-                const previous = Memory.normalizeMemory(agent.memory, agent.conversations.length);
-                agent.memory = Memory.normalizeMemory({
-                    ...previous,
-                    core: $memoryCoreInput.value.trim(),
-                    segments: memoryDraftSegments
-                        .map(segment => ({ ...segment, summary: String(segment.summary || '').trim() }))
-                        .filter(segment => segment.summary),
-                    updatedAt: Date.now(),
-                }, agent.conversations.length);
+            function saveMemoryEdits() {
+                const target = memoryEditorMode === 'room' ? getCurrentRoom() : getCurrentAgent();
+                if (!target) return;
+                const total = memoryEditorMode === 'room' ? target.messages.length : target.conversations.length;
+                const previous = Memory.normalizeMemory(memoryEditorMode === 'room' ? target.sharedMemory : target.memory, total);
+                const updated = Memory.normalizeMemory({ ...previous, core:$memoryCoreInput.value.trim(), facts:memoryDraftFacts, segments:memoryDraftSegments.map(segment => ({ ...segment, summary:String(segment.summary || '').trim() })).filter(segment => segment.summary), updatedAt:Date.now() }, total);
+                if (memoryEditorMode === 'room') {
+                    target.sharedMemory = updated;
+                    target.characterMemories = {};
+                    target.participants.forEach(member => target.characterMemories[member.id] = Memory.normalizeMemory(roomCharacterMemoryDrafts[member.id], total));
+                } else target.memory = updated;
                 saveData();
                 updateMemoryStatus();
-                closeStoryMemoryManager();
-                showToast('剧情长期记忆已保存', 'success');
+                closeMemoryManager();
+                showToast(`${memoryEditorMode === 'room' ? '房间' : '剧情'}长期记忆已保存`, 'success');
             }
 
-            $btnMemoryManager.addEventListener('click', openStoryMemoryManager);
-            $btnMemoryEditorClose.addEventListener('click', closeStoryMemoryManager);
-            $btnCancelMemoryEdit.addEventListener('click', closeStoryMemoryManager);
-            $btnSaveMemoryEdit.addEventListener('click', saveStoryMemoryEdits);
+            $btnMemoryManager.addEventListener('click', openMemoryManager);
+            $btnMemoryEditorClose.addEventListener('click', closeMemoryManager);
+            $btnCancelMemoryEdit.addEventListener('click', closeMemoryManager);
+            $btnSaveMemoryEdit.addEventListener('click', saveMemoryEdits);
+            $btnAddMemoryFact.addEventListener('click', () => { memoryDraftFacts.push(Memory.createMemoryFact({ category:'重要事件', text:'', importance:3 })); renderMemoryManager(); });
             $btnResetStoryMemory.addEventListener('click', () => {
-                const agent = getCurrentAgent();
-                if (!agent) return;
-                if (!confirm('确定清空当前整理结果吗？完整聊天原文不会删除；后续发送时会从原文重新建立记忆。')) return;
-                agent.memory = Memory.createEmptyMemory();
-                saveData();
-                updateMemoryStatus();
-                closeStoryMemoryManager();
-                showToast('已清空整理结果，完整原文仍然保留', 'success');
+                const target = memoryEditorMode === 'room' ? getCurrentRoom() : getCurrentAgent();
+                if (!target || !confirm('确定清空当前整理结果吗？完整聊天原文不会删除；后续会从原文重新建立记忆。')) return;
+                if (memoryEditorMode === 'room') {
+                    target.sharedMemory = Memory.createEmptyMemory();
+                    target.characterMemories = {};
+                    target.participants.forEach(member => target.characterMemories[member.id] = Memory.createEmptyMemory());
+                } else target.memory = Memory.createEmptyMemory();
+                saveData(); updateMemoryStatus(); closeMemoryManager(); showToast('已清空整理结果，完整原文仍然保留', 'success');
             });
 
             function formatMessageContent(content) {
@@ -5577,11 +6151,12 @@
                 const summarySystemPrompt = [
                     '你是长期对话的记忆整理器。只提取给定记录中明确出现的事实，严禁推测或补写。',
                     '你必须输出合法 json 对象，且只输出 json。格式：',
-                    '{"core_memory":"结构化持续记忆","episode_title":"本段短标题","episode_summary":"按发生顺序的详细篇章记忆","keywords":["专名或主题"],"importance":3}',
+                    '{"core_memory":"结构化持续记忆","episode_title":"本段短标题","episode_summary":"按发生顺序的详细篇章记忆","keywords":["专名或主题"],"importance":3,"facts":[{"category":"角色状态","text":"明确事实","importance":4}]}',
                     'core_memory 必须在旧核心记忆基础上保守更新，并按“稳定身份与设定、当前人物状态、关系变化、时间地点、承诺与约定、未解决线索、更正与失效信息”组织。',
                     '角色已经发生的成长、立场变化与关系变化必须保留；新状态不能被早期静态描述覆盖。存在矛盾时记录变化的前后顺序。',
                     'episode_summary 要保留事件顺序、关键原话含义、因果、参与者、地点、物件、情绪与关系变化；不评价文笔，不把提示词写入故事记忆。',
                     'importance 为1到5的整数：日常过渡为1，普通事件为2到3，改变关系、角色或主线的事件为4到5。',
+                    'facts只提取值得跨篇章保持的独立事实；category只能从核心设定、角色状态、角色成长、关系变化、装备技能、时间地点、重要事件、伏笔目标、知识秘密、更正失效中选择。',
                 ].join('\n');
                 const summaryUserPrompt = [
                     '请把下面内容整理为 json 长期记忆。',
@@ -5598,6 +6173,7 @@
                 if (!core || !episode) throw new Error('长期记忆整理结果缺少必要字段');
 
                 memory.core = core.slice(0, 36000);
+                memory.facts = Memory.mergeMemoryFacts(memory.facts, result.facts, chunk);
                 memory.segments.push({
                     id: `memory_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
                     startIndex: chunk.startIndex,
@@ -5656,7 +6232,7 @@
                             '你是多人房间的长期记忆整理器。只记录原文中明确发生的事实，严禁补写。',
                             '公共记忆只能包含所有在场者可观察或已公开的信息；角色独立记忆可以保留该角色的个人感受、关系认知、私人目标与只对其公开的信息。',
                             '不要把提示词、人设原文或亲密度隐藏判定写入记忆。保留专名、承诺、关系变化、未完成事件和场景状态。',
-                            '只输出合法JSON：{"shared_core":"结构化公共持续状态","episode_title":"本段短标题","episode_summary":"详细事件摘要","keywords":["关键词"],"importance":3,"character_memory":{"角色id":"该角色更新后的持续独立记忆"},"character_episode":{"角色id":"该角色对此段经历可记住的个人版本"}}',
+                            '只输出合法JSON：{"shared_core":"结构化公共持续状态","episode_title":"本段短标题","episode_summary":"详细事件摘要","keywords":["关键词"],"importance":3,"shared_facts":[{"category":"重要事件","text":"公开事实","importance":4}],"character_memory":{"角色id":"该角色更新后的持续独立记忆"},"character_episode":{"角色id":"该角色对此段经历可记住的个人版本"},"character_facts":{"角色id":[{"category":"知识秘密","text":"该角色能够知道的事实","importance":4}]}}',
                             'shared_core按“时间地点、公开事实、场景状态、关系变化、承诺、关键物件、未解决线索”组织，并明确新旧状态的变化顺序。',
                             'character_memory必须使用给定角色id作为键，在旧独立记忆基础上保守更新角色的感受、认知、秘密、目标和成长。character_episode只记录该角色确实经历或能够知道的本段内容。',
                             'importance 为1到5的整数；改变角色、关系或主线的事件应为4到5。',
@@ -5676,6 +6252,7 @@
                 const episode = typeof result.episode_summary === 'string' ? result.episode_summary.trim() : '';
                 if (!sharedCore || !episode) throw new Error('房间记忆整理结果缺少必要字段');
                 shared.core = sharedCore.slice(0, 36000);
+                shared.facts = Memory.mergeMemoryFacts(shared.facts, result.shared_facts, chunk);
                 shared.segments.push({
                     id: Rooms.createId('roommemory'),
                     startIndex: chunk.startIndex,
@@ -5694,6 +6271,7 @@
                     const state = Memory.normalizeMemory(room.characterMemories[member.id], room.messages.length);
                     const nextCore = result.character_memory?.[member.id];
                     if (typeof nextCore === 'string' && nextCore.trim()) state.core = nextCore.trim().slice(0, 24000);
+                    state.facts = Memory.mergeMemoryFacts(state.facts, result.character_facts?.[member.id], chunk);
                     const characterEpisode = result.character_episode?.[member.id];
                     if (typeof characterEpisode === 'string' && characterEpisode.trim()) {
                         state.segments.push({
@@ -5878,7 +6456,7 @@
             async function sendRoomMessage(userContent, options = {}) {
                 if (isGenerating) return;
                 if (!appData.apiKey) {
-                    showToast('请先在侧边栏设置API Key', 'error');
+                    showToast('请先在“我的”中设置 API Key', 'error');
                     return;
                 }
                 const room = getCurrentRoom();
@@ -5904,6 +6482,7 @@
                     createdAt: Date.now(),
                 });
                 room.updatedAt = Date.now();
+                room.draft = '';
                 roomRenderedMessageRange = null;
                 saveData();
                 renderMessages();
@@ -6013,7 +6592,7 @@
                 }
                 if (isGenerating) return;
                 if (!appData.apiKey) {
-                    showToast('请先在侧边栏设置API Key', 'error');
+                    showToast('请先在“我的”中设置 API Key', 'error');
                     return;
                 }
                 const agent = getCurrentAgent();
@@ -6024,6 +6603,7 @@
                 if (!userContent.trim()) return;
 
                 agent.conversations.push({ role: 'user', content: userContent.trim(), createdAt: Date.now(), bookmarked: false });
+                agent.draft = '';
                 storyRenderedMessageRange = null;
                 saveData();
                 renderMessages();
@@ -6232,7 +6812,8 @@
             function normalizeMemoryAfterUndo(memory, conversationLength) {
                 const previous = Memory.normalizeMemory(memory);
                 const containsRemovedMessages = previous.summarizedUntil > conversationLength
-                    || previous.segments.some(segment => segment.endIndex > conversationLength);
+                    || previous.segments.some(segment => segment.endIndex > conversationLength)
+                    || previous.facts.some(fact => Number.isInteger(fact.sourceEndIndex) && fact.sourceEndIndex > conversationLength);
                 return containsRemovedMessages
                     ? Memory.createEmptyMemory()
                     : Memory.normalizeMemory(previous, conversationLength);
@@ -6345,6 +6926,201 @@
                 if (abortController) abortController.abort();
             }
 
+            // ==================== 输入区高频工具 ====================
+            function appendToComposer(text, replace = false) {
+                const value = String(text || '').trim();
+                if (!value) return;
+                $messageInput.value = replace ? value : [$messageInput.value.trimEnd(), value].filter(Boolean).join('\n');
+                $messageInput.dispatchEvent(new Event('input'));
+                $messageInput.focus();
+            }
+
+            function showLastInput() {
+                const last = [...getActiveMessages()].reverse().find(message => message.role === 'user');
+                if (!last) return showToast('当前还没有上一次输入', 'info');
+                const compact = String(last.content || '').trim();
+                const preview = compact.split('\n').slice(0, 4).join('\n').slice(0, 260);
+                $lastInputPopover.innerHTML = `<strong>上次输入</strong>${escapeHtml(preview)}${compact.length > preview.length ? '…' : ''}`.replace(/\n/g, '<br>');
+                $lastInputPopover.hidden = false;
+            }
+
+            function closeInspiration() {
+                $inspirationOverlay.style.display = 'none';
+            }
+
+            function renderInspirationSuggestions(suggestions) {
+                const list = Array.isArray(suggestions) ? suggestions : [];
+                if (!list.length) {
+                    $inspirationResults.innerHTML = '<div class="v2-empty-note">这次没有得到有效候选，请换个方向重试。</div>';
+                    return;
+                }
+                $inspirationResults.innerHTML = list.slice(0, 4).map((item, index) => {
+                    const title = typeof item === 'string' ? `候选 ${index + 1}` : String(item.title || `候选 ${index + 1}`);
+                    const text = typeof item === 'string' ? item : String(item.text || item.prompt || '');
+                    return `<article class="suggestion-card" data-suggestion-index="${index}"><strong>${escapeHtml(title)}</strong><p>${escapeHtml(text)}</p><div class="suggestion-actions"><button type="button" class="mini-action-btn suggestion-use">使用</button></div></article>`;
+                }).join('');
+                $inspirationResults.querySelectorAll('[data-suggestion-index]').forEach((card, index) => {
+                    const item = list[index];
+                    const text = typeof item === 'string' ? item : String(item.text || item.prompt || '');
+                    card.querySelector('.suggestion-use').addEventListener('click', () => { appendToComposer(text, true); closeInspiration(); });
+                });
+            }
+
+            async function generateInspiration() {
+                const agent = getCurrentAgent();
+                if (appData.activeMode !== 'story' || !agent) return showToast('灵感推荐目前用于剧情模式', 'info');
+                if (!appData.apiKey) return showToast('请先在“我的”中设置 API Key', 'error');
+                $btnGenerateInspiration.disabled = true;
+                $inspirationResults.innerHTML = '<div class="v2-empty-note">正在结合剧情历史与未解决线索整理候选……</div>';
+                try {
+                    const settings = Memory.normalizeConfig(appData.storyMemorySettings);
+                    const memory = Memory.buildMemoryContext(agent.memory, $inspirationRequestInput.value, settings, { tokenBudget: 12000 });
+                    const recent = agent.conversations.slice(-28).map(message => `${message.role === 'user' ? '用户' : '剧情'}：${message.content}`).join('\n');
+                    const result = await callDeepSeekJSON([
+                        { role:'system', content:[
+                            '你是剧情创作的候选输入助手，只为用户草拟下一条可以发送给剧情AI的提示词。',
+                            '候选只是沙盒草稿，不代表已经发生的事件，不得假装它已进入剧情。',
+                            '遵守既有人设、世界书、时间线、角色知识边界和因果，不强行制造反转。',
+                            '只输出合法JSON：{"suggestions":[{"title":"自然延续","text":"用户可编辑的提示词"},{"title":"人物互动","text":"..."},{"title":"主线推进","text":"..."}]}',
+                        ].join('\n') },
+                        { role:'user', content:[
+                            '【只读剧情设定】\n' + Story.buildStructuredPrompt(agent, StyleLab.buildInfluencePrompt(agent.styleInfluence)),
+                            '【只读长期记忆】\n' + (memory || '（尚无）'),
+                            '【最近对话】\n' + (recent || '（尚未开始）'),
+                            '【用户希望的方向】\n' + ($inspirationRequestInput.value.trim() || '没有额外要求，请给出自然、克制且彼此有差异的候选。'),
+                        ].join('\n\n') },
+                    ], { maxTokens: 2600, temperature: 0.72 });
+                    renderInspirationSuggestions(result.suggestions);
+                } catch (error) {
+                    $inspirationResults.innerHTML = `<div class="v2-empty-note">生成失败：${escapeHtml(error.message)}</div>`;
+                } finally {
+                    $btnGenerateInspiration.disabled = false;
+                }
+            }
+
+            function getCurrentSnippetTarget() {
+                return appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
+            }
+
+            function renderSnippets() {
+                if (!snippetsDraft.length) {
+                    $snippetsList.innerHTML = '<div class="v2-empty-note">还没有常用语段，可以新增一条。</div>';
+                    return;
+                }
+                $snippetsList.innerHTML = snippetsDraft.map((item, index) => `<div class="snippet-row" data-snippet-index="${index}"><select class="snippet-scope"><option value="current" ${item.scope === 'current' ? 'selected' : ''}>当前作品</option><option value="global" ${item.scope === 'global' ? 'selected' : ''}>全部作品</option></select><textarea class="snippet-text" placeholder="输入常用提示语段">${escapeHtml(item.text)}</textarea><div class="snippet-actions"><button type="button" class="mini-action-btn snippet-up" ${index === 0 ? 'disabled' : ''}>↑</button><button type="button" class="mini-action-btn snippet-down" ${index === snippetsDraft.length - 1 ? 'disabled' : ''}>↓</button><button type="button" class="mini-action-btn snippet-use">使用</button><button type="button" class="mini-action-btn danger snippet-delete">删除</button></div></div>`).join('');
+                $snippetsList.querySelectorAll('[data-snippet-index]').forEach((row, index) => {
+                    const item = snippetsDraft[index];
+                    row.querySelector('.snippet-scope').addEventListener('change', event => item.scope = event.target.value);
+                    row.querySelector('.snippet-text').addEventListener('input', event => item.text = event.target.value);
+                    row.querySelector('.snippet-use').addEventListener('click', () => { appendToComposer(item.text); $snippetsOverlay.style.display = 'none'; });
+                    row.querySelector('.snippet-delete').addEventListener('click', () => { snippetsDraft.splice(index, 1); renderSnippets(); });
+                    row.querySelector('.snippet-up').addEventListener('click', () => { if (index > 0) { [snippetsDraft[index - 1], snippetsDraft[index]] = [snippetsDraft[index], snippetsDraft[index - 1]]; renderSnippets(); } });
+                    row.querySelector('.snippet-down').addEventListener('click', () => { if (index < snippetsDraft.length - 1) { [snippetsDraft[index + 1], snippetsDraft[index]] = [snippetsDraft[index], snippetsDraft[index + 1]]; renderSnippets(); } });
+                });
+            }
+
+            function openSnippets() {
+                const target = getCurrentSnippetTarget();
+                snippetsDraft = [
+                    ...appData.commonSnippets.map(text => ({ scope:'global', text })),
+                    ...(target?.snippets || []).map(text => ({ scope:'current', text })),
+                ];
+                renderSnippets();
+                $snippetsOverlay.style.display = 'flex';
+            }
+
+            function saveSnippets() {
+                const target = getCurrentSnippetTarget();
+                appData.commonSnippets = snippetsDraft.filter(item => item.scope === 'global').map(item => item.text.trim()).filter(Boolean).slice(0,80);
+                if (target) target.snippets = snippetsDraft.filter(item => item.scope === 'current').map(item => item.text.trim()).filter(Boolean).slice(0,80);
+                saveData();
+                $snippetsOverlay.style.display = 'none';
+                showToast('常用语段已保存', 'success');
+            }
+
+            // ==================== 气泡长按操作 ====================
+            async function copyMessageAt(index) {
+                const message = getActiveMessages()[index];
+                if (!message) return;
+                try {
+                    await navigator.clipboard.writeText(message.content);
+                } catch (error) {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = message.content; document.body.appendChild(textarea); textarea.select(); document.execCommand('copy'); textarea.remove();
+                }
+                showToast('已复制消息正文', 'success');
+            }
+
+            function closeMessageActions() {
+                $messageActionOverlay.hidden = true;
+                activeMessageActionIndex = null;
+            }
+
+            function openMessageActions(index) {
+                const messages = getActiveMessages();
+                const message = messages[index];
+                if (!message) return;
+                activeMessageActionIndex = index;
+                const lastConversationalIndex = messages.map((item, itemIndex) => ({ item, itemIndex })).reverse().find(entry => entry.item.role === 'user' || entry.item.role === 'assistant')?.itemIndex;
+                const latest = index === lastConversationalIndex;
+                const actions = [
+                    '<button type="button" data-message-action="copy">复制正文</button>',
+                    '<button type="button" data-message-action="bookmark">' + (message.bookmarked ? '取消收藏' : '收藏并加入定位') + '</button>',
+                    '<button type="button" data-message-action="locate">定位这条消息</button>',
+                    latest && message.role === 'assistant' ? '<button type="button" data-message-action="regenerate">重新生成这次回复</button>' : '',
+                    latest ? '<button type="button" data-message-action="undo">撤回上一轮</button>' : '',
+                    '<button type="button" class="danger" data-message-action="restart">重启当前对话</button>',
+                ].filter(Boolean).join('');
+                $messageActionSheet.innerHTML = `<div class="action-sheet-title">消息 #${index + 1}</div>${actions}`;
+                $messageActionOverlay.hidden = false;
+            }
+
+            $messageActionSheet.addEventListener('click', async event => {
+                const button = event.target.closest('[data-message-action]');
+                if (!button || activeMessageActionIndex === null) return;
+                const index = activeMessageActionIndex;
+                const message = getActiveMessages()[index];
+                const action = button.dataset.messageAction;
+                closeMessageActions();
+                if (action === 'copy') await copyMessageAt(index);
+                if (action === 'bookmark' && message) { message.bookmarked = !message.bookmarked; saveData(); renderMessages({ preserveScroll:true }); }
+                if (action === 'locate') { setMessageRenderRange({ start:Math.max(0,index - 70), end:Math.min(getActiveMessages().length,index + 80) }); renderMessages({ preserveScroll:true }); requestAnimationFrame(() => document.querySelector(`[data-message-index="${index}"]`)?.scrollIntoView({ block:'center' })); }
+                if (action === 'regenerate') regenerate();
+                if (action === 'undo') undoMessage();
+                if (action === 'restart') restartConversation();
+            });
+            $messageActionOverlay.addEventListener('click', event => { if (event.target === $messageActionOverlay) closeMessageActions(); });
+
+            let longPressTimer = null;
+            let longPressStart = null;
+            $messagesContainer.addEventListener('pointerdown', event => {
+                const item = event.target.closest('[data-message-index]');
+                if (!item || event.target.closest('button')) return;
+                longPressStart = { x:event.clientX, y:event.clientY };
+                longPressTimer = setTimeout(() => { longPressTimer = null; openMessageActions(Number(item.dataset.messageIndex)); }, 520);
+            });
+            $messagesContainer.addEventListener('pointermove', event => {
+                if (longPressTimer && longPressStart && Math.hypot(event.clientX - longPressStart.x, event.clientY - longPressStart.y) > 10) { clearTimeout(longPressTimer); longPressTimer = null; }
+            });
+            ['pointerup','pointercancel','pointerleave'].forEach(type => $messagesContainer.addEventListener(type, () => { if (longPressTimer) clearTimeout(longPressTimer); longPressTimer = null; }));
+            $messagesContainer.addEventListener('contextmenu', event => {
+                const item = event.target.closest('[data-message-index]');
+                if (!item) return;
+                event.preventDefault(); openMessageActions(Number(item.dataset.messageIndex));
+            });
+
+            $btnLastInput.addEventListener('click', event => { event.stopPropagation(); showLastInput(); });
+            document.addEventListener('click', event => { if (!event.target.closest('#lastInputPopover') && event.target !== $btnLastInput) $lastInputPopover.hidden = true; });
+            $btnInspiration.addEventListener('click', () => { if (appData.activeMode !== 'story') return showToast('灵感推荐目前用于剧情模式', 'info'); $inspirationOverlay.style.display = 'flex'; });
+            $btnCloseInspiration.addEventListener('click', closeInspiration);
+            $btnGenerateInspiration.addEventListener('click', generateInspiration);
+            $inspirationOverlay.addEventListener('click', event => { if (event.target === $inspirationOverlay) closeInspiration(); });
+            $btnSnippets.addEventListener('click', openSnippets);
+            $btnCloseSnippets.addEventListener('click', () => $snippetsOverlay.style.display = 'none');
+            $btnAddSnippet.addEventListener('click', () => { snippetsDraft.push({ scope:'current', text:'' }); renderSnippets(); });
+            $btnSaveSnippets.addEventListener('click', saveSnippets);
+            $snippetsOverlay.addEventListener('click', event => { if (event.target === $snippetsOverlay) $snippetsOverlay.style.display = 'none'; });
+
             // ==================== 事件绑定 ====================
             $btnSend.addEventListener('click', () => {
                 if (isGenerating) {
@@ -6356,7 +7132,9 @@
             });
 
             $messageInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+                const mobileKeyboard = window.matchMedia?.('(pointer: coarse)').matches
+                    || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+                if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && !mobileKeyboard) {
                     e.preventDefault();
                     if (isGenerating) {
                         stopGeneration();
@@ -6370,6 +7148,11 @@
             $messageInput.addEventListener('input', () => {
                 $messageInput.style.height = 'auto';
                 $messageInput.style.height = Math.min($messageInput.scrollHeight, 140) + 'px';
+                const target = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
+                if (target) {
+                    target.draft = $messageInput.value;
+                    saveData();
+                }
             });
 
             $btnRegenerate.addEventListener('click', regenerate);
@@ -6473,6 +7256,7 @@
 
             // ==================== 初始化 ====================
             async function init() {
+                prepareV2Shell();
                 try {
                     const testKey = '__storage_test__';
                     localStorage.setItem(testKey, '1');
@@ -6489,6 +7273,8 @@
                 
                 renderAgentsList();
                 renderRoomsList();
+                renderHomeLibraries();
+                setHomeTab('story');
                 updateModeUI();
                 renderMessages();
                 updateToolbarButtons();
@@ -6496,10 +7282,8 @@
                 updateMemoryStatus();
                 await refreshStorageStatus();
 
-                const currentTarget = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
-                if (appData.apiKey && currentTarget) {
-                    setTimeout(() => $messageInput.focus(), 300);
-                }
+                $chatShell.classList.add('is-hidden');
+                $homeShell.classList.remove('is-hidden');
             }
 
             // ==================== 键盘快捷键 ====================

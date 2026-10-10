@@ -5,6 +5,10 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
 
+    const WorldBook = typeof module === 'object' && module.exports
+        ? require('./worldbook.js')
+        : globalThis.StarlightWorldBook;
+
     const LEGACY_DEFAULT_STORY_RULES = [
         '这是一个持续发展的单角色剧情对话。你只扮演设定中的AI角色与必要的客观环境。',
         '不得替用户决定台词、行动、思想或感受；只能回应用户已经明确表达的内容。',
@@ -169,6 +173,9 @@
             avatar: safeImageDataUrl(source.avatar),
             storyRules,
             worldPrompt: asString(source.worldPrompt).trim(),
+            worldBook: WorldBook
+                ? WorldBook.normalizeWorldBook(source.worldBook, source.worldPrompt)
+                : source.worldBook,
             openingScene: asString(source.openingScene).trim(),
             userPersona: asString(source.userPersona).trim(),
             characters: normalizeCharacters(source),
@@ -178,6 +185,8 @@
             styleInfluence: source.styleInfluence && typeof source.styleInfluence === 'object'
                 ? JSON.parse(JSON.stringify(source.styleInfluence))
                 : null,
+            snippets: Array.isArray(source.snippets) ? source.snippets.map(String).filter(Boolean).slice(0, 80) : [],
+            draft: asString(source.draft),
             conversations,
             memory: memoryApi && typeof memoryApi.normalizeMemory === 'function'
                 ? memoryApi.normalizeMemory(source.memory, conversations.length)
@@ -208,9 +217,12 @@
     function buildStructuredPrompt(agent, styleInfluencePrompt) {
         const story = normalizeAgent(agent);
         const characterBlocks = story.characters.map(buildCharacterBlock).join('\n\n');
+        const worldBookPrompt = WorldBook
+            ? WorldBook.buildWorldBookPrompt(story.worldBook, story.conversations.at(-1)?.content || '')
+            : story.worldPrompt;
         const sections = [
             '【剧情模式固定规则】\n' + story.storyRules,
-            '【世界观与背景】\n' + (story.worldPrompt || '（依据对话中已经建立的世界继续，不擅自添加会改变设定的规则。）'),
+            worldBookPrompt || '【世界书】\n（依据对话中已经建立的世界继续，不擅自添加会改变设定的规则。）',
             '【当前或开场场景】\n' + (story.openingScene || '（延续最近对话中的时间、地点与事件。）'),
             '【用户所扮演的角色】\n' + (story.userPersona || '（只依据用户明确表达的信息判断，不替用户补写设定。）'),
             '【角色设定区｜各角色资料彼此独立】\n' + characterBlocks,

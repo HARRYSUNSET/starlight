@@ -47,16 +47,17 @@ test('重启应用时会恢复独立的剧情或房间页面，并兼容旧通�
     assert.match(functionBody('init', null), /updateModeUI\(\);[\s\S]*?renderMessages\(\);/);
 });
 
-test('全局智能体菜单监听器不会在每次渲染时重复注册', () => {
-    const matches = html.match(/document\.addEventListener\('click'/g) || [];
-    assert.equal(matches.length, 1);
+test('作品卡片菜单监听器只在主页渲染器中绑定到卡片自身', () => {
+    const renderHome = functionBody('renderHomeCollection', 'renderHomeLibraries');
+    assert.match(renderHome, /container\.querySelectorAll\('\.v2-work-card'\)/);
+    assert.doesNotMatch(renderHome, /document\.addEventListener/);
 });
 
 test('应用版本号在 npm 与 Android 配置中一致', () => {
     const gradle = fs.readFileSync(path.join(root, 'android', 'app', 'build.gradle'), 'utf8');
-    assert.equal(packageJson.version, '1.7.0');
-    assert.match(gradle, /versionCode\s+11/);
-    assert.match(gradle, /versionName\s+"1\.7\.0"/);
+    assert.equal(packageJson.version, '2.0.0');
+    assert.match(gradle, /versionCode\s+12/);
+    assert.match(gradle, /versionName\s+"2\.0"/);
 });
 
 test('模型列表只保留 DeepSeek 官方当前模型标识', () => {
@@ -74,13 +75,14 @@ test('长对话定位器支持搜索、收藏和分窗跳转', () => {
     assert.doesNotMatch(html, /renderedMessageLimit/);
 });
 
-test('剧情定位与收藏入口不会渗入房间消息页面', () => {
+test('剧情与房间共享定位外壳但读取各自独立消息集合', () => {
     const start = html.indexOf('function renderRoomMessages');
     const end = html.indexOf("$messagesContainer.addEventListener('click'", start);
     const roomRender = html.slice(start, end);
     assert.doesNotMatch(roomRender, /bookmark-btn/);
     assert.doesNotMatch(roomRender, /data-locate-index/);
-    assert.match(functionBody('openConversationNavigator', 'closeConversationNavigator'), /activeMode !== 'story'/);
+    assert.match(functionBody('openConversationNavigator', 'closeConversationNavigator'), /getActiveMessages\(\)/);
+    assert.match(functionBody('jumpToMessage', null), /setMessageRenderRange/);
 });
 
 test('剧情智能体和房间分别使用自己的全屏结构化编辑器', () => {
@@ -109,12 +111,45 @@ test('剧情与房间拥有分离的记忆设置和消息窗口状态', () => {
     assert.match(html, /appData\.activeMode === 'room'[\s\S]*?appData\.roomMemorySettings[\s\S]*?appData\.storyMemorySettings/);
 });
 
-test('剧情长期记忆提供可查看、编辑和重建页面', () => {
+test('剧情与房间长期记忆提供查看、编辑、事实与重建页面', () => {
     assert.match(html, /id="memoryEditorOverlay"/);
     assert.match(html, /id="memoryCoreInput"/);
     assert.match(html, /memory-segment-summary/);
-    assert.match(html, /function saveStoryMemoryEdits/);
+    assert.match(html, /function saveMemoryEdits/);
+    assert.match(html, /id="memoryFactsList"/);
+    assert.match(html, /id="roomCharacterMemoryList"/);
     assert.match(html, /btnResetStoryMemory/);
+});
+
+test('2.0 使用剧情、房间、我的三级主页且聊天页不再依赖侧边栏', () => {
+    assert.match(html, /id="homeStoryPage"/);
+    assert.match(html, /id="homeRoomPage"/);
+    assert.match(html, /id="homeMyPage"/);
+    assert.match(html, /data-home-tab="story"/);
+    assert.match(html, /data-home-tab="room"/);
+    assert.match(html, /data-home-tab="my"/);
+    assert.match(html, /#chatShell \.sidebar,#chatShell \.sidebar-overlay \{ display:none !important; \}/);
+});
+
+test('聊天页世界书只有设定页数据源且高频工具不包含世界书', () => {
+    assert.match(html, /id="storyWorldBookEditor"/);
+    assert.match(html, /id="roomWorldBookEditor"/);
+    assert.match(html, /function collectWorldBook/);
+    const prepare = functionBody('prepareV2Shell', 'setHomeTab');
+    assert.match(prepare, /\$btnLocate, \$btnMemoryManager, \$btnStyleLab/);
+    assert.doesNotMatch(prepare, /WorldBook|世界书/);
+});
+
+test('候选灵感和文风沙盒都不会写入正式消息或记忆', () => {
+    const inspiration = functionBody('generateInspiration', 'getCurrentSnippetTarget');
+    assert.match(inspiration, /候选只是沙盒草稿/);
+    assert.doesNotMatch(inspiration, /\.conversations\.push|\.messages\.push|sharedMemory\s*=|characterMemories\s*=/);
+    assert.match(html, /不会自动发送/);
+});
+
+test('手机粗指针设备的 Enter 保留为换行', () => {
+    assert.match(html, /matchMedia\?\.\('\(pointer: coarse\)'\)/);
+    assert.match(html, /!mobileKeyboard/);
 });
 
 test('文风工坊具有独立全屏页面、因子库和应用快照', () => {

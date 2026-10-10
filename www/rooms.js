@@ -5,6 +5,10 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
 
+    const WorldBook = typeof module === 'object' && module.exports
+        ? require('./worldbook.js')
+        : globalThis.StarlightWorldBook;
+
     const MAX_INTIMACY = 200;
     const MAX_GROUP_MEMBERS = 8;
     const MAX_SMART_SPEAKERS = 3;
@@ -249,8 +253,12 @@
             id: asString(source.id) || createId('room'),
             roomType,
             name: asString(source.name, roomType === 'double' ? '双人房间' : '多人房间').trim(),
+            subtitle: asString(source.subtitle).trim(),
             basePrompt: asString(source.basePrompt, DEFAULT_ROOM_PROMPT).trim() || DEFAULT_ROOM_PROMPT,
             worldPrompt: asString(source.worldPrompt).trim(),
+            worldBook: WorldBook
+                ? WorldBook.normalizeWorldBook(source.worldBook, source.worldPrompt)
+                : source.worldBook,
             scenePrompt: asString(source.scenePrompt).trim(),
             userPersona: asString(source.userPersona).trim(),
             styleExamples: asString(source.styleExamples).trim(),
@@ -258,6 +266,8 @@
             styleInfluence: source.styleInfluence && typeof source.styleInfluence === 'object'
                 ? JSON.parse(JSON.stringify(source.styleInfluence))
                 : null,
+            snippets: Array.isArray(source.snippets) ? source.snippets.map(String).filter(Boolean).slice(0, 80) : [],
+            draft: asString(source.draft),
             styleEnabled: source.styleEnabled !== false,
             stylePrompt: legacyDefaultStyle
                 ? STORY_STYLE_GUIDE
@@ -385,10 +395,14 @@
         const availableNodes = getAvailableNodes(room);
         const characterMemory = asString(contexts.characterMemory).trim();
         const sharedMemory = asString(contexts.sharedMemory).trim();
+        const latestQuery = [...(room.messages || [])].reverse().find(message => message.role === 'user')?.content || '';
+        const worldBookPrompt = WorldBook
+            ? WorldBook.buildWorldBookPrompt(room.worldBook, latestQuery, { characterId: member.id })
+            : room.worldPrompt;
         const sections = [
             '【房间模式固定规则】\n' + DEFAULT_ROOM_PROMPT,
             '【本房间底层规则】\n' + (room.basePrompt || '（无附加规则）'),
-            '【世界观】\n' + (room.worldPrompt || '（未单独设定）'),
+            worldBookPrompt || '【世界书】\n（未单独设定）',
             '【当前场景】\n' + (room.scenePrompt || '（延续最近对话）'),
             '【用户所扮演的角色】\n' + (room.userPersona || '（用户未填写详细设定，只能依据其明确发言判断）'),
             '【其他补充信息】\n' + (room.otherInfo || '（无）'),
@@ -510,7 +524,7 @@
             {
                 role: 'user',
                 content: [
-                    '【世界观】\n' + (room.worldPrompt || '（未设定）'),
+                    (WorldBook ? WorldBook.buildWorldBookPrompt(room.worldBook, hint || '') : room.worldPrompt) || '【世界书】\n（未设定）',
                     '【当前场景】\n' + (room.scenePrompt || '（延续当前场景）'),
                     '【调度提示】\n' + (asString(hint) || '自然衔接当前交流'),
                     '【最近对话】\n' + recent,
@@ -552,7 +566,7 @@
                     '【角色语言与行动风格】\n' + member.speakingStyle,
                     '【角色私人目标】\n' + member.privateGoal,
                     '【用户角色设定】\n' + room.userPersona,
-                    '【世界与场景】\n' + [room.worldPrompt, room.scenePrompt].filter(Boolean).join('\n'),
+                    '【世界与场景】\n' + [WorldBook ? WorldBook.buildWorldBookPrompt(room.worldBook, '', { characterId: member.id }) : room.worldPrompt, room.scenePrompt].filter(Boolean).join('\n'),
                     '【角色成长与当前状态】\n' + [member.growthNotes, member.currentState, member.relationships].filter(Boolean).join('\n'),
                 ].join('\n\n'),
             },

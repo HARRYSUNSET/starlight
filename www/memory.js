@@ -89,21 +89,79 @@
 
     function createEmptyMemory() {
         return {
-            version: 2,
+            version: 3,
             summarizedUntil: 0,
             core: '',
+            facts: [],
             segments: [],
             updatedAt: 0,
         };
+    }
+
+    const MEMORY_CATEGORIES = Object.freeze([
+        '核心设定', '角色状态', '角色成长', '关系变化', '装备技能',
+        '时间地点', '重要事件', '伏笔目标', '知识秘密', '更正失效',
+    ]);
+
+    function createMemoryFact(input) {
+        const source = input && typeof input === 'object' ? input : {};
+        return {
+            id: String(source.id || ('fact_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7))),
+            category: MEMORY_CATEGORIES.includes(source.category) ? source.category : '重要事件',
+            text: typeof source.text === 'string' ? source.text.trim() : '',
+            importance: toFiniteInt(source.importance, 3, 1, 5),
+            locked: source.locked === true,
+            status: ['active', 'expired', 'corrected'].includes(source.status) ? source.status : 'active',
+            sourceStartIndex: Number.isInteger(source.sourceStartIndex) ? Math.max(0, source.sourceStartIndex) : null,
+            sourceEndIndex: Number.isInteger(source.sourceEndIndex) ? Math.max(0, source.sourceEndIndex) : null,
+            createdAt: toFiniteInt(source.createdAt, Date.now(), 0, Number.MAX_SAFE_INTEGER),
+            updatedAt: toFiniteInt(source.updatedAt, Date.now(), 0, Number.MAX_SAFE_INTEGER),
+        };
+    }
+
+    function normalizeMemoryFacts(facts) {
+        const seen = new Set();
+        return (Array.isArray(facts) ? facts : [])
+            .map(createMemoryFact)
+            .filter(function (fact) {
+                if (!fact.text || seen.has(fact.id)) return false;
+                seen.add(fact.id);
+                return true;
+            });
+    }
+
+    function mergeMemoryFacts(existingFacts, incomingFacts, range) {
+        const existing = normalizeMemoryFacts(existingFacts);
+        const incoming = normalizeMemoryFacts((Array.isArray(incomingFacts) ? incomingFacts : []).map(function (fact) {
+            return Object.assign({}, fact, {
+                sourceStartIndex: Number.isInteger(fact && fact.sourceStartIndex) ? fact.sourceStartIndex : range && range.startIndex,
+                sourceEndIndex: Number.isInteger(fact && fact.sourceEndIndex) ? fact.sourceEndIndex : range && range.endIndex,
+            });
+        }));
+        incoming.forEach(function (fact) {
+            const duplicate = existing.find(function (item) {
+                return item.status === 'active' && item.text.toLowerCase() === fact.text.toLowerCase();
+            });
+            if (duplicate) {
+                if (!duplicate.locked) Object.assign(duplicate, fact, { id: duplicate.id, createdAt: duplicate.createdAt });
+            } else {
+                existing.push(fact);
+            }
+        });
+        const locked = existing.filter(function (fact) { return fact.locked; });
+        const unlocked = existing.filter(function (fact) { return !fact.locked; });
+        const remaining = Math.max(0, 500 - locked.length);
+        return locked.concat(remaining > 0 ? unlocked.slice(-remaining) : []);
     }
 
     function normalizeMemory(memory, conversationLength) {
         const source = memory && typeof memory === 'object' ? memory : {};
         const maxIndex = Math.max(0, Number.isFinite(conversationLength) ? conversationLength : Number.MAX_SAFE_INTEGER);
         return {
-            version: 2,
+            version: 3,
             summarizedUntil: toFiniteInt(source.summarizedUntil, 0, 0, maxIndex),
             core: typeof source.core === 'string' ? source.core : '',
+            facts: normalizeMemoryFacts(source.facts),
             segments: Array.isArray(source.segments)
                 ? source.segments.filter(Boolean).map(function (segment) {
                     return {
@@ -296,7 +354,7 @@
 
     function buildMemoryContext(memory, query, config, options) {
         const state = normalizeMemory(memory);
-        if (!state.core.trim() && !state.segments.length) return '';
+        if (!state.core.trim() && !state.segments.length && !state.facts.length) return '';
         const settings = normalizeConfig(config);
         const requestedBudget = Number(options && options.tokenBudget);
         const totalBudget = Math.max(2000, Number.isFinite(requestedBudget)
@@ -312,6 +370,21 @@
             const core = clipTextToTokenBudget(state.core.trim(), coreBudget);
             parts.push('\n【持续状态与关键事实】\n' + core);
             usedTokens += estimateTokens(core) + 12;
+        }
+        const activeFacts = state.facts
+            .filter(function (fact) { return fact.status === 'active'; })
+            .sort(function (a, b) { return Number(b.locked) - Number(a.locked) || b.importance - a.importance || b.updatedAt - a.updatedAt; });
+        if (activeFacts.length && usedTokens < totalBudget - 240) {
+            const factLines = [];
+            activeFacts.forEach(function (fact) {
+                if (usedTokens >= totalBudget - 180) return;
+                const line = '- [' + fact.category + ']' + (fact.locked ? '[已锁定]' : '') + ' ' + fact.text;
+                const clipped = clipTextToTokenBudget(line, Math.min(1000, totalBudget - usedTokens));
+                if (!clipped.trim()) return;
+                factLines.push(clipped);
+                usedTokens += estimateTokens(clipped) + 4;
+            });
+            if (factLines.length) parts.push('\n【结构化事实】\n' + factLines.join('\n'));
         }
         const selected = selectMemorySegments(state, query, settings);
         const prioritized = selected.slice().sort(function (a, b) {
@@ -393,8 +466,12 @@
     return {
         DEFAULT_CONFIG: DEFAULT_CONFIG,
         NATURAL_STYLE_GUIDE: NATURAL_STYLE_GUIDE,
+        MEMORY_CATEGORIES: MEMORY_CATEGORIES,
         normalizeConfig: normalizeConfig,
         createEmptyMemory: createEmptyMemory,
+        createMemoryFact: createMemoryFact,
+        normalizeMemoryFacts: normalizeMemoryFacts,
+        mergeMemoryFacts: mergeMemoryFacts,
         normalizeMemory: normalizeMemory,
         estimateTokens: estimateTokens,
         estimateMessagesTokens: estimateMessagesTokens,

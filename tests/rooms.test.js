@@ -162,6 +162,28 @@ test('长期记忆注入受独立预算控制并优先保留重要剧情', () =>
     assert.match(context, /按当前话题召回/);
 });
 
+test('结构化事实可以锁定、标记状态并进入长期记忆上下文', () => {
+    const memory = Memory.normalizeMemory({
+        facts: [
+            { category: '装备技能', text: '林澈已经取得银色钥匙。', importance: 5, locked: true, status: 'active' },
+            { category: '更正失效', text: '旧门仍然无法打开。', importance: 2, status: 'expired' },
+        ],
+    });
+    assert.equal(memory.version, 3);
+    assert.equal(memory.facts[0].locked, true);
+    const context = Memory.buildMemoryContext(memory, '钥匙', Memory.normalizeConfig(), { tokenBudget: 5000 });
+    assert.match(context, /林澈已经取得银色钥匙/);
+    assert.doesNotMatch(context, /旧门仍然无法打开/);
+});
+
+test('锁定事实不会被自动整理的同文事实覆盖', () => {
+    const existing = [Memory.createMemoryFact({ id: 'locked', text: '角色A仍然信任角色B。', locked: true, importance: 5 })];
+    const merged = Memory.mergeMemoryFacts(existing, [{ text: '角色A仍然信任角色B。', importance: 1 }], { startIndex: 10, endIndex: 20 });
+    assert.equal(merged.length, 1);
+    assert.equal(merged[0].id, 'locked');
+    assert.equal(merged[0].importance, 5);
+});
+
 test('结构化角色成长设定和文风示例进入房间提示词', () => {
     const room = Rooms.normalizeRoom({
         roomType: 'double',
