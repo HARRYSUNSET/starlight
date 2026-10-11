@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>星陽之语</title>
     <style>
         :root {
@@ -2197,6 +2197,7 @@
         }
         @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto !important; animation-duration:.01ms !important; transition-duration:.01ms !important; } }
     </style>
+    <link rel="stylesheet" href="ui.css">
 </head>
 <body>
     <div class="home-shell" id="homeShell">
@@ -2218,7 +2219,7 @@
                 <div class="library-page-heading"><h2>我的</h2><p>管理全局 API、模型、外观与存储设置。</p></div>
                 <div id="mySettingsMount"></div>
                 <div class="my-section-title">应用信息</div>
-                <div class="my-version-card"><strong>星陽之语 2.0.1</strong><br>本地优先 · 剧情与房间独立 · 世界书与分层长期记忆</div>
+                <div class="my-version-card"><strong>星陽之语 2.1.0</strong><br>本地优先 · 剧情与房间独立 · 世界书与分层长期记忆</div>
             </section>
         </main>
         <nav class="bottom-nav" aria-label="主导航">
@@ -2344,6 +2345,7 @@
                 <div class="chat-title-stack">
                     <div class="chat-mode-eyebrow" id="chatModeEyebrow">STORY · 剧情模式</div>
                     <span class="current-agent-name" id="currentAgentName">选择剧情智能体</span>
+                    <div class="chat-subtitle" id="chatSubtitle">剧情 · 独立保存</div>
                 </div>
                 <span class="room-kind-badge" id="roomTypeBadge" hidden>双人房间</span>
                 <span class="badge" id="modelBadge">deepseek-flash</span>
@@ -2378,6 +2380,7 @@
                     <p>打开书架选择剧情智能体，或创建一张新的角色卡开始故事。</p>
                 </div>
             </div>
+            <div class="message-scroll-actions"><button type="button" class="jump-latest" id="btnJumpLatest" title="回到最新消息" aria-label="回到最新消息" hidden></button></div>
 
             <div class="input-area" id="inputArea">
                 <div class="room-input-tools" id="roomInputTools" hidden>
@@ -2800,6 +2803,7 @@
 
     <script src="worldbook.js"></script>
     <script src="memory.js"></script>
+    <script src="ui.js"></script>
     <script src="inspiration.js"></script>
     <script src="style-lab.js"></script>
     <script src="story.js"></script>
@@ -2975,6 +2979,8 @@
             const $btnGenerateStylePreview = document.getElementById('btnGenerateStylePreview');
             const $stylePreviewOutput = document.getElementById('stylePreviewOutput');
             const $btnChatSettings = document.getElementById('btnChatSettings');
+            const $chatSubtitle = document.getElementById('chatSubtitle');
+            const $btnJumpLatest = document.getElementById('btnJumpLatest');
             const $chatQuickTools = document.getElementById('chatQuickTools');
             const $btnLastInput = document.getElementById('btnLastInput');
             const $btnInspiration = document.getElementById('btnInspiration');
@@ -3009,6 +3015,8 @@
             // ==================== 状态 ====================
             const Memory = window.StarlightMemory;
             if (!Memory) throw new Error('长期记忆模块加载失败');
+            const UI = window.StarlightUI;
+            if (!UI) throw new Error('界面模块加载失败');
             const Inspiration = window.StarlightInspiration;
             if (!Inspiration) throw new Error('灵感推荐模块加载失败');
             const WorldBook = window.StarlightWorldBook;
@@ -3104,6 +3112,7 @@
             let styleLabBusy = false;
             let snippetsDraft = [];
             let homeTab = 'story';
+            const homeScrollPositions = { story:0, room:0, my:0 };
             let activeMessageActionIndex = null;
             const inspirationStates = new Map();
             let activeInspirationRequest = null;
@@ -3417,10 +3426,10 @@
             function applyTheme() {
                 if (isDarkMode) {
                     document.body.classList.add('dark-theme');
-                    $themeToggleBtn.textContent = '☀️';
+                    UI.button($themeToggleBtn, 'sun', '切换为明亮模式', true);
                 } else {
                     document.body.classList.remove('dark-theme');
-                    $themeToggleBtn.textContent = '🌙';
+                    UI.button($themeToggleBtn, 'moon', '切换为深色模式', true);
                 }
                 if (appData.activeMode === 'room') applyRoomBackground(getCurrentRoom());
             }
@@ -3457,23 +3466,51 @@
                     button.classList.remove('story-only-control');
                     $chatQuickTools.appendChild(button);
                 });
-                $btnLocate.textContent = '⌕ 搜索定位';
-                $btnMemoryManager.textContent = '◫ 长期记忆';
-                $btnStyleLab.textContent = '✦ 文风因子';
+                UI.button($btnLocate, 'search', '搜索定位');
+                UI.button($btnMemoryManager, 'memory', '长期记忆');
+                UI.button($btnStyleLab, 'style', '文风因子');
+                UI.button($btnHamburger, 'back', '返回作品库', true);
+                UI.button($btnChatSettings, 'more', '打开当前作品设定', true);
+                UI.button($btnLastInput, 'history', '上次输入');
+                UI.button($btnInspiration, 'style', '灵感推荐');
+                UI.button($btnSnippets, 'snippets', '常用语段');
+                UI.button($btnJumpLatest, 'down', '回到最新消息', true);
+                [['story','story','剧情'],['room','room','房间'],['my','person','我的']].forEach(([tab, name, label]) => {
+                    UI.button(document.querySelector(`[data-home-tab="${tab}"]`), name, label);
+                });
+                [$homeAddStory,$homeAddRoom].forEach(button => button.querySelector('span').innerHTML = UI.icon('plus'));
+                UI.initialize();
+            }
+
+            function closeHomeMenus() {
+                document.querySelectorAll('.v2-card-menu.show').forEach(menu => menu.classList.remove('show'));
+                document.querySelectorAll('.v2-card-more[aria-expanded="true"]').forEach(button => button.setAttribute('aria-expanded','false'));
             }
 
             function setHomeTab(tab) {
+                const previousMain = document.querySelector('.home-main');
+                homeScrollPositions[homeTab] = previousMain.scrollTop;
                 homeTab = ['story', 'room', 'my'].includes(tab) ? tab : 'story';
                 $homeStoryPage.hidden = homeTab !== 'story';
                 $homeRoomPage.hidden = homeTab !== 'room';
                 $homeMyPage.hidden = homeTab !== 'my';
-                document.querySelectorAll('[data-home-tab]').forEach(button => button.classList.toggle('active', button.dataset.homeTab === homeTab));
+                document.querySelectorAll('[data-home-tab]').forEach(button => {
+                    button.classList.toggle('active', button.dataset.homeTab === homeTab);
+                    button.setAttribute('aria-current', button.dataset.homeTab === homeTab ? 'page' : 'false');
+                });
+                closeHomeMenus();
+                const main = document.querySelector('.home-main');
+                main.scrollTop = homeScrollPositions[homeTab] || 0;
                 if (homeTab === 'my') syncSettingsControls();
             }
 
             function showHome(tab) {
                 if (!canChangeConversationTarget()) return;
                 closeInspiration();
+                closeMessageActions();
+                $lastInputPopover.hidden = true;
+                UI.clearPanel($lastInputPopover);
+                $messageInput.blur();
                 const activeTarget = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
                 if (activeTarget) activeTarget.draft = $messageInput.value;
                 setHomeTab(tab || (appData.activeMode === 'room' ? 'room' : 'story'));
@@ -3489,6 +3526,7 @@
                 document.body.classList.add('chat-open');
                 updateModeUI();
                 renderMessages();
+                UI.resizeComposer($messageInput);
                 requestAnimationFrame(() => scrollToBottom());
             }
 
@@ -3537,23 +3575,33 @@
                     return;
                 }
                 container.innerHTML = items.map(item => `
-                    <article class="v2-work-card" data-work-id="${escapeHtml(item.id)}" data-work-mode="${mode}">
+                    <article class="v2-work-card" tabindex="0" aria-label="打开${escapeHtml(item.name)}" data-work-id="${escapeHtml(item.id)}" data-work-mode="${mode}">
+                        <div class="work-avatar" aria-hidden="true">${escapeHtml(Array.from(item.name || '').slice(0,2).join(''))}</div>
                         <div class="v2-work-copy"><span class="v2-work-name">${escapeHtml(item.name)}</span><span class="v2-work-intro">${escapeHtml(item.subtitle || '还没有填写简介')}</span></div>
-                        <div class="v2-card-menu-wrap"><button type="button" class="v2-card-more" aria-label="作品选项">⋯</button><div class="v2-card-menu"><button type="button" data-card-action="rename">重命名</button><button type="button" class="danger" data-card-action="delete">删除</button></div></div>
+                        <div class="v2-card-menu-wrap"><button type="button" class="v2-card-more" aria-label="作品选项" aria-expanded="false">${UI.icon('more')}</button><div class="v2-card-menu"><button type="button" data-card-action="rename">${UI.icon('edit')}重命名</button><button type="button" class="danger" data-card-action="delete">${UI.icon('delete')}删除</button></div></div>
                     </article>`).join('');
                 container.querySelectorAll('.v2-work-card').forEach(card => {
                     const id = card.dataset.workId;
-                    card.querySelector('.v2-work-copy').addEventListener('click', () => enterWork(mode, id));
+                    card.addEventListener('click', event => { if (!event.target.closest('.v2-card-menu-wrap')) enterWork(mode, id); });
+                    card.addEventListener('keydown', event => {
+                        if (event.target === card && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); enterWork(mode, id); }
+                    });
                     const menu = card.querySelector('.v2-card-menu');
                     card.querySelector('.v2-card-more').addEventListener('click', event => {
                         event.stopPropagation();
-                        document.querySelectorAll('.v2-card-menu.show').forEach(other => { if (other !== menu) other.classList.remove('show'); });
-                        menu.classList.toggle('show');
+                        const shouldOpen = !menu.classList.contains('show');
+                        closeHomeMenus();
+                        menu.classList.toggle('show', shouldOpen);
+                        event.currentTarget.setAttribute('aria-expanded', String(menu.classList.contains('show')));
+                        if (menu.classList.contains('show')) {
+                            menu.classList.remove('open-up');
+                            menu.classList.toggle('open-up', menu.getBoundingClientRect().bottom > document.querySelector('.home-main').getBoundingClientRect().bottom);
+                        }
                     });
-                    menu.querySelector('[data-card-action="rename"]').addEventListener('click', event => { event.stopPropagation(); menu.classList.remove('show'); renameWork(mode, id); });
+                    menu.querySelector('[data-card-action="rename"]').addEventListener('click', event => { event.stopPropagation(); closeHomeMenus(); renameWork(mode, id); });
                     menu.querySelector('[data-card-action="delete"]').addEventListener('click', event => {
                         event.stopPropagation();
-                        menu.classList.remove('show');
+                        closeHomeMenus();
                         if (mode === 'room') deleteRoom(id); else deleteAgent(id);
                         renderHomeLibraries();
                     });
@@ -5173,26 +5221,11 @@
                 if (e.target === $modalOverlay) closeCreateModal();
             });
             
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && $modalOverlay.style.display === 'flex') {
-                    closeCreateModal();
-                }
-                if (e.key === 'Escape' && $roomModalOverlay.style.display === 'flex') {
-                    closeRoomModal();
-                }
-                if (e.key === 'Escape' && $navigatorOverlay.style.display === 'flex') {
-                    closeConversationNavigator();
-                }
-                if (e.key === 'Escape' && $memoryEditorOverlay.style.display === 'flex') {
-                    closeMemoryManager();
-                }
-                if (e.key === 'Escape' && $styleLabOverlay.style.display === 'flex') {
-                    closeStyleLab();
-                }
-            });
-
             // ==================== 聊天UI更新 ====================
             function updateChatUI() {
+                $chatSubtitle.textContent = appData.activeMode === 'room'
+                    ? `${getCurrentRoom()?.roomType === 'group' ? '多人房间' : '双人房间'} · 独立保存`
+                    : '剧情 · 独立保存';
                 if (appData.activeMode === 'room') {
                     const room = getCurrentRoom();
                     $btnInspiration.hidden = true;
@@ -5325,12 +5358,12 @@
                 });
                 if (isGenerating) {
                     $btnSend.classList.add('stop-mode');
-                    $btnSend.textContent = '■';
+                    UI.button($btnSend, 'stop', '停止生成', true);
                     $btnSend.title = '停止生成';
                     $btnSend.disabled = false;
                 } else {
                     $btnSend.classList.remove('stop-mode');
-                    $btnSend.textContent = '➤';
+                    UI.button($btnSend, 'send', '发送消息', true);
                     $btnSend.title = '发送消息';
                     if (appData.activeMode === 'room') {
                         const room = getCurrentRoom();
@@ -5676,7 +5709,7 @@
             });
             $btnNavigatorClose.addEventListener('click', closeConversationNavigator);
             $btnNavigatorLatest.addEventListener('click', () => {
-                storyRenderedMessageRange = null;
+                setMessageRenderRange(null);
                 resetScrollIntent();
                 closeConversationNavigator();
                 renderMessages();
@@ -6970,6 +7003,7 @@
                 const preview = compact.split('\n').slice(0, 4).join('\n').slice(0, 260);
                 $lastInputPopover.innerHTML = `<strong>上次输入</strong>${escapeHtml(preview)}${compact.length > preview.length ? '…' : ''}`.replace(/\n/g, '<br>');
                 $lastInputPopover.hidden = false;
+                UI.placePanel($lastInputPopover, $inputArea, true);
             }
 
             function getInspirationState(agentId) {
@@ -7183,6 +7217,8 @@
 
             function closeMessageActions() {
                 $messageActionOverlay.hidden = true;
+                document.querySelectorAll('.message-action-selected').forEach(item => item.classList.remove('message-action-selected'));
+                UI.clearPanel($messageActionSheet);
                 activeMessageActionIndex = null;
             }
 
@@ -7203,6 +7239,16 @@
                 ].filter(Boolean).join('');
                 $messageActionSheet.innerHTML = `<div class="action-sheet-title">消息 #${index + 1}</div>${actions}`;
                 $messageActionOverlay.hidden = false;
+                const icons = { copy:'copy', bookmark:'bookmark', locate:'search', regenerate:'regenerate', undo:'undo', restart:'delete' };
+                $messageActionSheet.querySelectorAll('[data-message-action]').forEach(button => {
+                    UI.button(button, icons[button.dataset.messageAction], button.textContent);
+                });
+                document.querySelectorAll('.message-action-selected').forEach(item => item.classList.remove('message-action-selected'));
+                const anchor = $messagesContainer.querySelector(`[data-message-index="${index}"]`);
+                if (anchor) {
+                    anchor.classList.add('message-action-selected');
+                    UI.placePanel($messageActionSheet, anchor);
+                }
             }
 
             $messageActionSheet.addEventListener('click', async event => {
@@ -7221,11 +7267,74 @@
             });
             $messageActionOverlay.addEventListener('click', event => { if (event.target === $messageActionOverlay) closeMessageActions(); });
 
+            function updateJumpLatest() {
+                const total = getActiveMessages().length;
+                const hasLaterMessages = getMessageRenderRange(total).end < total;
+                $btnJumpLatest.hidden = $chatShell.classList.contains('is-hidden')
+                    || (!hasLaterMessages && $messagesContainer.scrollHeight - $messagesContainer.clientHeight - $messagesContainer.scrollTop < 96);
+            }
+            $messagesContainer.addEventListener('scroll', updateJumpLatest, { passive:true });
+            let jumpUpdateFrame = null;
+            const jumpObserver = new MutationObserver(() => {
+                if (jumpUpdateFrame !== null) return;
+                jumpUpdateFrame = requestAnimationFrame(() => { jumpUpdateFrame = null; updateJumpLatest(); });
+            });
+            jumpObserver.observe($messagesContainer, { childList:true, subtree:true, characterData:true });
+            $btnJumpLatest.addEventListener('click', () => {
+                isUserScrolledUp = false;
+                if (!isGenerating) {
+                    const total = getActiveMessages().length;
+                    setMessageRenderRange({ start:Math.max(0,total - MESSAGE_PAGE_SIZE), end:total });
+                    renderMessages({ preserveScroll:true });
+                }
+                requestAnimationFrame(() => {
+                    $messagesContainer.scrollTop = $messagesContainer.scrollHeight;
+                    updateJumpLatest();
+                });
+            });
+
+            function handleInterfaceBack() {
+                const overlays = [
+                    [$messageActionOverlay, closeMessageActions],
+                    [$inspirationOverlay, closeInspiration],
+                    [$snippetsOverlay, () => { $snippetsOverlay.style.display = 'none'; }],
+                    [$navigatorOverlay, closeConversationNavigator],
+                    [$modalOverlay, closeCreateModal],
+                    [$roomModalOverlay, closeRoomModal],
+                    [$memoryEditorOverlay, closeMemoryManager],
+                    [$styleLabOverlay, closeStyleLab],
+                ].filter(([element]) => !element.hidden && getComputedStyle(element).display !== 'none')
+                    .sort((a,b) => Number(getComputedStyle(b[0]).zIndex || 0) - Number(getComputedStyle(a[0]).zIndex || 0));
+                if (overlays.length) { overlays[0][1](); return true; }
+                if (!$lastInputPopover.hidden) {
+                    $lastInputPopover.hidden = true;
+                    UI.clearPanel($lastInputPopover);
+                    return true;
+                }
+                const menus = document.querySelectorAll('.v2-card-menu.show');
+                if (menus.length) { closeHomeMenus(); return true; }
+                if (document.body.classList.contains('keyboard-open')) { document.activeElement?.blur(); return true; }
+                if (!$chatShell.classList.contains('is-hidden')) { showHome(); return true; }
+                if (homeTab !== 'story') { setHomeTab('story'); return true; }
+                return false;
+            }
+            window.StarlightBack = handleInterfaceBack;
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape' && handleInterfaceBack()) event.preventDefault();
+            });
+            document.addEventListener('click', event => {
+                if (!event.target.closest('.v2-card-menu-wrap')) {
+                    closeHomeMenus();
+                }
+            });
+
             let longPressTimer = null;
             let longPressStart = null;
             $messagesContainer.addEventListener('pointerdown', event => {
+                if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
                 const item = event.target.closest('[data-message-index]');
                 if (!item || event.target.closest('button')) return;
+                if (longPressTimer) clearTimeout(longPressTimer);
                 longPressStart = { x:event.clientX, y:event.clientY };
                 longPressTimer = setTimeout(() => { longPressTimer = null; openMessageActions(Number(item.dataset.messageIndex)); }, 520);
             });
@@ -7240,7 +7349,12 @@
             });
 
             $btnLastInput.addEventListener('click', event => { event.stopPropagation(); showLastInput(); });
-            document.addEventListener('click', event => { if (!event.target.closest('#lastInputPopover') && event.target !== $btnLastInput) $lastInputPopover.hidden = true; });
+            document.addEventListener('click', event => {
+                if (!event.target.closest('#lastInputPopover') && !event.target.closest('#btnLastInput')) {
+                    $lastInputPopover.hidden = true;
+                    UI.clearPanel($lastInputPopover);
+                }
+            });
             $btnInspiration.addEventListener('click', openInspiration);
             $btnCloseInspiration.addEventListener('click', closeInspiration);
             $btnCancelInspiration.addEventListener('click', cancelInspiration);
@@ -7279,8 +7393,7 @@
             });
 
             $messageInput.addEventListener('input', () => {
-                $messageInput.style.height = 'auto';
-                $messageInput.style.height = Math.min($messageInput.scrollHeight, 140) + 'px';
+                UI.resizeComposer($messageInput);
                 const target = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
                 if (target) {
                     target.draft = $messageInput.value;

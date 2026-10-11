@@ -55,9 +55,9 @@ test('作品卡片菜单监听器只在主页渲染器中绑定到卡片自身',
 
 test('应用版本号在 npm 与 Android 配置中一致', () => {
     const gradle = fs.readFileSync(path.join(root, 'android', 'app', 'build.gradle'), 'utf8');
-    assert.equal(packageJson.version, '2.0.1');
-    assert.match(gradle, /versionCode\s+13/);
-    assert.match(gradle, /versionName\s+"2\.0\.1"/);
+    assert.equal(packageJson.version, '2.1.0');
+    assert.match(gradle, /versionCode\s+14/);
+    assert.match(gradle, /versionName\s+"2\.1\.0"/);
 });
 
 test('模型列表只保留 DeepSeek 官方当前模型标识', () => {
