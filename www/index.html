@@ -2160,6 +2160,11 @@
         .suggestion-card strong { display:block; margin-bottom:7px; }
         .suggestion-card p { margin:0 0 12px; white-space:pre-wrap; line-height:1.65; }
         .suggestion-actions,.snippet-actions { display:flex; justify-content:flex-end; gap:8px; }
+        .inspiration-notice { margin:12px 0; padding:12px 14px; border:1px solid var(--border); border-radius:12px; background:var(--bg); color:var(--text-secondary); line-height:1.6; font-size:.82rem; }
+        .inspiration-notice pre { white-space:pre-wrap; overflow-wrap:anywhere; font-size:.74rem; margin-top:8px; }
+        .inspiration-notice[hidden],#btnCancelInspiration[hidden],#inspirationDetails[hidden] { display:none !important; }
+        .api-balance-row { display:flex; align-items:center; gap:10px; margin:10px 0; flex-wrap:wrap; }
+        .api-balance-row span { color:var(--text-secondary); font-size:.76rem; line-height:1.5; flex:1; min-width:120px; }
         .snippet-row textarea { width:100%; min-height:80px; margin-bottom:8px; }
         .worldbook-editor { display:flex; flex-direction:column; gap:24px; margin:14px 0 20px; }
         .worldbook-section-head { display:flex; justify-content:space-between; gap:14px; align-items:flex-start; margin-bottom:11px; }
@@ -2213,7 +2218,7 @@
                 <div class="library-page-heading"><h2>我的</h2><p>管理全局 API、模型、外观与存储设置。</p></div>
                 <div id="mySettingsMount"></div>
                 <div class="my-section-title">应用信息</div>
-                <div class="my-version-card"><strong>星陽之语 2.0</strong><br>本地优先 · 剧情与房间独立 · 世界书与分层长期记忆</div>
+                <div class="my-version-card"><strong>星陽之语 2.0.1</strong><br>本地优先 · 剧情与房间独立 · 世界书与分层长期记忆</div>
             </section>
         </main>
         <nav class="bottom-nav" aria-label="主导航">
@@ -2259,6 +2264,7 @@
                         <label>🔑 当前模型的 API Key</label>
                         <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off">
                         <div class="hint" id="apiKeyHint">输入你的 DeepSeek API Key，仅存储在本地浏览器</div>
+                        <div class="api-balance-row"><button type="button" class="mini-action-btn" id="btnRefreshApiBalance">查询余额</button><span id="apiBalanceStatus" role="status">查询当前 API Key 对应账户的可用余额</span></div>
 
                         <label>🧠 思考方式</label>
                         <select id="thinkingModeSelect">
@@ -2769,8 +2775,13 @@
                 <button type="button" class="mini-action-btn" id="btnCloseInspiration">关闭</button>
             </div>
             <div class="style-field"><label for="inspirationRequestInput">希望发展的方向（可选）</label><textarea id="inspirationRequestInput" rows="3" placeholder="例如：想推进主线，但不要突然制造大冲突"></textarea></div>
+            <div class="inspiration-notice" id="inspirationNotice" role="status" hidden>
+                <div id="inspirationNoticeText"></div>
+                <details id="inspirationDetails" hidden><summary>请求详情</summary><pre id="inspirationDiagnostics"></pre></details>
+            </div>
             <div class="tool-panel-list" id="inspirationResults"><div class="v2-empty-note">点击生成后，将根据当前剧情与已经发生的内容提供候选输入。</div></div>
-            <div class="full-page-actions"><button type="button" class="btn-confirm" id="btnGenerateInspiration">生成候选</button></div>
+            <div class="api-balance-row"><button type="button" class="mini-action-btn" id="btnInspirationBalance">查询余额</button><span id="inspirationBalanceStatus" role="status">使用与当前剧情相同的 API Key 和模型</span></div>
+            <div class="full-page-actions"><button type="button" class="btn-cancel" id="btnCancelInspiration" hidden>取消生成</button><button type="button" class="btn-confirm" id="btnGenerateInspiration">生成候选</button></div>
         </div>
     </div>
 
@@ -2789,6 +2800,7 @@
 
     <script src="worldbook.js"></script>
     <script src="memory.js"></script>
+    <script src="inspiration.js"></script>
     <script src="style-lab.js"></script>
     <script src="story.js"></script>
     <script src="rooms.js"></script>
@@ -2975,6 +2987,15 @@
             const $inspirationResults = document.getElementById('inspirationResults');
             const $btnGenerateInspiration = document.getElementById('btnGenerateInspiration');
             const $btnCloseInspiration = document.getElementById('btnCloseInspiration');
+            const $btnCancelInspiration = document.getElementById('btnCancelInspiration');
+            const $inspirationNotice = document.getElementById('inspirationNotice');
+            const $inspirationNoticeText = document.getElementById('inspirationNoticeText');
+            const $inspirationDetails = document.getElementById('inspirationDetails');
+            const $inspirationDiagnostics = document.getElementById('inspirationDiagnostics');
+            const $btnInspirationBalance = document.getElementById('btnInspirationBalance');
+            const $btnRefreshApiBalance = document.getElementById('btnRefreshApiBalance');
+            const $apiBalanceStatus = document.getElementById('apiBalanceStatus');
+            const $inspirationBalanceStatus = document.getElementById('inspirationBalanceStatus');
             const $snippetsOverlay = document.getElementById('snippetsOverlay');
             const $snippetsList = document.getElementById('snippetsList');
             const $btnAddSnippet = document.getElementById('btnAddSnippet');
@@ -2988,6 +3009,8 @@
             // ==================== 状态 ====================
             const Memory = window.StarlightMemory;
             if (!Memory) throw new Error('长期记忆模块加载失败');
+            const Inspiration = window.StarlightInspiration;
+            if (!Inspiration) throw new Error('灵感推荐模块加载失败');
             const WorldBook = window.StarlightWorldBook;
             if (!WorldBook) throw new Error('世界书模块加载失败');
             const StyleLab = window.StarlightStyleLab;
@@ -3082,6 +3105,9 @@
             let snippetsDraft = [];
             let homeTab = 'story';
             let activeMessageActionIndex = null;
+            const inspirationStates = new Map();
+            let activeInspirationRequest = null;
+            let activeBalanceRequest = null;
             
             // 安全读取本地主题配置，防止浏览器严格隐私模式拦截报错
             let isDarkMode = false;
@@ -3447,6 +3473,7 @@
 
             function showHome(tab) {
                 if (!canChangeConversationTarget()) return;
+                closeInspiration();
                 const activeTarget = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
                 if (activeTarget) activeTarget.draft = $messageInput.value;
                 setHomeTab(tab || (appData.activeMode === 'room' ? 'room' : 'story'));
@@ -3467,6 +3494,7 @@
 
             function enterWork(mode, id) {
                 if (!canChangeConversationTarget()) return;
+                closeInspiration();
                 const previousTarget = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
                 if (previousTarget) previousTarget.draft = $messageInput.value;
                 appData.activeMode = mode === 'room' ? 'room' : 'story';
@@ -6944,57 +6972,159 @@
                 $lastInputPopover.hidden = false;
             }
 
+            function getInspirationState(agentId) {
+                if (!inspirationStates.has(agentId)) inspirationStates.set(agentId, {
+                    direction: '', suggestions: [], notice: '', diagnostics: '',
+                });
+                return inspirationStates.get(agentId);
+            }
+
+            function updateInspirationBusy() {
+                const busy = Boolean(activeInspirationRequest);
+                $btnGenerateInspiration.disabled = busy;
+                $inspirationRequestInput.disabled = busy;
+                $btnGenerateInspiration.textContent = busy ? '正在生成…' : '生成候选';
+                $btnCancelInspiration.hidden = !busy;
+            }
+
+            function cancelInspiration() {
+                const request = activeInspirationRequest;
+                if (!request) return;
+                activeInspirationRequest = null;
+                request.controller.abort();
+                const state = getInspirationState(request.agentId);
+                state.notice = '已取消本次生成，可以再次尝试。';
+                state.diagnostics = '';
+                updateInspirationBusy();
+                if (getCurrentAgent()?.id === request.agentId) renderInspirationState();
+            }
+
             function closeInspiration() {
+                const agent = getCurrentAgent();
+                if (agent && appData.activeMode === 'story') getInspirationState(agent.id).direction = $inspirationRequestInput.value;
+                cancelInspiration();
                 $inspirationOverlay.style.display = 'none';
             }
 
-            function renderInspirationSuggestions(suggestions) {
-                const list = Array.isArray(suggestions) ? suggestions : [];
+            function renderInspirationState() {
+                const agent = getCurrentAgent();
+                if (!agent || appData.activeMode !== 'story') return;
+                const state = getInspirationState(agent.id);
+                $inspirationNotice.hidden = !state.notice;
+                $inspirationNoticeText.textContent = state.notice;
+                $inspirationDetails.hidden = !state.diagnostics;
+                $inspirationDiagnostics.textContent = state.diagnostics;
+                renderInspirationSuggestions(state.suggestions, agent.id);
+                updateInspirationBusy();
+            }
+
+            function openInspiration() {
+                const agent = getCurrentAgent();
+                if (appData.activeMode !== 'story' || !agent) return showToast('请先打开一段剧情', 'info');
+                $inspirationRequestInput.value = getInspirationState(agent.id).direction;
+                renderInspirationState();
+                $inspirationOverlay.style.display = 'flex';
+            }
+
+            function renderInspirationSuggestions(suggestions, agentId) {
+                const list = Inspiration.normalizeSuggestions(suggestions);
                 if (!list.length) {
-                    $inspirationResults.innerHTML = '<div class="v2-empty-note">这次没有得到有效候选，请换个方向重试。</div>';
+                    $inspirationResults.innerHTML = '<div class="v2-empty-note">点击生成，根据当前剧情提供三个候选输入。</div>';
                     return;
                 }
-                $inspirationResults.innerHTML = list.slice(0, 4).map((item, index) => {
-                    const title = typeof item === 'string' ? `候选 ${index + 1}` : String(item.title || `候选 ${index + 1}`);
-                    const text = typeof item === 'string' ? item : String(item.text || item.prompt || '');
-                    return `<article class="suggestion-card" data-suggestion-index="${index}"><strong>${escapeHtml(title)}</strong><p>${escapeHtml(text)}</p><div class="suggestion-actions"><button type="button" class="mini-action-btn suggestion-use">使用</button></div></article>`;
-                }).join('');
+                $inspirationResults.innerHTML = list.map((item, index) =>
+                    `<article class="suggestion-card" data-suggestion-index="${index}"><strong>${escapeHtml(item.title)}</strong><p>${escapeHtml(item.text)}</p><div class="suggestion-actions"><button type="button" class="mini-action-btn suggestion-use">使用</button></div></article>`
+                ).join('');
                 $inspirationResults.querySelectorAll('[data-suggestion-index]').forEach((card, index) => {
-                    const item = list[index];
-                    const text = typeof item === 'string' ? item : String(item.text || item.prompt || '');
-                    card.querySelector('.suggestion-use').addEventListener('click', () => { appendToComposer(text, true); closeInspiration(); });
+                    card.querySelector('.suggestion-use').addEventListener('click', () => {
+                        if (appData.activeMode !== 'story' || getCurrentAgent()?.id !== agentId) return;
+                        appendToComposer(list[index].text, true);
+                        closeInspiration();
+                    });
                 });
+            }
+
+            function displayApiBalance(balance) {
+                const amount = balance.balances.map(item => `${item.total} ${item.currency}`).join(' / ');
+                const text = `可用余额：${amount || '未提供金额'}；API ${balance.available ? '可调用' : '暂不可调用'}`;
+                $apiBalanceStatus.textContent = text;
+                $inspirationBalanceStatus.textContent = text;
+            }
+
+            async function refreshApiBalance() {
+                if (activeBalanceRequest) return;
+                const apiKey = appData.apiKey;
+                if (!apiKey) return showToast('请先在“我的”中设置 API Key', 'error');
+                const request = { controller: new AbortController(), apiKey };
+                activeBalanceRequest = request;
+                $btnRefreshApiBalance.disabled = $btnInspirationBalance.disabled = true;
+                $apiBalanceStatus.textContent = $inspirationBalanceStatus.textContent = '正在查询当前 API Key 对应账户…';
+                try {
+                    const balance = await Inspiration.checkBalance(apiKey, { signal: request.controller.signal });
+                    if (activeBalanceRequest === request && appData.apiKey === apiKey) displayApiBalance(balance);
+                } catch (error) {
+                    if (activeBalanceRequest === request && error.name !== 'AbortError') {
+                        $apiBalanceStatus.textContent = $inspirationBalanceStatus.textContent = Inspiration.describeError(error);
+                    }
+                } finally {
+                    if (activeBalanceRequest === request) {
+                        activeBalanceRequest = null;
+                        $btnRefreshApiBalance.disabled = $btnInspirationBalance.disabled = false;
+                    }
+                }
             }
 
             async function generateInspiration() {
                 const agent = getCurrentAgent();
                 if (appData.activeMode !== 'story' || !agent) return showToast('灵感推荐目前用于剧情模式', 'info');
                 if (!appData.apiKey) return showToast('请先在“我的”中设置 API Key', 'error');
-                $btnGenerateInspiration.disabled = true;
-                $inspirationResults.innerHTML = '<div class="v2-empty-note">正在结合剧情历史与未解决线索整理候选……</div>';
+                if (activeInspirationRequest) return;
+                const request = { agentId: agent.id, controller: new AbortController(), apiKey: appData.apiKey };
+                const state = getInspirationState(agent.id);
+                state.direction = $inspirationRequestInput.value.trim();
+                state.notice = '正在根据近期剧情与相关记忆整理候选…';
+                state.diagnostics = '';
+                activeInspirationRequest = request;
+                renderInspirationState();
                 try {
                     const settings = Memory.normalizeConfig(appData.storyMemorySettings);
-                    const memory = Memory.buildMemoryContext(agent.memory, $inspirationRequestInput.value, settings, { tokenBudget: 12000 });
-                    const recent = agent.conversations.slice(-28).map(message => `${message.role === 'user' ? '用户' : '剧情'}：${message.content}`).join('\n');
-                    const result = await callDeepSeekJSON([
-                        { role:'system', content:[
-                            '你是剧情创作的候选输入助手，只为用户草拟下一条可以发送给剧情AI的提示词。',
-                            '候选只是沙盒草稿，不代表已经发生的事件，不得假装它已进入剧情。',
-                            '遵守既有人设、世界书、时间线、角色知识边界和因果，不强行制造反转。',
-                            '只输出合法JSON：{"suggestions":[{"title":"自然延续","text":"用户可编辑的提示词"},{"title":"人物互动","text":"..."},{"title":"主线推进","text":"..."}]}',
-                        ].join('\n') },
-                        { role:'user', content:[
-                            '【只读剧情设定】\n' + Story.buildStructuredPrompt(agent, StyleLab.buildInfluencePrompt(agent.styleInfluence)),
-                            '【只读长期记忆】\n' + (memory || '（尚无）'),
-                            '【最近对话】\n' + (recent || '（尚未开始）'),
-                            '【用户希望的方向】\n' + ($inspirationRequestInput.value.trim() || '没有额外要求，请给出自然、克制且彼此有差异的候选。'),
-                        ].join('\n\n') },
-                    ], { maxTokens: 2600, temperature: 0.72 });
-                    renderInspirationSuggestions(result.suggestions);
+                    const memory = Memory.buildMemoryContext(agent.memory, state.direction, settings, { tokenBudget: 1800 });
+                    const result = await Inspiration.requestRecommendations({
+                        apiKey: request.apiKey,
+                        model: getActiveModel(),
+                        settings: [appData.storyGlobalPrompt, Story.buildStructuredPrompt(agent, StyleLab.buildInfluencePrompt(agent.styleInfluence))].filter(Boolean).join('\n'),
+                        memory,
+                        conversations: agent.conversations.map(message => ({ role: message.role, content: message.content })),
+                        direction: state.direction,
+                    }, {
+                        signal: request.controller.signal,
+                        onCompactRetry: balance => {
+                            if (activeInspirationRequest !== request) return;
+                            displayApiBalance(balance);
+                            state.notice = '账户仍可调用 API，正在缩减本次灵感输入后重试一次…';
+                            renderInspirationState();
+                        },
+                    });
+                    if (activeInspirationRequest !== request) return;
+                    state.suggestions = result.suggestions;
+                    state.notice = result.compact ? '已使用精简上下文生成候选。点击“使用”填入输入框。' : '';
+                    if (result.balance) displayApiBalance(result.balance);
                 } catch (error) {
-                    $inspirationResults.innerHTML = `<div class="v2-empty-note">生成失败：${escapeHtml(error.message)}</div>`;
+                    if (activeInspirationRequest !== request || error.name === 'AbortError') return;
+                    state.notice = Inspiration.describeError(error) + (state.suggestions.length ? ' 上次成功的候选仍可使用。' : '');
+                    state.diagnostics = JSON.stringify({
+                        time: new Date().toISOString(),
+                        requests: error.diagnostics || [],
+                        balanceAvailable: error.balance?.available ?? null,
+                        balanceCheckError: error.balanceCheckError || undefined,
+                    }, null, 2);
+                    if (error.balance) displayApiBalance(error.balance);
                 } finally {
-                    $btnGenerateInspiration.disabled = false;
+                    if (activeInspirationRequest === request) {
+                        activeInspirationRequest = null;
+                        if (appData.activeMode === 'story' && getCurrentAgent()?.id === request.agentId) renderInspirationState();
+                        updateInspirationBusy();
+                    }
                 }
             }
 
@@ -7111,8 +7241,11 @@
 
             $btnLastInput.addEventListener('click', event => { event.stopPropagation(); showLastInput(); });
             document.addEventListener('click', event => { if (!event.target.closest('#lastInputPopover') && event.target !== $btnLastInput) $lastInputPopover.hidden = true; });
-            $btnInspiration.addEventListener('click', () => { if (appData.activeMode !== 'story') return showToast('灵感推荐目前用于剧情模式', 'info'); $inspirationOverlay.style.display = 'flex'; });
+            $btnInspiration.addEventListener('click', openInspiration);
             $btnCloseInspiration.addEventListener('click', closeInspiration);
+            $btnCancelInspiration.addEventListener('click', cancelInspiration);
+            $btnInspirationBalance.addEventListener('click', refreshApiBalance);
+            $btnRefreshApiBalance.addEventListener('click', refreshApiBalance);
             $btnGenerateInspiration.addEventListener('click', generateInspiration);
             $inspirationOverlay.addEventListener('click', event => { if (event.target === $inspirationOverlay) closeInspiration(); });
             $btnSnippets.addEventListener('click', openSnippets);
@@ -7200,6 +7333,11 @@
             }
 
             $apiKeyInput.addEventListener('input', () => {
+                cancelInspiration();
+                if (activeBalanceRequest) activeBalanceRequest.controller.abort();
+                activeBalanceRequest = null;
+                $btnRefreshApiBalance.disabled = $btnInspirationBalance.disabled = false;
+                $apiBalanceStatus.textContent = $inspirationBalanceStatus.textContent = '密钥已更新，请重新查询余额';
                 appData.apiKey = $apiKeyInput.value.trim();
                 appData.apiKeys.deepseek = appData.apiKey;
                 saveData();
