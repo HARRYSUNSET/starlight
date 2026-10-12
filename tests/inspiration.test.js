@@ -172,7 +172,7 @@ function uiHarness(requestRecommendations) {
     const context = {
         AbortController, Map, Date, JSON,
         appData: { activeMode: 'story', apiKey: snapshot.apiKey, storyMemorySettings: {} },
-        Inspiration: { ...Inspiration, requestRecommendations }, Memory,
+        Inspiration: { ...Inspiration, requestRecommendations }, Memory, Motion:require('../www/motion.js'),
         Story: { buildStructuredPrompt: () => snapshot.settings }, StyleLab: { buildInfluencePrompt: () => '' },
         getCurrentAgent: () => agent, getActiveModel: () => snapshot.model,
         escapeHtml: value => value, showToast: () => {}, appendToComposer: () => {},

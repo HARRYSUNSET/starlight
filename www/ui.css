@@ -144,3 +144,26 @@ button:focus-visible,[tabindex]:focus-visible { outline:2px solid var(--accent);
     .input-area { padding-top:5px; gap:5px; }
 }
 @media (prefers-reduced-motion:reduce) { .home-page,.action-sheet,.last-input-popover,.toast { animation:none; } }
+
+/* Motion is coordinated in one place; legacy entrance animations must not replay on history. */
+.motion-ready .home-page,.motion-ready .modal-overlay,.motion-ready .modal,
+.motion-ready .message-wrapper,.motion-ready .room-message-row,.motion-ready .room-system-event,
+.motion-ready .action-sheet,.motion-ready .last-input-popover,.motion-ready .v2-card-menu { animation:none; }
+.motion-exiting { pointer-events:none !important; }
+.motion-running { will-change:transform,opacity; }
+.motion-route-out,.motion-route-in { position:absolute; inset:0; height:100%; z-index:var(--route-layer); }
+#homeShell.motion-route-out,#chatShell.motion-route-out { display:flex !important; }
+.motion-ready .bottom-nav { position:relative; }
+.motion-ready .bottom-nav button { position:relative; z-index:1; background:transparent; transition:color .16s ease; }
+.nav-indicator { position:absolute; left:0; z-index:0; border-radius:12px; pointer-events:none; background:color-mix(in srgb,var(--accent) 10%,transparent); }
+.motion-ready button { transition:transform .12s ease,background-color .15s ease,color .15s ease; }
+.motion-ready button:active:not(:disabled) { transform:scale(.96); }
+.motion-ready .v2-work-card { transition:transform .14s ease,border-color .15s ease; }
+.motion-ready .v2-work-card:active { transform:scale(.985); }
+.motion-ready .full-page-header,.motion-ready .full-page-actions,.motion-ready .room-editor-header,
+.motion-ready .room-modal > .modal-actions,.motion-ready .style-lab-header { backdrop-filter:none; background:var(--card-bg); }
+.motion-ready .last-input-popover { backdrop-filter:none; }
+@media (prefers-reduced-motion:reduce) {
+    .motion-ready button,.motion-ready .v2-work-card { transition:none; }
+    .motion-ready button:active:not(:disabled),.motion-ready .v2-work-card:active { transform:none; }
+}

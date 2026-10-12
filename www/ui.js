@@ -91,7 +91,8 @@
         if (!panel || !anchor) return;
         const viewport = getViewport(panel.ownerDocument.defaultView);
         panel.style.maxHeight = Math.max(1, viewport.height - 24) + 'px';
-        const position = floatingPosition(anchor.getBoundingClientRect(), panel.getBoundingClientRect(), viewport, preferAbove);
+        // Transform animations change the visual rectangle, not the panel's layout size.
+        const position = floatingPosition(anchor.getBoundingClientRect(), { width:panel.offsetWidth, height:panel.offsetHeight }, viewport, preferAbove);
         panel.style.left = position.left + 'px';
         panel.style.top = position.top + 'px';
         // Panels inside the overlay are positioned relative to its visible-viewport top.

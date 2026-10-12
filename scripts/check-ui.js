@@ -74,6 +74,8 @@ async function main() {
         sessionId = attached.sessionId;
         await send('Runtime.enable');
         await send('Page.enable');
+        await send('Network.enable');
+        await send('Network.setBlockedURLs', { urls:['*api.deepseek.com*'] });
         await send('Page.bringToFront');
         await send('Emulation.setTouchEmulationEnabled', { enabled:true, maxTouchPoints:1 });
         const evaluate = async expression => {
@@ -87,7 +89,8 @@ async function main() {
                 : `第${Math.floor(index / 2) + 1}章，继续两个人的日常。`,
         }));
         const fixture = {
-            activeMode:'story', currentAgentId:'ui-story', apiKey:'',
+            activeMode:'story', currentAgentId:'ui-story', apiKey:'sk-local-test-only-not-a-real-key',
+            storyMemorySettings:{enabled:false},roomMemorySettings:{enabled:false},
             agents:[{ id:'ui-story', name:'图书馆的午后', subtitle:'日常轻小说 · 本地测试剧情', characterPrompt:'角色A', conversations }],
             rooms:[{ id:'ui-room', name:'放学后的教室', subtitle:'多人互动 · 本地测试房间', roomType:'group',
                 participants:[{ id:'member-a', name:'小夏', personaPrompt:'同班同学' },{ id:'member-b', name:'小秋', personaPrompt:'图书委员' }],
@@ -100,7 +103,8 @@ async function main() {
             await delay(100);
             if (i === 59) throw new Error('Application did not initialize: ' + JSON.stringify(exceptions));
         }
-        const click = selector => evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
+        const settle = () => evaluate('(async () => { await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))); await window.StarlightMotion.whenIdle(); await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))); })()');
+        const click = async selector => { await evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`); await settle(); };
         const resize = async (width,height) => {
             await send('Emulation.setDeviceMetricsOverride', { width,height,deviceScaleFactor:1,mobile:true });
             await delay(100);
@@ -171,7 +175,7 @@ async function main() {
             await click('#btnLastInput');
             const popover = await evaluate(`(() => {const r=document.querySelector('#lastInputPopover').getBoundingClientRect();return {top:r.top,bottom:r.bottom,visible:!document.querySelector('#lastInputPopover').hidden};})()`);
             assert.ok(popover.visible && popover.top >= 0 && popover.bottom <= height,'Previous input popup out of bounds');
-            await evaluate('window.StarlightBack()');
+            await evaluate('window.StarlightBack();window.StarlightMotion.whenIdle()');
             await click('#btnLocate');
             await evaluate('document.querySelector("#navigatorNumberInput").value="1"');
             await click('#btnNavigatorJump');
@@ -185,23 +189,25 @@ async function main() {
             assert.equal(await evaluate('document.querySelector("#btnJumpLatest").hidden'),true,'Jump to latest did not reach bottom');
             assert.equal(await evaluate('Number(document.querySelector("#messagesContainer [data-message-index]:last-child").dataset.messageIndex)'),conversations.length-1,'Jump shortcut kept historical window');
             await evaluate('document.querySelector("#messagesContainer [data-message-index]:last-child").dispatchEvent(new MouseEvent("contextmenu",{bubbles:true,cancelable:true}));');
+            await settle();
             const menu = await evaluate(`(() => {const r=document.querySelector('#messageActionSheet').getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,visible:!document.querySelector('#messageActionOverlay').hidden};})()`);
             assert.ok(menu.visible && menu.top>=0 && menu.bottom<=height && menu.left>=0 && menu.right<=width,'Message menu out of bounds');
             if(width===390) await screenshot('message-menu');
-            await evaluate('window.StarlightBack()');
+            await evaluate('window.StarlightBack();window.StarlightMotion.whenIdle()');
             assert.equal(await evaluate('document.querySelector("#messageActionOverlay").hidden'),true,'Back did not close menu');
             await click('#btnChatSettings');
             if(width===390)await screenshot('story-settings');
             await checkPanel(`story editor ${width}x${height}`,'#storyEditor',['#btnStoryEditorClose','#btnConfirmCreate']);
             await evaluate('document.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true,cancelable:true}))');
+            await settle();
             assert.equal(await evaluate('getComputedStyle(document.querySelector("#modalOverlay")).display'),'none','Escape did not close editor');
             assert.equal(await evaluate('document.querySelector("#chatShell").classList.contains("is-hidden")'),false,'Escape closed more than one level');
             await click('#btnMemoryManager');
             await checkPanel(`memory editor ${width}x${height}`,'#memoryEditor',['#btnMemoryEditorClose','#btnResetStoryMemory','#btnCancelMemoryEdit','#btnSaveMemoryEdit']);
-            await evaluate('window.StarlightBack()');
+            await evaluate('window.StarlightBack();window.StarlightMotion.whenIdle()');
             await click('#btnInspiration');
             await checkPanel(`inspiration panel ${width}x${height}`,'#inspirationOverlay .tool-panel',['#btnCloseInspiration','#btnGenerateInspiration']);
-            await evaluate('window.StarlightBack()');
+            await evaluate('window.StarlightBack();window.StarlightMotion.whenIdle()');
             await click('#btnHamburger');
         }
         await resize(390,844);
@@ -221,7 +227,7 @@ async function main() {
         await delay(100);
         await click('#btnChatSettings');
         assert.equal(await evaluate('getComputedStyle(document.querySelector("#modalOverlay")).display'), 'flex','Story settings did not open');
-        await evaluate('window.StarlightBack()');
+        await evaluate('window.StarlightBack();window.StarlightMotion.whenIdle()');
         assert.equal(await evaluate('getComputedStyle(document.querySelector("#modalOverlay")).display'),'none','Back did not close settings');
         await click('#btnHamburger');
         await click('[data-home-tab="room"]');
@@ -254,7 +260,7 @@ async function main() {
             assert.equal(await evaluate('Number(document.querySelector("#messagesContainer [data-message-index]:last-child").dataset.messageIndex)'),conversations.length-1,'Room locator reused story rendering state');
             await click('#btnChatSettings');
             await checkPanel(`room editor ${width}x${height}`,'#roomModal',['#btnRoomEditorClose','#btnConfirmRoom']);
-            await evaluate('window.StarlightBack()');
+            await evaluate('window.StarlightBack();window.StarlightMotion.whenIdle()');
             await click('#btnHamburger');
         }
         await resize(390,844);
@@ -273,9 +279,104 @@ async function main() {
         await evaluate('document.querySelector("#btnGenerateStylePreview").scrollIntoView({block:"center",behavior:"instant"})');
         assert.equal(await evaluate('(() => {const button=document.querySelector("#btnGenerateStylePreview"),r=button.getBoundingClientRect();return button.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})()'),true,'Style preview cannot be reached by scrolling');
         await screenshot('style-workshop');
-        await evaluate('window.StarlightBack()');
+        await evaluate('window.StarlightBack();window.StarlightMotion.whenIdle()');
+
+        // Navigation is interruptible. State changes happen immediately; only visuals may linger.
+        await evaluate('window.StarlightBack();window.StarlightMotion.whenIdle()');
+        await send('Emulation.setCPUThrottlingRate', { rate:4 });
+        await evaluate(`(async () => {
+            for(let i=0;i<5;i++) {
+                document.querySelector('#homeStoryList .v2-work-card').click();
+                await new Promise(resolve=>setTimeout(resolve,25));window.StarlightBack();
+                await new Promise(resolve=>setTimeout(resolve,25));
+            }
+        })()`);
+        await settle();
+        assert.equal(await evaluate('document.querySelector("#homeShell").classList.contains("is-hidden")'),false,'Rapid navigation left home hidden');
+        assert.equal(await evaluate('document.querySelectorAll(".motion-route-out,.motion-route-in,.motion-exiting").length'),0,'Rapid navigation left stale layers');
+        assert.equal(await evaluate('document.querySelector("#homeShell").inert'),false,'Rapid navigation left home inert');
+        await send('Emulation.setCPUThrottlingRate', { rate:1 });
+        await click('#homeStoryList .v2-work-card');
+        await evaluate(`(async () => {
+            document.querySelector('#btnChatSettings').click();await new Promise(resolve=>setTimeout(resolve,45));
+            window.StarlightBack();await new Promise(resolve=>setTimeout(resolve,30));document.querySelector('#btnChatSettings').click();
+        })()`);
+        await settle();
+        assert.equal(await evaluate('window.StarlightMotion.isOpen(document.querySelector("#modalOverlay"))'),true,'Old close animation hid reopened editor');
+        await evaluate('window.StarlightBack();window.StarlightMotion.whenIdle()');
+        console.log('PASS interruptible navigation / reopen under 4x CPU test');
+
+        // Real app bookmark action must reuse the unchanged rows and their text DOM.
+        await evaluate(`window.__qaRows=[...document.querySelectorAll('#messagesContainer [data-message-index]')].map(node=>({node,bubble:node.querySelector('.message-bubble')}));
+            window.__qaRows.at(-1).node.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true}));`);
+        await settle();
+        await click('[data-message-action="bookmark"]');
+        const reused=await evaluate(`({rows:window.__qaRows.filter(row=>row.node.isConnected).length,
+            text:window.__qaRows.slice(0,-1).filter(row=>row.bubble===row.node.querySelector('.message-bubble')).length,total:window.__qaRows.length})`);
+        assert.equal(reused.rows,reused.total,'Bookmark recreated historical rows');
+        assert.equal(reused.text,reused.total-1,'Bookmark redrew unrelated message text');
+        console.log(`PASS bookmark reuses ${reused.rows} rows / ${reused.text} unchanged bubbles`);
+
+        await send('Emulation.setEmulatedMedia', { features:[{ name:'prefers-reduced-motion',value:'reduce' }] });
+        await click('#btnInspiration');
+        assert.equal(await evaluate('document.querySelector("#inspirationOverlay").getAnimations({subtree:true}).length'),0,'Reduced-motion preference ignored');
+        await evaluate('window.StarlightBack();window.StarlightMotion.whenIdle()');
+        await send('Emulation.setEmulatedMedia', { features:[] });
+        console.log('PASS reduced motion');
+
+        // Exercise actual story and room streaming with fabricated, in-memory SSE, never paid APIs.
+        const mockText='窗边的同学合上书，笑着说：“那就明天再来吧。”';
+        await evaluate(`(() => {
+            window.__qaCalls=0;window.__qaHold=false;const realFetch=window.fetch.bind(window);
+            window.fetch=async (url,options) => {
+                if(new URL(url,location.href).hostname!=='api.deepseek.com')return realFetch(url,options);
+                window.__qaCalls++;
+                const body=JSON.parse(options.body);if(!body.stream)throw new Error('Unexpected non-stream request in offline fixture');
+                const text=${JSON.stringify(mockText)};const encoder=new TextEncoder();
+                return new Response(new ReadableStream({start(controller){
+                    for(const character of text)controller.enqueue(encoder.encode('data: '+JSON.stringify({choices:[{delta:{content:character}}]})+'\\n\\n'));
+                    if(window.__qaHold)options.signal.addEventListener('abort',()=>controller.error(new DOMException('Cancelled','AbortError')),{once:true});
+                    else {controller.enqueue(encoder.encode('data: [DONE]\\n\\n'));controller.close();}
+                }}),{status:200,headers:{'Content-Type':'text/event-stream'}});
+            };
+            window.__qaStable=document.querySelector('#messagesContainer [data-message-index="234"] .message-bubble');
+            window.__qaStreamNode=null;
+            new MutationObserver(records=>{for(const record of records)for(const node of record.addedNodes)if(node.id==='streamingMessage')window.__qaStreamNode=node;})
+                .observe(document.querySelector('#messagesContainer'),{childList:true});
+            const input=document.querySelector('#messageInput');input.value='继续本地测试故事。';input.dispatchEvent(new Event('input'));
+            document.querySelector('#btnSend').click();
+        })()`);
+        for(let i=0;i<80;i++) {
+            if(await evaluate('Boolean(document.querySelector("#message-237") && !document.querySelector("#btnSend").classList.contains("stop-mode"))'))break;
+            await delay(50);if(i===79)throw new Error('Offline story stream did not finish');
+        }
+        await settle();
+        assert.equal(await evaluate('document.querySelector("#message-237 .message-bubble").textContent.trim().startsWith('+JSON.stringify(mockText)+')'),true,'Stream batching lost final story text');
+        assert.equal(await evaluate('window.__qaStable===document.querySelector("#message-234 .message-bubble")'),true,'New reply recreated prior text');
+        assert.equal(await evaluate('window.__qaStreamNode===document.querySelector("#message-237")'),true,'Finalization recreated streaming row');
+        await evaluate(`window.__qaHold=true;document.querySelector('#messageInput').value='测试停止。';document.querySelector('#btnSend').click();`);
+        for(let i=0;i<50;i++) {
+            if(await evaluate('Boolean(document.querySelector("#streamingMessage"))'))break;
+            await delay(30);if(i===49)throw new Error('Offline cancel fixture did not start');
+        }
+        await click('#btnSend');
+        for(let i=0;i<50;i++) {
+            if(await evaluate('!document.querySelector("#btnSend").classList.contains("stop-mode")'))break;
+            await delay(30);
+        }
+        assert.equal(await evaluate('Boolean(document.querySelector("#streamingMessage"))'),false,'Stop left streaming bubble or pending writes');
+        await evaluate('window.__qaHold=false');
+        await click('#btnHamburger');await click('[data-home-tab="room"]');await click('#homeRoomList .v2-work-card');
+        await evaluate(`document.querySelector('#messageInput').value='@小夏 继续本地测试。';document.querySelector('#btnSend').click();`);
+        for(let i=0;i<80;i++) {
+            if(await evaluate('Boolean(document.querySelector("#message-237") && !document.querySelector("#btnSend").classList.contains("stop-mode"))'))break;
+            await delay(50);if(i===79)throw new Error('Offline room stream did not finish');
+        }
+        assert.equal(await evaluate('document.querySelector("#message-237 .message-bubble").textContent.trim().startsWith('+JSON.stringify(mockText)+')'),true,'Stream batching lost room text');
+        assert.equal(await evaluate('window.__qaCalls'),3,'Offline generation made unexpected requests');
+        console.log('PASS mocked story / room streaming and cancellation; zero external API calls');
         assert.equal(exceptions.length,0,'Runtime errors: ' + JSON.stringify(exceptions));
-        console.log('All real-browser UI checks passed; no API calls were made.');
+        console.log('All real-browser layout and motion checks passed; no external API calls were made.');
     } finally {
         socket?.close();
         browser.kill();

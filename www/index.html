@@ -2219,7 +2219,7 @@
                 <div class="library-page-heading"><h2>我的</h2><p>管理全局 API、模型、外观与存储设置。</p></div>
                 <div id="mySettingsMount"></div>
                 <div class="my-section-title">应用信息</div>
-                <div class="my-version-card"><strong>星陽之语 2.1.0</strong><br>本地优先 · 剧情与房间独立 · 世界书与分层长期记忆</div>
+                <div class="my-version-card"><strong>星陽之语 2.1.1</strong><br>本地优先 · 剧情与房间独立 · 世界书与分层长期记忆</div>
             </section>
         </main>
         <nav class="bottom-nav" aria-label="主导航">
@@ -2804,6 +2804,8 @@
     <script src="worldbook.js"></script>
     <script src="memory.js"></script>
     <script src="ui.js"></script>
+    <script src="motion.js"></script>
+    <script src="message-view.js"></script>
     <script src="inspiration.js"></script>
     <script src="style-lab.js"></script>
     <script src="story.js"></script>
@@ -3017,6 +3019,9 @@
             if (!Memory) throw new Error('长期记忆模块加载失败');
             const UI = window.StarlightUI;
             if (!UI) throw new Error('界面模块加载失败');
+            const Motion = window.StarlightMotion;
+            const MessageView = window.StarlightMessageView;
+            if (!Motion || !MessageView) throw new Error('动效模块加载失败');
             const Inspiration = window.StarlightInspiration;
             if (!Inspiration) throw new Error('灵感推荐模块加载失败');
             const WorldBook = window.StarlightWorldBook;
@@ -3480,14 +3485,19 @@
                 });
                 [$homeAddStory,$homeAddRoom].forEach(button => button.querySelector('span').innerHTML = UI.icon('plus'));
                 UI.initialize();
+                Motion.initialize(document);
             }
 
             function closeHomeMenus() {
-                document.querySelectorAll('.v2-card-menu.show').forEach(menu => menu.classList.remove('show'));
+                document.querySelectorAll('.v2-card-menu.show').forEach(menu => {
+                    Motion.setVisible(menu, false, { display:'block', surface:menu });
+                    menu.classList.remove('show');
+                });
                 document.querySelectorAll('.v2-card-more[aria-expanded="true"]').forEach(button => button.setAttribute('aria-expanded','false'));
             }
 
             function setHomeTab(tab) {
+                const previousTab = homeTab;
                 const previousMain = document.querySelector('.home-main');
                 homeScrollPositions[homeTab] = previousMain.scrollTop;
                 homeTab = ['story', 'room', 'my'].includes(tab) ? tab : 'story';
@@ -3502,13 +3512,16 @@
                 const main = document.querySelector('.home-main');
                 main.scrollTop = homeScrollPositions[homeTab] || 0;
                 if (homeTab === 'my') syncSettingsControls();
+                Motion.navigation(document.querySelector('.bottom-nav'), document.querySelector(`[data-home-tab="${homeTab}"]`), previousTab === homeTab);
+                if (previousTab !== homeTab && !$homeShell.classList.contains('is-hidden')) Motion.enter(document.querySelector(`#home${homeTab === 'my' ? 'My' : homeTab === 'room' ? 'Room' : 'Story'}Page`));
             }
 
             function showHome(tab) {
                 if (!canChangeConversationTarget()) return;
+                const wasChatOpen = !$chatShell.classList.contains('is-hidden');
                 closeInspiration();
                 closeMessageActions();
-                $lastInputPopover.hidden = true;
+                Motion.setVisible($lastInputPopover, false, { hidden:true, surface:$lastInputPopover });
                 UI.clearPanel($lastInputPopover);
                 $messageInput.blur();
                 const activeTarget = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
@@ -3518,9 +3531,11 @@
                 $chatShell.classList.add('is-hidden');
                 $homeShell.classList.remove('is-hidden');
                 document.body.classList.remove('chat-open');
+                if (wasChatOpen) Motion.screens($chatShell, $homeShell, -1);
             }
 
             function showChatScreen() {
+                const wasHomeOpen = !$homeShell.classList.contains('is-hidden');
                 $homeShell.classList.add('is-hidden');
                 $chatShell.classList.remove('is-hidden');
                 document.body.classList.add('chat-open');
@@ -3528,6 +3543,7 @@
                 renderMessages();
                 UI.resizeComposer($messageInput);
                 requestAnimationFrame(() => scrollToBottom());
+                if (wasHomeOpen) Motion.screens($homeShell, $chatShell, 1);
             }
 
             function enterWork(mode, id) {
@@ -3594,8 +3610,10 @@
                         menu.classList.toggle('show', shouldOpen);
                         event.currentTarget.setAttribute('aria-expanded', String(menu.classList.contains('show')));
                         if (menu.classList.contains('show')) {
+                            menu.style.display = 'block';
                             menu.classList.remove('open-up');
                             menu.classList.toggle('open-up', menu.getBoundingClientRect().bottom > document.querySelector('.home-main').getBoundingClientRect().bottom);
+                            Motion.setVisible(menu, true, { display:'block', surface:menu });
                         }
                     });
                     menu.querySelector('[data-card-action="rename"]').addEventListener('click', event => { event.stopPropagation(); closeHomeMenus(); renameWork(mode, id); });
@@ -3733,7 +3751,7 @@
                     selectedStyleProfileId = appData.styleProfiles[0]?.id || null;
                 }
                 renderStyleLab();
-                $styleLabOverlay.style.display = 'flex';
+                Motion.setVisible($styleLabOverlay, true, { kind:'page' });
             }
 
             function closeStyleLab() {
@@ -3741,7 +3759,7 @@
                     showToast('请等待当前文风任务完成', 'info');
                     return;
                 }
-                $styleLabOverlay.style.display = 'none';
+                Motion.setVisible($styleLabOverlay, false);
             }
 
             function addStyleProfile() {
@@ -4312,14 +4330,14 @@
                     button.style.cursor = room ? 'not-allowed' : '';
                 });
                 setRoomModalLoading(false);
-                $roomModalOverlay.style.display = 'flex';
+                Motion.setVisible($roomModalOverlay, true, { kind:'page' });
                 document.getElementById('roomModal').scrollTop = 0;
                 setTimeout(() => $roomNameInput.focus(), 100);
             }
 
             function closeRoomModal(force = false) {
                 if (!$roomModalLoading.hidden && !force) return;
-                $roomModalOverlay.style.display = 'none';
+                Motion.setVisible($roomModalOverlay, false);
                 roomDraftSessionId += 1;
                 roomDraftBackgroundRevision += 1;
                 roomDraftAvatarRevisions = new Map();
@@ -5122,7 +5140,7 @@
                 $storyEditorTitle.textContent = '✦ 创建剧情智能体';
                 $btnConfirmCreate.textContent = '保存并进入剧情';
                 fillStoryEditor(null);
-                $modalOverlay.style.display = 'flex';
+                Motion.setVisible($modalOverlay, true, { kind:'page' });
                 document.getElementById('storyEditor').scrollTop = 0;
                 setTimeout(() => $newAgentName.focus(), 150);
             }
@@ -5136,13 +5154,13 @@
                 $storyEditorTitle.textContent = '✎ 编辑剧情智能体';
                 $btnConfirmCreate.textContent = '保存修改';
                 fillStoryEditor(agent);
-                $modalOverlay.style.display = 'flex';
+                Motion.setVisible($modalOverlay, true, { kind:'page' });
                 document.getElementById('storyEditor').scrollTop = 0;
                 setTimeout(() => $newAgentName.focus(), 150);
             }
 
             function closeCreateModal() {
-                $modalOverlay.style.display = 'none';
+                Motion.setVisible($modalOverlay, false);
                 editingAgentId = null;
                 storyDraftCharacters = [];
                 storyDraftWorldBook = WorldBook.normalizeWorldBook();
@@ -5413,25 +5431,13 @@
                 else storyRenderedMessageRange = range;
             }
 
-            function appendMessageWindowControls(total, range) {
+            function appendMessageWindowControls(total, range, items) {
                 if (range.start > 0) {
-                    const earlier = document.createElement('button');
-                    earlier.className = 'load-earlier-btn';
-                    earlier.dataset.action = 'load-earlier';
-                    earlier.textContent = `加载更早消息（还有 ${range.start} 条）`;
-                    $messagesContainer.prepend(earlier);
+                    items.unshift({ key:'earlier', tag:'button', className:'load-earlier-btn', action:'load-earlier', signature:range.start, html:() => `加载更早消息（还有 ${range.start} 条）` });
                 }
                 if (range.end < total) {
-                    const later = document.createElement('button');
-                    later.className = 'load-earlier-btn';
-                    later.dataset.action = 'load-later';
-                    later.textContent = `加载后续消息（还有 ${total - range.end} 条）`;
-                    $messagesContainer.appendChild(later);
-                    const latest = document.createElement('button');
-                    latest.className = 'load-earlier-btn';
-                    latest.dataset.action = 'load-latest';
-                    latest.textContent = '回到最新消息';
-                    $messagesContainer.appendChild(latest);
+                    items.push({ key:'later', tag:'button', className:'load-earlier-btn', action:'load-later', signature:total-range.end, html:() => `加载后续消息（还有 ${total - range.end} 条）` });
+                    items.push({ key:'latest', tag:'button', className:'load-earlier-btn', action:'load-latest', signature:'latest', html:() => '回到最新消息' });
                 }
             }
 
@@ -5442,37 +5448,31 @@
                 }
                 const viewport = options.preserveScroll ? captureMessageViewport() : null;
                 const agent = getCurrentAgent();
-                $messagesContainer.innerHTML = '';
+                const items = [];
 
                 if (!agent || agent.conversations.length === 0) {
-                    $messagesContainer.innerHTML = `
-                    <div class="empty-state" id="emptyState">
+                    items.push({ key:'empty', className:'empty-state', signature:agent?.name, html:() => `
                       <div class="empty-icon">💬</div>
                       <h3>开始一段对话</h3>
-                      <p>在下方输入消息，与「${agent?.name || '剧情角色'}」开始故事吧。</p>
-                    </div>`;
-                    $emptyState.style.display = 'flex';
+                      <p>在下方输入消息，与「${escapeHtml(agent?.name || '剧情角色')}」开始故事吧。</p>
+                    ` });
                 } else {
-                    $emptyState.style.display = 'none';
                     const range = getMessageRenderRange(agent.conversations.length, 'story');
                     agent.conversations.slice(range.start, range.end).forEach((msg, relativeIndex) => {
                         const index = range.start + relativeIndex;
-                        const wrapper = document.createElement('div');
-                        wrapper.className = `message-wrapper ${msg.role}`;
-                        wrapper.dataset.messageIndex = String(index);
-                        wrapper.id = `message-${index}`;
-                        wrapper.innerHTML = `
+                        items.push({ key:`message:${index}`, index, className:`message-wrapper ${msg.role}`,
+                            signature:[msg.role,msg.content,msg.bookmarked,agent.name], html:() => `
                         <div class="message-bubble">
                             ${formatMessageContent(msg.content)}
                             <button class="bookmark-btn ${msg.bookmarked ? 'active' : ''}" title="${msg.bookmarked ? '取消收藏' : '收藏并加入定位列表'}" data-index="${index}">${msg.bookmarked ? '★' : '☆'}</button>
                             <button class="copy-btn" title="复制正文" data-index="${index}">📋 复制</button>
                         </div>
-                        <div class="message-time message-locator-link" data-locate-index="${index}">${msg.role === 'user' ? '你' : agent.name} · #${index + 1}</div>
-                      `;
-                        $messagesContainer.appendChild(wrapper);
+                        <div class="message-time message-locator-link" data-locate-index="${index}">${msg.role === 'user' ? '你' : escapeHtml(agent.name)} · #${index + 1}</div>
+                      ` });
                     });
-                    appendMessageWindowControls(agent.conversations.length, range);
+                    appendMessageWindowControls(agent.conversations.length, range, items);
                 }
+                MessageView.reconcile($messagesContainer, `story:${agent?.id || ''}`, items, agent?.conversations.length || 0, node => Motion.enter(node,'message'));
                 finishMessageRender(viewport);
                 updateToolbarButtons();
             }
@@ -5480,16 +5480,16 @@
             function renderRoomMessages(options = {}) {
                 const viewport = options.preserveScroll ? captureMessageViewport() : null;
                 const room = getCurrentRoom();
-                $messagesContainer.innerHTML = '';
+                const items = [];
                 if (!room || room.messages.length === 0) {
-                    $messagesContainer.innerHTML = `
-                        <div class="empty-state">
+                    items.push({ key:'empty', className:'empty-state', signature:[room?.name,room?.roomType], html:() => `
                             <div class="empty-icon">🎭</div>
                             <h3>${room ? `进入「${escapeHtml(room.name)}」` : '创建你的第一个房间'}</h3>
                             <p>${room
                                 ? (room.roomType === 'double' ? '隐藏亲密度判定已经准备好，可以开始攻略。' : '发送消息后，系统会按照房间规则调度角色发言。')
                                 : '返回房间库创建双人房间或多人房间。'}</p>
-                        </div>`;
+                        ` });
+                    MessageView.reconcile($messagesContainer, `room:${room?.id || ''}`, items, 0);
                     applyRoomBackground(room);
                     finishMessageRender(viewport);
                     updateToolbarButtons();
@@ -5499,24 +5499,16 @@
                 room.messages.slice(range.start, range.end).forEach((message, relativeIndex) => {
                     const index = range.start + relativeIndex;
                     if (message.role === 'system') {
-                        const event = document.createElement('div');
-                        event.className = 'room-system-event';
-                        event.dataset.messageIndex = String(index);
-                        event.id = `message-${index}`;
-                        event.innerHTML = `<span>#${index + 1}</span> · ${formatMessageContent(message.content)}`;
-                        $messagesContainer.appendChild(event);
+                        items.push({ key:`message:${index}`, index, className:'room-system-event', signature:[message.role,message.content], html:() => `<span>#${index + 1}</span> · ${formatMessageContent(message.content)}` });
                         return;
                     }
                     const isUser = message.role === 'user';
                     const member = isUser ? null : Rooms.getMember(room, message.speakerId);
                     const displayContent = isUser ? message.content : Rooms.cleanCharacterOutput(message.content, member?.name || '');
                     if (!isUser && !Rooms.hasSubstantiveRoomContent(room, displayContent)) return;
-                    const row = document.createElement('div');
-                    row.className = `room-message-row ${isUser ? 'user' : 'assistant'}`;
-                    row.dataset.messageIndex = String(index);
-                    row.id = `message-${index}`;
                     const userAvatar = '<span class="room-avatar-fallback" style="background:#5d6475">你</span>';
-                    row.innerHTML = `
+                    items.push({ key:`message:${index}`, index, className:`room-message-row ${isUser ? 'user' : 'assistant'}`,
+                        signature:[message.role,displayContent,member?.name,member?.color,member?.avatar], html:() => `
                         ${isUser ? userAvatar : avatarMarkup(member)}
                         <div class="room-message-body">
                             <div class="room-speaker-name">${isUser ? '你' : escapeHtml(member?.name || '角色')} · #${index + 1}</div>
@@ -5524,10 +5516,10 @@
                                 ${formatMessageContent(displayContent)}
                                 <button class="copy-btn" title="复制正文" data-index="${index}">📋 复制</button>
                             </div>
-                        </div>`;
-                    $messagesContainer.appendChild(row);
+                        </div>` });
                 });
-                appendMessageWindowControls(room.messages.length, range);
+                appendMessageWindowControls(room.messages.length, range, items);
+                MessageView.reconcile($messagesContainer, `room:${room.id}`, items, room.messages.length, node => Motion.enter(node,'message'));
                 applyRoomBackground(room);
                 finishMessageRender(viewport);
                 updateToolbarButtons();
@@ -5660,13 +5652,13 @@
                 navigatorBookmarkedOnly = false;
                 $navigatorSearchInput.value = Number.isInteger(focusIndex) ? `#${focusIndex + 1}` : '';
                 $navigatorNumberInput.value = Number.isInteger(focusIndex) ? String(focusIndex + 1) : '';
-                $navigatorOverlay.style.display = 'flex';
+                Motion.setVisible($navigatorOverlay, true);
                 renderConversationNavigator();
                 setTimeout(() => (Number.isInteger(focusIndex) ? $navigatorNumberInput : $navigatorSearchInput).focus(), 50);
             }
 
             function closeConversationNavigator() {
-                $navigatorOverlay.style.display = 'none';
+                Motion.setVisible($navigatorOverlay, false);
             }
 
             function jumpToMessage(index) {
@@ -5834,12 +5826,12 @@
                 roomCharacterMemoryDrafts = {};
                 if (memoryEditorMode === 'room') target.participants.forEach(member => roomCharacterMemoryDrafts[member.id] = Memory.normalizeMemory(target.characterMemories?.[member.id], total));
                 renderMemoryManager();
-                $memoryEditorOverlay.style.display = 'flex';
+                Motion.setVisible($memoryEditorOverlay, true, { kind:'page' });
                 $memoryEditor.scrollTop = 0;
             }
 
             function closeMemoryManager() {
-                $memoryEditorOverlay.style.display = 'none';
+                Motion.setVisible($memoryEditorOverlay, false);
                 memoryDraftSegments = [];
                 memoryDraftFacts = [];
                 roomCharacterMemoryDrafts = {};
@@ -5926,6 +5918,7 @@
                 const wrapper = document.createElement('div');
                 wrapper.className = 'message-wrapper assistant';
                 wrapper.id = 'streamingMessage';
+                wrapper.dataset.viewKey = `message:${getCurrentAgent()?.conversations.length || 0}`;
                 const bubble = document.createElement('div');
                 bubble.className = 'message-bubble';
                 bubble.innerHTML = '<span class="typing-indicator"><span></span><span></span><span></span></span>';
@@ -5936,21 +5929,25 @@
                 wrapper.appendChild(timeDiv);
                 $messagesContainer.appendChild(wrapper);
                 $emptyState.style.display = 'none';
+                Motion.enter(wrapper,'message');
                 return bubble;
             }
 
             function updateStreamingBubble(bubble, content) {
-                bubble.innerHTML = formatMessageContent(content);
-                const timeDiv = bubble.parentElement.querySelector('.message-time');
-                if (timeDiv && content.length > 20) {
-                    const agent = getCurrentAgent();
-                    timeDiv.textContent = (agent?.name || 'AI') + ' · 生成中...';
-                }
+                Motion.writeFrame(bubble, () => {
+                    bubble.innerHTML = formatMessageContent(content);
+                    const timeDiv = bubble.parentElement.querySelector('.message-time');
+                    if (timeDiv && content.length > 20) {
+                        const agent = getCurrentAgent();
+                        timeDiv.textContent = (agent?.name || 'AI') + ' · 生成中...';
+                    }
+                });
             }
 
             function finalizeStreamingMessage(fullContent) {
                 const streamingEl = document.getElementById('streamingMessage');
                 if (streamingEl) {
+                    Motion.flushWrite(streamingEl.querySelector('.message-bubble'));
                     streamingEl.removeAttribute('id');
                     const agent = getCurrentAgent();
                     const timeDiv = streamingEl.querySelector('.message-time');
@@ -5963,7 +5960,7 @@
 
             function removeStreamingMessage() {
                 const el = document.getElementById('streamingMessage');
-                if (el) el.remove();
+                if (el) { Motion.flushWrite(el.querySelector('.message-bubble'), true); el.remove(); }
             }
 
             function createRoomStreamingMessage(member, queueIndex, queueTotal) {
@@ -5987,14 +5984,17 @@
 
             function updateRoomStreamingBubble(bubble, content) {
                 if (!bubble) return;
-                const cleaned = Rooms.cleanCharacterOutput(content, bubble.dataset.memberName || '');
-                bubble.innerHTML = cleaned
-                    ? formatMessageContent(cleaned)
-                    : '<span class="typing-indicator"><span></span><span></span><span></span></span>';
+                Motion.writeFrame(bubble, () => {
+                    const cleaned = Rooms.cleanCharacterOutput(content, bubble.dataset.memberName || '');
+                    bubble.innerHTML = cleaned
+                        ? formatMessageContent(cleaned)
+                        : '<span class="typing-indicator"><span></span><span></span><span></span></span>';
+                });
             }
 
             function removeRoomStreamingMessage() {
-                document.getElementById('roomStreamingMessage')?.remove();
+                const el = document.getElementById('roomStreamingMessage');
+                if (el) { Motion.flushWrite(el.querySelector('.message-bubble'), true); el.remove(); }
             }
 
             function callDeepSeekStreamPromise(messages, bubble, overrides = {}) {
@@ -7004,6 +7004,7 @@
                 $lastInputPopover.innerHTML = `<strong>上次输入</strong>${escapeHtml(preview)}${compact.length > preview.length ? '…' : ''}`.replace(/\n/g, '<br>');
                 $lastInputPopover.hidden = false;
                 UI.placePanel($lastInputPopover, $inputArea, true);
+                Motion.setVisible($lastInputPopover, true, { hidden:true, surface:$lastInputPopover });
             }
 
             function getInspirationState(agentId) {
@@ -7037,7 +7038,7 @@
                 const agent = getCurrentAgent();
                 if (agent && appData.activeMode === 'story') getInspirationState(agent.id).direction = $inspirationRequestInput.value;
                 cancelInspiration();
-                $inspirationOverlay.style.display = 'none';
+                Motion.setVisible($inspirationOverlay, false);
             }
 
             function renderInspirationState() {
@@ -7057,7 +7058,7 @@
                 if (appData.activeMode !== 'story' || !agent) return showToast('请先打开一段剧情', 'info');
                 $inspirationRequestInput.value = getInspirationState(agent.id).direction;
                 renderInspirationState();
-                $inspirationOverlay.style.display = 'flex';
+                Motion.setVisible($inspirationOverlay, true);
             }
 
             function renderInspirationSuggestions(suggestions, agentId) {
@@ -7176,7 +7177,7 @@
                     const item = snippetsDraft[index];
                     row.querySelector('.snippet-scope').addEventListener('change', event => item.scope = event.target.value);
                     row.querySelector('.snippet-text').addEventListener('input', event => item.text = event.target.value);
-                    row.querySelector('.snippet-use').addEventListener('click', () => { appendToComposer(item.text); $snippetsOverlay.style.display = 'none'; });
+                    row.querySelector('.snippet-use').addEventListener('click', () => { appendToComposer(item.text); Motion.setVisible($snippetsOverlay, false); });
                     row.querySelector('.snippet-delete').addEventListener('click', () => { snippetsDraft.splice(index, 1); renderSnippets(); });
                     row.querySelector('.snippet-up').addEventListener('click', () => { if (index > 0) { [snippetsDraft[index - 1], snippetsDraft[index]] = [snippetsDraft[index], snippetsDraft[index - 1]]; renderSnippets(); } });
                     row.querySelector('.snippet-down').addEventListener('click', () => { if (index < snippetsDraft.length - 1) { [snippetsDraft[index + 1], snippetsDraft[index]] = [snippetsDraft[index], snippetsDraft[index + 1]]; renderSnippets(); } });
@@ -7190,7 +7191,7 @@
                     ...(target?.snippets || []).map(text => ({ scope:'current', text })),
                 ];
                 renderSnippets();
-                $snippetsOverlay.style.display = 'flex';
+                Motion.setVisible($snippetsOverlay, true);
             }
 
             function saveSnippets() {
@@ -7198,7 +7199,7 @@
                 appData.commonSnippets = snippetsDraft.filter(item => item.scope === 'global').map(item => item.text.trim()).filter(Boolean).slice(0,80);
                 if (target) target.snippets = snippetsDraft.filter(item => item.scope === 'current').map(item => item.text.trim()).filter(Boolean).slice(0,80);
                 saveData();
-                $snippetsOverlay.style.display = 'none';
+                Motion.setVisible($snippetsOverlay, false);
                 showToast('常用语段已保存', 'success');
             }
 
@@ -7216,7 +7217,7 @@
             }
 
             function closeMessageActions() {
-                $messageActionOverlay.hidden = true;
+                Motion.setVisible($messageActionOverlay, false, { hidden:true, surface:$messageActionSheet });
                 document.querySelectorAll('.message-action-selected').forEach(item => item.classList.remove('message-action-selected'));
                 UI.clearPanel($messageActionSheet);
                 activeMessageActionIndex = null;
@@ -7248,7 +7249,11 @@
                 if (anchor) {
                     anchor.classList.add('message-action-selected');
                     UI.placePanel($messageActionSheet, anchor);
+                    const bounds = $messageActionSheet.getBoundingClientRect();
+                    const source = anchor.getBoundingClientRect();
+                    $messageActionSheet.style.transformOrigin = `${Math.max(12,Math.min(bounds.width-12,source.left+source.width/2-bounds.left))}px ${source.top > bounds.bottom ? 'bottom' : 'top'}`;
                 }
+                Motion.setVisible($messageActionOverlay, true, { hidden:true, surface:$messageActionSheet });
             }
 
             $messageActionSheet.addEventListener('click', async event => {
@@ -7297,17 +7302,17 @@
                 const overlays = [
                     [$messageActionOverlay, closeMessageActions],
                     [$inspirationOverlay, closeInspiration],
-                    [$snippetsOverlay, () => { $snippetsOverlay.style.display = 'none'; }],
+                    [$snippetsOverlay, () => { Motion.setVisible($snippetsOverlay, false); }],
                     [$navigatorOverlay, closeConversationNavigator],
                     [$modalOverlay, closeCreateModal],
                     [$roomModalOverlay, closeRoomModal],
                     [$memoryEditorOverlay, closeMemoryManager],
                     [$styleLabOverlay, closeStyleLab],
-                ].filter(([element]) => !element.hidden && getComputedStyle(element).display !== 'none')
+                ].filter(([element]) => Motion.isOpen(element))
                     .sort((a,b) => Number(getComputedStyle(b[0]).zIndex || 0) - Number(getComputedStyle(a[0]).zIndex || 0));
                 if (overlays.length) { overlays[0][1](); return true; }
-                if (!$lastInputPopover.hidden) {
-                    $lastInputPopover.hidden = true;
+                if (Motion.isOpen($lastInputPopover)) {
+                    Motion.setVisible($lastInputPopover, false, { hidden:true, surface:$lastInputPopover });
                     UI.clearPanel($lastInputPopover);
                     return true;
                 }
@@ -7351,7 +7356,7 @@
             $btnLastInput.addEventListener('click', event => { event.stopPropagation(); showLastInput(); });
             document.addEventListener('click', event => {
                 if (!event.target.closest('#lastInputPopover') && !event.target.closest('#btnLastInput')) {
-                    $lastInputPopover.hidden = true;
+                    Motion.setVisible($lastInputPopover, false, { hidden:true, surface:$lastInputPopover });
                     UI.clearPanel($lastInputPopover);
                 }
             });
@@ -7363,10 +7368,10 @@
             $btnGenerateInspiration.addEventListener('click', generateInspiration);
             $inspirationOverlay.addEventListener('click', event => { if (event.target === $inspirationOverlay) closeInspiration(); });
             $btnSnippets.addEventListener('click', openSnippets);
-            $btnCloseSnippets.addEventListener('click', () => $snippetsOverlay.style.display = 'none');
+            $btnCloseSnippets.addEventListener('click', () => Motion.setVisible($snippetsOverlay, false));
             $btnAddSnippet.addEventListener('click', () => { snippetsDraft.push({ scope:'current', text:'' }); renderSnippets(); });
             $btnSaveSnippets.addEventListener('click', saveSnippets);
-            $snippetsOverlay.addEventListener('click', event => { if (event.target === $snippetsOverlay) $snippetsOverlay.style.display = 'none'; });
+            $snippetsOverlay.addEventListener('click', event => { if (event.target === $snippetsOverlay) Motion.setVisible($snippetsOverlay, false); });
 
             // ==================== 事件绑定 ====================
             $btnSend.addEventListener('click', () => {
