@@ -1,4 +1,10 @@
 const test = require('node:test');
+
+test('时间线最新状态已失效时，不从旧结构化事实复活同一状态',()=>{
+    const memory={facts:[{id:'f',subject:'小夏',attribute:'装备',after:'银剑',text:'当前持有银剑',sourceStartIndex:0,sourceEndIndex:2}],timeline:[{id:'expired',subject:'小夏',attribute:'装备',after:'银剑',status:'expired',sourceStartIndex:3,sourceEndIndex:4,validUntilIndex:4}]};
+    assert.doesNotMatch(Memory.buildMemoryContext(memory,'小夏 装备',{}),/当前持有银剑/);
+    assert.match(Memory.buildMemoryContext(memory,'小夏 装备',{}, {atMessageIndex:3}),/当前持有银剑/);
+});
 const assert = require('node:assert/strict');
 const Memory = require('../www/memory.js');
 const Timeline = require('../www/timeline.js');

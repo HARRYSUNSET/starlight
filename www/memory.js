@@ -517,8 +517,9 @@
     }
 
     function selectNormalizedFacts(state, query, options) {
-        const latestStates = new Map(Timeline.selectEvents(state.timeline, options).map(function (event) {
-            return [JSON.stringify([event.subject, event.attribute]), event.after];
+        const latestStates = new Map(Timeline.selectEvents(state.timeline, Object.assign({},options,{includeExpired:true})).map(function (event) {
+            const active=event.status==='active'||(Number.isInteger(options && options.atMessageIndex)&&event.validUntilIndex!==null&&options.atMessageIndex<event.validUntilIndex);
+            return [JSON.stringify([event.subject, event.attribute]), active?event.after:null];
         }));
         const candidates = state.facts.filter(function (fact) {
             if (fact.status !== 'active' || !Timeline.isVisible(fact, options)) return false;

@@ -127,7 +127,7 @@
             // an older state. Before its explicit expiry it is still historical.
             const effective = event.status === 'active'
                 || (at !== null && event.validUntilIndex !== null && at < event.validUntilIndex);
-            current.set(key, effective ? event : null);
+            current.set(key, effective || settings.includeExpired ? event : null);
         });
         return Array.from(current.values()).filter(Boolean);
     }
