@@ -36,6 +36,10 @@ async function main() {
     const origin = `http://127.0.0.1:${server.address().port}`;
     const browser = spawn(chrome, ['--headless=new','--no-first-run','--no-default-browser-check',
         '--disable-background-networking','--disable-background-timer-throttling','--disable-renderer-backgrounding',
+        // Hosted Linux CI may disallow Chrome's user-namespace sandbox. This
+        // isolated fixture browser uses no real data and blocks the API host;
+        // production WebView and local interactive browsers are unchanged.
+        ...(process.env.CI && process.platform === 'linux' ? ['--no-sandbox','--disable-dev-shm-usage'] : []),
         '--remote-debugging-port=0',`--user-data-dir=${profile}`,'about:blank'],
     { windowsHide:true, stdio:['ignore','ignore','pipe'] });
     let socket;
@@ -46,8 +50,9 @@ async function main() {
     try {
         const wsUrl = await new Promise((resolve, reject) => {
             let log = '';
-            const timeout = setTimeout(() => reject(new Error('Chrome did not start in 15 seconds')), 15000);
-            browser.on('error', reject);
+            const timeout = setTimeout(() => reject(new Error('Chrome did not start in 30 seconds: ' + log.slice(-6000))), 30000);
+            browser.on('error', error => { clearTimeout(timeout); reject(error); });
+            browser.once('exit', code => { clearTimeout(timeout); reject(new Error('Chrome exited before connection (' + code + '): ' + log.slice(-6000))); });
             browser.stderr.on('data', chunk => {
                 log += String(chunk);
                 const match = log.match(/DevTools listening on (ws:\/\/\S+)/);
