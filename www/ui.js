@@ -47,6 +47,44 @@
         }
     }
 
+    // Opening a page is navigation, not a request to edit. Do not restore an
+    // editable focus on exit: Android would reopen the IME behind the page.
+    function dismissKeyboard(doc, scope) {
+        const active = doc?.activeElement;
+        if (scope && !scope.contains?.(active)) return false;
+        if (!active?.matches?.('input,textarea,select,[contenteditable]:not([contenteditable="false"])')) return false;
+        active.blur();
+        return true;
+    }
+
+    function focusEditor(element, options = {}) {
+        if (!element?.isConnected || element.disabled || element.readOnly ||
+            element.closest('[hidden],[inert],.is-hidden') || !element.getClientRects().length) return false;
+        const doc = element.ownerDocument;
+        if (doc.activeElement === element) return true; // Preserve typing, without reopening the keyboard.
+        const win = doc.defaultView;
+        const platform = win.Capacitor?.getPlatform?.();
+        const touch = platform === 'android' || platform === 'ios' ||
+            win.navigator?.maxTouchPoints > 0 || win.matchMedia?.('(any-pointer: coarse)')?.matches;
+        if (touch && !options.explicit) return false;
+        element.focus({ preventScroll:true });
+        return true;
+    }
+
+    function copyTextFallback(text, doc) {
+        const field = doc.createElement('textarea');
+        field.value = String(text ?? '');
+        field.readOnly = true; // Selecting a copy buffer must not summon a mobile keyboard.
+        field.tabIndex = -1;
+        field.setAttribute('aria-hidden','true');
+        field.style.cssText = 'position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none;';
+        doc.body.appendChild(field);
+        try {
+            field.select();
+            if (!doc.execCommand('copy')) throw new Error('Copy unavailable');
+        } finally { field.remove(); }
+    }
+
     function viewportMetrics(input) {
         const data = input || {};
         const layoutHeight = Math.max(1, Number(data.innerHeight) || 1);
@@ -162,10 +200,12 @@
 
     function floatingPosition(anchor, size, viewport, preferAbove) {
         const margin = 12;
-        const width = Math.min(size.width, Math.max(1, viewport.width - margin * 2));
-        const height = Math.min(size.height, Math.max(1, viewport.height - margin * 2));
-        const minTop = viewport.top + margin;
-        const maxTop = viewport.top + viewport.height - height - margin;
+        const safe = viewport.safeArea || {};
+        const edge = name => Math.max(margin, Number(safe[name]) || 0);
+        const width = Math.min(size.width, Math.max(1, viewport.width - edge('left') - edge('right')));
+        const height = Math.min(size.height, Math.max(1, viewport.height - edge('top') - edge('bottom')));
+        const minTop = viewport.top + edge('top');
+        const maxTop = viewport.top + viewport.height - height - edge('bottom');
         const above = anchor.top - height - 8;
         const below = anchor.bottom + 8;
         let top;
@@ -175,7 +215,7 @@
         else top = (viewport.top + viewport.height / 2) - height / 2;
         return {
             top: Math.max(minTop, Math.min(maxTop, top)),
-            left: Math.max(margin, Math.min(viewport.width - width - margin, anchor.left)),
+            left: Math.max(edge('left'), Math.min(viewport.width - width - edge('right'), anchor.left)),
             width, height,
         };
     }
@@ -183,7 +223,14 @@
     function placePanel(panel, anchor, preferAbove) {
         if (!panel || !anchor) return;
         const viewport = getViewport(panel.ownerDocument.defaultView);
-        panel.style.maxHeight = Math.max(1, viewport.height - 24) + 'px';
+        const style = panel.ownerDocument.defaultView.getComputedStyle(panel.ownerDocument.documentElement);
+        viewport.safeArea = Object.fromEntries(['top','right','bottom','left'].map(edge =>
+            [edge, Math.max(0, parseFloat(style.getPropertyValue('--ui-safe-' + edge)) || 0)]));
+        panel.style.maxHeight = Math.max(1, viewport.height - Math.max(12,viewport.safeArea.top) - Math.max(12,viewport.safeArea.bottom)) + 'px';
+        // Let CSS choose the natural width again after rotation. Constrain width
+        // before measuring height, since wrapped menu text can make it taller.
+        panel.style.width = '';
+        panel.style.width = Math.min(panel.offsetWidth, Math.max(1, viewport.width - Math.max(12,viewport.safeArea.left) - Math.max(12,viewport.safeArea.right))) + 'px';
         // Transform animations change the visual rectangle, not the panel's layout size.
         const position = floatingPosition(anchor.getBoundingClientRect(), { width:panel.offsetWidth, height:panel.offsetHeight }, viewport, preferAbove);
         panel.style.left = position.left + 'px';
@@ -277,5 +324,5 @@
         };
     }
 
-    return { icon, button, viewportMetrics, nativeMotionState, attachNativeMotion, nativeFeedback, floatingPosition, placePanel, clearPanel, resizeComposer, initialize };
+    return { icon, button, dismissKeyboard, focusEditor, copyTextFallback, viewportMetrics, nativeMotionState, attachNativeMotion, nativeFeedback, floatingPosition, placePanel, clearPanel, resizeComposer, initialize };
 });

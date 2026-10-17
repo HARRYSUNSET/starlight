@@ -147,17 +147,39 @@ async function main() {
             const layout = await evaluate(`(() => {
                 const panel=document.querySelector(${JSON.stringify(selector)}),r=panel.getBoundingClientRect();
                 return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,overflow:panel.scrollWidth>panel.clientWidth+1,
+                    offenders:[...panel.querySelectorAll('*')].filter(node=>{const b=node.getBoundingClientRect();return b.width>0&&(b.right>r.right+1||b.left<r.left-1);}).slice(0,8).map(node=>({tag:node.tagName,id:node.id,className:node.className,width:node.getBoundingClientRect().width,minWidth:getComputedStyle(node).minWidth})),
                     buttons:${JSON.stringify(buttons)}.map(selector=>{const button=document.querySelector(selector);button.scrollIntoView({block:'center',behavior:'instant'});const b=button.getBoundingClientRect();
                         const hit=document.elementFromPoint(b.x+b.width/2,b.y+b.height/2);
                         return {selector,reachable:Boolean(hit&&button.contains(hit))};})};
             })()`);
             assert.ok(layout.top>=0 && layout.bottom<=await evaluate('innerHeight')+1,label+': panel outside screen');
-            assert.equal(layout.overflow,false,label+': panel content overflows horizontally');
+            assert.equal(layout.overflow,false,label+': panel content overflows horizontally: '+JSON.stringify(layout.offenders));
             for(const button of layout.buttons)assert.equal(button.reachable,true,label+': unreachable '+button.selector);
+            console.log('PASS '+label);
+        };
+        const checkNavigation = async label => {
+            await settle();
+            const layout = await evaluate(`(() => {
+                const nav=document.querySelector('.bottom-nav'),r=nav.getBoundingClientRect();
+                return {width:innerWidth,height:innerHeight,left:r.left,right:r.right,top:r.top,bottom:r.bottom,
+                    buttons:[...nav.querySelectorAll('[data-home-tab]')].map(button=>{
+                        const b=button.getBoundingClientRect(),hit=document.elementFromPoint(b.x+b.width/2,b.y+b.height/2);
+                        return {tab:button.dataset.homeTab,left:b.left,right:b.right,top:b.top,bottom:b.bottom,
+                            reachable:Boolean(hit&&button.contains(hit))};
+                    })};
+            })()`);
+            assert.ok(layout.left>=-1 && layout.right<=layout.width+1,label+': navigation extends outside horizontal viewport: '+JSON.stringify(layout));
+            assert.ok(layout.top>=-1 && layout.bottom<=layout.height+1,label+': navigation extends outside vertical viewport');
+            assert.equal(layout.buttons.length,3,label+': missing navigation tabs');
+            for(const button of layout.buttons) {
+                assert.ok(button.left>=-1&&button.right<=layout.width+1&&button.top>=-1&&button.bottom<=layout.height+1,label+': clipped '+button.tab+' tab');
+                assert.equal(button.reachable,true,label+': unreachable '+button.tab+' tab');
+            }
             console.log('PASS '+label);
         };
         for (const [width,height] of [[320,568],[390,844],[844,390]]) {
             await resize(width,height);
+            await checkNavigation(`all navigation tabs ${width}x${height}`);
             await click('[data-home-tab="my"]');
             const scroll = await evaluate(`(() => {const main=document.querySelector('.home-main');main.scrollTop=main.scrollHeight;return {top:main.scrollTop,client:main.clientHeight,scroll:main.scrollHeight,nav:document.querySelector('.bottom-nav').getBoundingClientRect().top,mainBottom:main.getBoundingClientRect().bottom};})()`);
             assert.ok(scroll.top>0 && scroll.scroll>scroll.client, 'My settings cannot scroll');
@@ -171,6 +193,7 @@ async function main() {
                 await screenshot('my-settings');
             }
             await click('[data-home-tab="story"]');
+            if(width===390)await screenshot('story-library-v231');
             await click('#homeStoryList .v2-work-card');
             await evaluate('document.querySelector("#messageInput").value="";document.querySelector("#messageInput").dispatchEvent(new Event("input"));');
             await checkChat(`story ${width}x${height}`);
@@ -214,6 +237,30 @@ async function main() {
             await checkPanel(`inspiration panel ${width}x${height}`,'#inspirationOverlay .tool-panel',['#btnCloseInspiration','#btnGenerateInspiration']);
             await evaluate('window.StarlightBack();window.StarlightMotion.whenIdle()');
             await click('#btnHamburger');
+        }
+        for(const inset of [{width:390,height:844,top:44,bottom:34,left:0,right:0},{width:844,height:390,top:24,bottom:21,left:44,right:34}]) {
+            await resize(inset.width,inset.height);
+            await evaluate(`Object.entries(${JSON.stringify(inset)}).forEach(([name,value])=>{if(!['width','height'].includes(name))document.documentElement.style.setProperty('--safe-area-inset-'+name,value+'px');})`);
+            await checkNavigation(`safe-area navigation ${inset.width}x${inset.height}`);
+            const safeTabs=await evaluate(`(() => {const inset=${JSON.stringify(inset)};return [...document.querySelectorAll('.bottom-nav [data-home-tab]')].every(button=>{const r=button.getBoundingClientRect();return r.left>=inset.left&&r.right<=innerWidth-inset.right&&r.bottom<=innerHeight-inset.bottom;});})()`);
+            assert.equal(safeTabs,true,'Navigation buttons overlap simulated device safe areas');
+            await click('[data-home-tab="story"]');
+            await click('#homeStoryList .v2-work-card');
+            const safeHeader=await evaluate(`(() => {const inset=${JSON.stringify(inset)};return ['#btnHamburger','#btnChatSettings','#btnSend'].every(selector=>{const b=document.querySelector(selector),r=b.getBoundingClientRect();return r.left>=inset.left&&r.right<=innerWidth-inset.right&&r.top>=inset.top&&r.bottom<=innerHeight-inset.bottom&&b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));});})()`);
+            assert.equal(safeHeader,true,'Chat header / send control overlaps simulated device safe areas');
+            await checkChat(`safe-area story ${inset.width}x${inset.height}`);
+            for(const [open,panel] of [['last-input','#lastInputPopover'],['message-menu','#messageActionSheet']]) {
+                if(open==='last-input')await click('#btnLastInput');
+                else {
+                    await evaluate(`document.querySelector('#messagesContainer [data-message-index]:last-of-type').dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true}));`);
+                    await settle();
+                }
+                const safePanel=await evaluate(`(() => {const inset=${JSON.stringify(inset)},r=document.querySelector(${JSON.stringify(panel)}).getBoundingClientRect();return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,safe:r.left>=inset.left&&r.right<=innerWidth-inset.right&&r.top>=inset.top&&r.bottom<=innerHeight-inset.bottom};})()`);
+                assert.equal(safePanel.safe,true,open+' overlaps simulated device safe areas: '+JSON.stringify(safePanel));
+                await evaluate('window.StarlightBack();window.StarlightMotion.whenIdle()');
+            }
+            await click('#btnHamburger');
+            await evaluate(`['top','bottom','left','right'].forEach(name=>document.documentElement.style.removeProperty('--safe-area-inset-'+name));`);
         }
         await resize(390,844);
         await click('[data-home-tab="story"]');
@@ -442,6 +489,8 @@ async function main() {
         console.log('PASS on-demand inspiration / full drafts / no extra learning calls / isolation: '+inspirationChecks.checks+' checks');
         const motionChecks=await evaluate(`(${require('../tests/motion-browser.js').toString()})()`);
         console.log('PASS press / drag-dismiss / cancellation / keyboard-motion coexistence: '+motionChecks.checks+' checks');
+        const mobileChecks=await evaluate(`(${require('../tests/mobile-browser.js').toString()})()`);
+        console.log('PASS mobile navigation / explicit editing only / keyboard viewport / no API calls: '+mobileChecks.checks+' checks');
         await click('#btnInspiration');
         await screenshot('inspiration-full-v230');
         await click('#btnInspirationBack');

@@ -2251,7 +2251,7 @@
                 <div class="library-page-heading"><h2>我的</h2><p>管理全局 API、模型、外观与存储设置。</p></div>
                 <div id="mySettingsMount"></div>
                 <div class="my-section-title">应用信息</div>
-                <div class="my-version-card"><strong>星陽之语 2.3.0</strong><br>按需灵感 · 完整章节提示词 · 连贯动效</div>
+                <div class="my-version-card"><strong>星陽之语 2.3.1</strong><br>移动端适配修复 · 导航对齐 · 按需唤起键盘</div>
             </section>
         </main>
         <nav class="bottom-nav" aria-label="主导航">
@@ -3563,6 +3563,7 @@
 
             function setHomeTab(tab) {
                 const previousTab = homeTab;
+                if (tab !== previousTab) UI.dismissKeyboard(document, $homeShell);
                 const previousMain = document.querySelector('.home-main');
                 homeScrollPositions[homeTab] = previousMain.scrollTop;
                 homeTab = ['story', 'room', 'my'].includes(tab) ? tab : 'story';
@@ -3918,7 +3919,7 @@
                 selectedStyleProfileId = profile.id;
                 saveData();
                 renderStyleLab();
-                setTimeout(() => $styleProfileNameInput.focus(), 40);
+                UI.focusEditor($styleProfileNameInput);
             }
 
             function updateSelectedStyleProfile(patch) {
@@ -4538,7 +4539,6 @@
                 setRoomModalLoading(false);
                 Motion.setVisible($roomModalOverlay, true, { kind:'page' });
                 document.getElementById('roomModal').scrollTop = 0;
-                setTimeout(() => $roomNameInput.focus(), 100);
             }
 
             function closeRoomModal(force = false) {
@@ -5278,7 +5278,7 @@
                         character.fields.push(Story.createCharacterField(`新增栏位${character.fields.length + 1}`, ''));
                         renderStoryCharactersEditor(character.id);
                         const refreshedCard = $storyCharactersEditor.querySelector(`[data-character-id="${character.id}"]`);
-                        refreshedCard?.querySelector('.story-character-field:last-child .story-character-field-label')?.focus();
+                        UI.focusEditor(refreshedCard?.querySelector('.story-character-field:last-child .story-character-field-label'));
                     });
                     card.querySelector('.story-remove-character-btn').addEventListener('click', () => {
                         if (storyDraftCharacters.length <= 1) {
@@ -5300,9 +5300,7 @@
                 const character = Story.cloneCharacterSchema(previous);
                 storyDraftCharacters.push(character);
                 renderStoryCharactersEditor(character.id);
-                setTimeout(() => {
-                    $storyCharactersEditor.querySelector(`[data-character-id="${character.id}"] .story-character-field-value`)?.focus();
-                }, 250);
+                UI.focusEditor($storyCharactersEditor.querySelector(`[data-character-id="${character.id}"] .story-character-field-value`));
             }
 
             function collectStoryCharacters() {
@@ -5349,7 +5347,6 @@
                 fillStoryEditor(null);
                 Motion.setVisible($modalOverlay, true, { kind:'page' });
                 document.getElementById('storyEditor').scrollTop = 0;
-                setTimeout(() => $newAgentName.focus(), 150);
             }
 
             function openEditModal(agentId) {
@@ -5363,7 +5360,6 @@
                 fillStoryEditor(agent);
                 Motion.setVisible($modalOverlay, true, { kind:'page' });
                 document.getElementById('storyEditor').scrollTop = 0;
-                setTimeout(() => $newAgentName.focus(), 150);
             }
 
             function closeCreateModal() {
@@ -5377,7 +5373,8 @@
                 const name = $newAgentName.value.trim();
                 if (!name) {
                     showToast('请输入剧情名称', 'error');
-                    $newAgentName.focus();
+                    $newAgentName.scrollIntoView({ block:'center', behavior:'smooth' });
+                    UI.focusEditor($newAgentName);
                     return;
                 }
                 let characters;
@@ -5814,19 +5811,13 @@
                         e.target.innerHTML = '✅ 已复制';
                         setTimeout(() => { e.target.innerHTML = '📋 复制'; }, 2000);
                     } catch (err) {
-                        const textarea = document.createElement('textarea');
-                        textarea.value = msg.content;
-                        textarea.style.position = 'fixed';
-                        document.body.appendChild(textarea);
-                        textarea.select();
                         try {
-                            document.execCommand('copy');
+                            UI.copyTextFallback(msg.content, document);
                             e.target.innerHTML = '✅ 已复制';
                             setTimeout(() => { e.target.innerHTML = '📋 复制'; }, 2000);
                         } catch (e2) {
                             showToast('复制失败，请手动选择文本进行复制', 'error');
                         }
-                        document.body.removeChild(textarea);
                     }
                 }
             });
@@ -5878,7 +5869,7 @@
                 $navigatorNumberInput.value = Number.isInteger(focusIndex) ? String(focusIndex + 1) : '';
                 Motion.setVisible($navigatorOverlay, true);
                 renderConversationNavigator();
-                setTimeout(() => (Number.isInteger(focusIndex) ? $navigatorNumberInput : $navigatorSearchInput).focus(), 50);
+                UI.focusEditor(Number.isInteger(focusIndex) ? $navigatorNumberInput : $navigatorSearchInput);
             }
 
             function closeConversationNavigator() {
@@ -6929,7 +6920,7 @@
                 updateToolbarButtons();
                 $messageInput.value = '';
                 $messageInput.style.height = 'auto';
-                $messageInput.focus();
+                UI.focusEditor($messageInput);
 
                 isGenerating = true;
                 updateSendButton();
@@ -7258,7 +7249,7 @@
                 if (!value) return;
                 $messageInput.value = replace ? value : [$messageInput.value.trimEnd(), value].filter(Boolean).join('\n');
                 $messageInput.dispatchEvent(new Event('input'));
-                $messageInput.focus();
+                UI.focusEditor($messageInput);
             }
 
             function showLastInput() {
@@ -7396,8 +7387,8 @@
                 try {
                     await navigator.clipboard.writeText(message.content);
                 } catch (error) {
-                    const textarea = document.createElement('textarea');
-                    textarea.value = message.content; document.body.appendChild(textarea); textarea.select(); document.execCommand('copy'); textarea.remove();
+                    try { UI.copyTextFallback(message.content, document); }
+                    catch (copyError) { showToast('复制失败，请手动选择文本进行复制', 'error'); return; }
                 }
                 showToast('已复制消息正文', 'success');
             }
@@ -7802,7 +7793,8 @@
             document.addEventListener('keydown', (e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
                     e.preventDefault();
-                    $messageInput.focus();
+                    const pageOpen = [...document.querySelectorAll('.modal-overlay,.sheet-overlay')].some(element => Motion.isOpen(element));
+                    if (!pageOpen) UI.focusEditor($messageInput, { explicit:true });
                 }
                 if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'R') {
                     e.preventDefault();

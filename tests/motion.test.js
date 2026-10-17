@@ -2,6 +2,23 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const Motion = require('../www/motion.js');
 
+test('页面焦点清理在动画与无动画环境一致，关闭只作用于本页', async()=>{
+    for (const reduce of [false,true]) {
+        const h=harness(reduce),panel=h.element(),calls=[];
+        panel.ownerDocument.defaultView.StarlightUI={dismissKeyboard:(doc,scope)=>calls.push({doc,scope})};
+        Motion.setVisible(panel,true);Motion.finishAll();await Motion.whenIdle();
+        assert.equal(calls[0].doc,panel.ownerDocument);assert.equal(calls[0].scope,null);
+        Motion.setVisible(panel,false);Motion.finishAll();await Motion.whenIdle();
+        assert.equal(calls[1].scope,panel);
+        Motion.setVisible(panel,false);
+        assert.equal(calls.length,2,'重复关闭不能清除其他页面焦点');
+        const destination=h.element();
+        const transition=Motion.screens(panel,destination);
+        Motion.finishAll();await transition;
+        assert.equal(calls[2].scope,panel);
+    }
+});
+
 test('拖动关闭要求足够距离或明确快速下滑，微动与横向滚动不会误关',()=>{
     assert.equal(Motion.shouldDismiss(10,4,400),false);
     assert.equal(Motion.shouldDismiss(80,0,400),false);
@@ -30,7 +47,7 @@ function harness(reduce = false) {
     const element = () => {
         const classes = new Set();
         return {
-            ownerDocument:{ defaultView:win }, style:{ display:'none' }, dataset:{}, hidden:false, inert:false, isConnected:true,
+            ownerDocument:{ defaultView:win }, style:{ display:'none', setProperty(key,value){ this[key]=value; }, removeProperty(key){ delete this[key]; } }, dataset:{}, hidden:false, inert:false, isConnected:true,
             classList:{ add:value=>classes.add(value), remove:value=>classes.delete(value), toggle:(value,on)=>on?classes.add(value):classes.delete(value), contains:value=>classes.has(value) },
             setAttribute() {}, removeAttribute() {},
             animate(keyframes,options) { const animation={ keyframes,options,cancel(){ this.oncancel?.(); } }; animations.push(animation); return animation; },

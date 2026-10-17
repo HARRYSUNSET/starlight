@@ -2,6 +2,64 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const UI = require('../www/ui.js');
 
+test('旧版复制使用只读透明缓冲区，失败也移除且不会假报成功', () => {
+    for (const result of [true,false,'throw']) {
+        let removed=0,selected=0;
+        const field={style:{},setAttribute(){},select(){selected++;assert.equal(this.readOnly,true);assert.equal(this.tabIndex,-1);},remove(){removed++;}};
+        const doc={createElement:()=>field,body:{appendChild(){}},execCommand:command=>{
+            assert.equal(command,'copy');
+            if(result==='throw')throw new Error('clipboard disabled');
+            return result;
+        }};
+        if(result===true)UI.copyTextFallback('待复制文本',doc);
+        else assert.throws(()=>UI.copyTextFallback('待复制文本',doc));
+        assert.equal(removed,1);assert.equal(selected,1);assert.equal(field.value,'待复制文本');
+        assert.match(field.style.cssText,/position:fixed/);assert.match(field.style.cssText,/opacity:0/);
+    }
+});
+
+test('移动端只在明确编辑时聚焦，导航与插入文本不唤起键盘', () => {
+    let focused = 0;
+    const win = { navigator:{ maxTouchPoints:1 } };
+    const doc = { defaultView:win, activeElement:null };
+    const input = { isConnected:true, ownerDocument:doc, closest:()=>null, getClientRects:()=>[{}], focus:options=>{
+        assert.equal(options.preventScroll,true); focused++;
+    } };
+    assert.equal(UI.focusEditor(input),false);
+    assert.equal(focused,0);
+    assert.equal(UI.focusEditor(input,{explicit:true}),true);
+    assert.equal(focused,1);
+    doc.activeElement=input;
+    assert.equal(UI.focusEditor(input),true);
+    assert.equal(focused,1,'已经输入时不重新调用 focus');
+    doc.activeElement=null;
+    win.navigator.maxTouchPoints=0;
+    assert.equal(UI.focusEditor(input),true);
+    win.Capacitor={ getPlatform:()=> 'android' };
+    assert.equal(UI.focusEditor(input),false,'Android 配对鼠标后仍不隐式弹键盘');
+    delete win.Capacitor;
+    win.matchMedia=()=>({matches:true});
+    assert.equal(UI.focusEditor(input),false,'粗指针环境也不自动聚焦');
+    input.closest=()=>({});
+    assert.equal(UI.focusEditor(input,{explicit:true}),false,'显式快捷键不能聚焦隐藏页面');
+    input.closest=()=>null;input.isConnected=false;
+    assert.equal(UI.focusEditor(input,{explicit:true}),false);
+});
+
+test('关闭页面只释放自己的编辑焦点，不抢走无关页面或按钮焦点', () => {
+    let blurred=0;
+    const active={matches:()=>true,blur:()=>blurred++};
+    const doc={activeElement:active};
+    assert.equal(UI.dismissKeyboard(doc,{contains:()=>false}),false);
+    assert.equal(blurred,0);
+    assert.equal(UI.dismissKeyboard(doc,{contains:node=>node===active}),true);
+    assert.equal(blurred,1);
+    assert.equal(UI.dismissKeyboard(doc),true);
+    active.matches=()=>false;
+    assert.equal(UI.dismissKeyboard(doc),false);
+    assert.equal(blurred,2);
+});
+
 test('原生键盘元数据有界，不参与第二次高度减法；网页环境无副作用', async()=>{
     assert.equal(UI.nativeMotionState(null),null);
     const state=UI.nativeMotionState({available:true,insetBottom:Infinity,progress:7,animationScale:-1,keyboardVisible:true});
@@ -49,6 +107,34 @@ test('上次输入浮窗优先置于实际输入区上方，不依赖固定底�
     assert.equal(result.top, 492);
     const raised = UI.floatingPosition({ left:10, top:290, bottom:420 }, { width:340, height:150 }, { width:390, height:420, top:0 }, true);
     assert.equal(raised.top, 132);
+});
+
+test('浮窗避开横屏刘海与系统手势区，不只限制在窗口矩形内', () => {
+    const viewport = {width:844,height:260,top:18,safeArea:{left:44,right:30,top:24,bottom:34}};
+    const menu = UI.floatingPosition({left:0,top:0,bottom:0},{width:840,height:900},viewport,true);
+    assert.equal(menu.left,44);
+    assert.equal(menu.top,42);
+    assert.equal(menu.width,770);
+    assert.equal(menu.height,202);
+    assert.ok(menu.left+menu.width<=viewport.width-30);
+    assert.ok(menu.top+menu.height<=viewport.top+viewport.height-34);
+});
+
+test('浮窗先限制宽度再测换行高度，旋转变宽后恢复 CSS 自然宽度', () => {
+    const win={innerWidth:260,innerHeight:300,getComputedStyle:()=>({getPropertyValue:key=>
+        ['--ui-safe-left','--ui-safe-right'].includes(key)?'40px':'20px'})};
+    const panel={style:{},ownerDocument:{defaultView:win,documentElement:{}},
+        get offsetWidth(){return parseFloat(this.style.width)||290;},
+        get offsetHeight(){return this.offsetWidth<200?240:100;}};
+    const anchor={getBoundingClientRect:()=>({left:200,top:200,bottom:220})};
+    UI.placePanel(panel,anchor);
+    assert.equal(panel.style.width,'180px');
+    assert.equal(panel.style.top,'30px');
+    assert.ok(parseFloat(panel.style.top)+panel.offsetHeight<=280);
+    win.innerWidth=844;
+    UI.placePanel(panel,anchor);
+    assert.equal(panel.style.width,'290px');
+    UI.clearPanel(panel);
 });
 
 test('短屏多行输入为消息区保留空间，而不是只按屏幕比例挤占房间工具', () => {

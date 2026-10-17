@@ -77,6 +77,9 @@
         if (!element) return Promise.resolve();
         const previous = visibility.get(element);
         if (previous?.visible === visible) return previous.promise;
+        // Shared by settings, search, memory, inspiration, tools and menus.
+        // Closing an unrelated/unused panel must not blur the current composer.
+        windowFor(element).StarlightUI?.dismissKeyboard(element.ownerDocument, visible ? null : element);
         const settings = { display:'flex', kind:'panel', ...previous?.options, ...options };
         const surface = settings.surface || (settings.kind === 'page' ? element : element.firstElementChild) || element;
         const rootFrame = capture(element);
@@ -135,6 +138,7 @@
 
     function screens(from, to, direction = 1) {
         if (!from || !to || from === to) return Promise.resolve();
+        windowFor(from).StarlightUI?.dismissKeyboard(from.ownerDocument, from);
         const fromFrame = capture(from);
         const toFrame = capture(to);
         if (route) {

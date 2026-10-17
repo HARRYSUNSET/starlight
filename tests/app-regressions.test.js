@@ -21,6 +21,17 @@ test('内联应用脚本可以通过 JavaScript 语法检查', () => {
     assert.doesNotThrow(() => new Function(scripts[0][1]));
 });
 
+test('页面打开不包含延迟编辑焦点，避免关闭后重新弹出键盘', () => {
+    for (const [name,next] of [['openCreateModal','openEditModal'],['openEditModal','closeCreateModal'],
+        ['openConversationNavigator','closeConversationNavigator'],['addStoryCharacter','collectStoryCharacters'],
+        ['addStyleProfile','updateSelectedStyleProfile']]) {
+        assert.doesNotMatch(functionBody(name,next),/setTimeout/);
+        assert.doesNotMatch(functionBody(name,next),/\.focus\(/);
+    }
+    assert.doesNotMatch(html,/\$messageInput\.focus\(/);
+    assert.doesNotMatch(html,/\bautofocus\b/);
+});
+
 test('流式文字增长不会触发程序化滚动', () => {
     assert.match(html, /\.messages-container\s*\{[\s\S]*?scroll-behavior:\s*auto;/);
     assert.match(html, /\.messages-container\s*\{[\s\S]*?overflow-anchor:\s*none;/);
@@ -55,9 +66,9 @@ test('作品卡片菜单监听器只在主页渲染器中绑定到卡片自身',
 
 test('应用版本号在 npm 与 Android 配置中一致', () => {
     const gradle = fs.readFileSync(path.join(root, 'android', 'app', 'build.gradle'), 'utf8');
-    assert.equal(packageJson.version, '2.3.0');
-    assert.match(gradle, /versionCode\s+17/);
-    assert.match(gradle, /versionName\s+"2\.3\.0"/);
+    assert.equal(packageJson.version, '2.3.1');
+    assert.match(gradle, /versionCode\s+18/);
+    assert.match(gradle, /versionName\s+"2\.3\.1"/);
 });
 
 test('模型列表只保留 DeepSeek 官方当前模型标识', () => {
