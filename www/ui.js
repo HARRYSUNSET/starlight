@@ -67,6 +67,99 @@
         });
     }
 
+    function nativeMotionState(input) {
+        if (!input || input.available !== true) return null;
+        const finite = (value, fallback) => Number.isFinite(Number(value)) ? Number(value) : fallback;
+        return {
+            available:true,
+            sequence:Math.max(0, finite(input.sequence, 0)),
+            insetsKnown:input.insetsKnown === true,
+            keyboardVisible:input.keyboardVisible === true,
+            animating:input.animating === true,
+            progress:Math.max(0, Math.min(1, finite(input.progress, 1))),
+            insetBottom:Math.max(0, Math.min(10000, finite(input.insetBottom, 0))),
+            animationScale:Math.max(0, Math.min(10, finite(input.animationScale, 1))),
+            nativeAnimation:input.nativeAnimation === true,
+        };
+    }
+
+    function motionPlugin(win) {
+        const capacitor = win?.Capacitor;
+        if (!capacitor || (capacitor.getPlatform && capacitor.getPlatform() !== 'android')) return null;
+        // The unbundled Android bridge exposes Plugins; registerPlugin is only a fallback.
+        if (capacitor.Plugins?.StarlightMotion) return capacitor.Plugins.StarlightMotion;
+        if (capacitor.isPluginAvailable?.('StarlightMotion') && capacitor.registerPlugin) {
+            return capacitor.registerPlugin('StarlightMotion');
+        }
+        return null;
+    }
+
+    function nativeFeedback(kind, win) {
+        const plugin = motionPlugin(win || (typeof window !== 'undefined' ? window : null));
+        if (!plugin?.feedback) return Promise.resolve(false);
+        try { return Promise.resolve(plugin.feedback({ kind:kind === 'longPress' ? 'longPress' : 'selection' })).then(result => result?.performed === true, () => false); }
+        catch (error) { return Promise.resolve(false); }
+    }
+
+    function attachNativeMotion(win, doc, onChange) {
+        const plugin = motionPlugin(win);
+        if (!plugin?.getState || !plugin?.addListener) return () => {};
+        let disposed = false;
+        let listener;
+        let latest = null;
+        let sequence = -1;
+        let watchdog;
+        function receive(value) {
+            const next = nativeMotionState(value);
+            if (disposed || !next || next.sequence <= sequence) return;
+            sequence = next.sequence;
+            latest = next;
+            win.__starlightNativeMotion = next;
+            doc.body.classList.toggle('native-motion-ready', true);
+            doc.body.classList.toggle('native-keyboard-animating', next.animating && next.animationScale !== 0);
+            doc.body.classList.toggle('native-reduced-motion', next.animationScale === 0);
+            doc.documentElement.style.setProperty('--native-ime-progress', String(next.progress));
+            // Informational only: NEVER subtract this from --app-height or add bottom padding.
+            doc.documentElement.style.setProperty('--native-ime-inset', next.insetBottom + 'px');
+            if (watchdog) win.clearTimeout(watchdog);
+            if (next.animating) watchdog = win.setTimeout(() => {
+                if (!disposed) doc.body.classList.remove('native-keyboard-animating');
+            }, 1600);
+            if (typeof win.CustomEvent === 'function') {
+                win.dispatchEvent(new win.CustomEvent('starlight:native-motion', { detail:next }));
+            }
+            onChange?.(next);
+        }
+        function refresh() {
+            if (disposed || doc.hidden) return;
+            try { Promise.resolve(plugin.getState()).then(receive, () => {}); }
+            catch (error) { /* Old APKs and browsers keep the VisualViewport fallback. */ }
+        }
+        function removeListener(handle) {
+            try { Promise.resolve(handle?.remove()).catch(() => {}); }
+            catch (error) { /* Bridge may already be gone during page destruction. */ }
+        }
+        try {
+            Promise.resolve(plugin.addListener('viewport', receive)).then(handle => {
+                if (disposed) removeListener(handle);
+                else { listener = handle; refresh(); }
+            }, () => {});
+        } catch (error) { /* Optional native capability. */ }
+        doc.addEventListener('visibilitychange', refresh);
+        return function dispose() {
+            disposed = true;
+            removeListener(listener);
+            doc.removeEventListener('visibilitychange', refresh);
+            if (watchdog) win.clearTimeout(watchdog);
+            if (latest && win.__starlightNativeMotion === latest) {
+                delete win.__starlightNativeMotion;
+                doc.body.classList.remove('native-motion-ready', 'native-keyboard-animating', 'native-reduced-motion');
+                doc.documentElement.style.removeProperty('--native-ime-progress');
+                doc.documentElement.style.removeProperty('--native-ime-inset');
+            }
+        };
+    }
+
     function floatingPosition(anchor, size, viewport, preferAbove) {
         const margin = 12;
         const width = Math.min(size.width, Math.max(1, viewport.width - margin * 2));
@@ -129,8 +222,10 @@
         let baselineWidth = win.innerWidth;
         let lastHeight = 0;
         let lastTop = -1;
+        let disposed = false;
         function update() {
             frame = null;
+            if (disposed) return;
             const viewport = getViewport(win);
             const editing = doc.activeElement?.matches?.('input,textarea,[contenteditable="true"]');
             if (Math.abs(baselineWidth - viewport.width) > 100) {
@@ -147,7 +242,9 @@
                 doc.documentElement.style.setProperty('--app-top', viewport.top + 'px');
                 lastTop = viewport.top;
             }
-            doc.body.classList.toggle('keyboard-open', Boolean(editing && baseline - viewport.height > 120));
+            const native = win.__starlightNativeMotion;
+            doc.body.classList.toggle('keyboard-open', native?.insetsKnown
+                ? native.keyboardVisible : Boolean(editing && baseline - viewport.height > 120));
             for (const [panel, entry] of floatingPanels) {
                 if (!entry.anchor.isConnected || panel.hidden || panel.parentElement?.hidden) {
                     floatingPanels.delete(panel);
@@ -155,8 +252,9 @@
             }
         }
         function schedule() {
-            if (frame === null) frame = win.requestAnimationFrame(update);
+            if (!disposed && frame === null) frame = win.requestAnimationFrame(update);
         }
+        const detachNative = attachNativeMotion(win, doc, schedule);
         win.addEventListener('resize', schedule);
         win.visualViewport?.addEventListener('resize', schedule);
         win.visualViewport?.addEventListener('scroll', schedule);
@@ -167,6 +265,8 @@
         if (composer) observer?.observe(composer);
         update();
         return function dispose() {
+            disposed = true;
+            detachNative();
             win.removeEventListener('resize', schedule);
             win.visualViewport?.removeEventListener('resize', schedule);
             win.visualViewport?.removeEventListener('scroll', schedule);
@@ -177,5 +277,5 @@
         };
     }
 
-    return { icon, button, viewportMetrics, floatingPosition, placePanel, clearPanel, resizeComposer, initialize };
+    return { icon, button, viewportMetrics, nativeMotionState, attachNativeMotion, nativeFeedback, floatingPosition, placePanel, clearPanel, resizeComposer, initialize };
 });

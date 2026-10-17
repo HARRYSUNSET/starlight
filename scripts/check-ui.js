@@ -147,7 +147,7 @@ async function main() {
             const layout = await evaluate(`(() => {
                 const panel=document.querySelector(${JSON.stringify(selector)}),r=panel.getBoundingClientRect();
                 return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,overflow:panel.scrollWidth>panel.clientWidth+1,
-                    buttons:${JSON.stringify(buttons)}.map(selector=>{const button=document.querySelector(selector),b=button.getBoundingClientRect();
+                    buttons:${JSON.stringify(buttons)}.map(selector=>{const button=document.querySelector(selector);button.scrollIntoView({block:'center',behavior:'instant'});const b=button.getBoundingClientRect();
                         const hit=document.elementFromPoint(b.x+b.width/2,b.y+b.height/2);
                         return {selector,reachable:Boolean(hit&&button.contains(hit))};})};
             })()`);
@@ -438,6 +438,15 @@ async function main() {
         console.log('PASS IndexedDB migration / atomic abort / changed-record writes / cross-window conflict: '+persistenceChecks.checks+' checks');
         const workspaceChecks=await evaluate(`(${require('../tests/workspace-browser.js').toString()})()`);
         console.log('PASS workspace / timeline / style A-B / refinement / backup: '+workspaceChecks.checks+' checks');
+        const inspirationChecks=await evaluate(`(${require('../tests/inspiration-browser.js').toString()})()`);
+        console.log('PASS on-demand inspiration / full drafts / no extra learning calls / isolation: '+inspirationChecks.checks+' checks');
+        const motionChecks=await evaluate(`(${require('../tests/motion-browser.js').toString()})()`);
+        console.log('PASS press / drag-dismiss / cancellation / keyboard-motion coexistence: '+motionChecks.checks+' checks');
+        await click('#btnInspiration');
+        await screenshot('inspiration-full-v230');
+        await click('#btnInspirationBack');
+        await screenshot('inspiration-directions-v230');
+        await click('#btnCloseInspiration');
         await click('#btnWorkspaceTools');
         await screenshot('workspace-directory-v220');
         await click('[data-work-tab="timeline"]');

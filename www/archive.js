@@ -103,7 +103,7 @@
         data.agents ||= [];
         data.rooms ||= [];
         data.styleProfiles ||= [];
-        const backup = validateBackup({ format: FORMAT, version: 1, scope, createdAt: new Date().toISOString(), appVersion: options.appVersion || '2.2.0', state: data });
+        const backup = validateBackup({ format: FORMAT, version: 1, scope, createdAt: new Date().toISOString(), appVersion: options.appVersion || '2.3.0', state: data });
         if (byteLength(JSON.stringify(backup)) > (options.maxBytes || MAX_BACKUP_BYTES)) throw new Error('备份超过 256 MB，请按作品分别导出');
         return backup;
     }
@@ -275,5 +275,5 @@
         return restored;
     }
 
-    return { FORMAT, MAX_BACKUP_BYTES, MAX_REVISIONS, createBackup, parseBackup, validateBackup, summarizeBackup, planImport, captureRevision, restoreRevision, normalizeRevisions };
+    return { FORMAT, MAX_BACKUP_BYTES, MAX_REVISIONS, createBackup, parseBackup, validateBackup, summarizeBackup, planImport, captureRevision, restoreRevision, normalizeRevisions, messageSource };
 });

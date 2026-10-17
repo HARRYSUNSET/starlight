@@ -55,9 +55,9 @@ test('作品卡片菜单监听器只在主页渲染器中绑定到卡片自身',
 
 test('应用版本号在 npm 与 Android 配置中一致', () => {
     const gradle = fs.readFileSync(path.join(root, 'android', 'app', 'build.gradle'), 'utf8');
-    assert.equal(packageJson.version, '2.2.0');
-    assert.match(gradle, /versionCode\s+16/);
-    assert.match(gradle, /versionName\s+"2\.2\.0"/);
+    assert.equal(packageJson.version, '2.3.0');
+    assert.match(gradle, /versionCode\s+17/);
+    assert.match(gradle, /versionName\s+"2\.3\.0"/);
 });
 
 test('模型列表只保留 DeepSeek 官方当前模型标识', () => {
@@ -141,8 +141,9 @@ test('聊天页世界书只有设定页数据源且高频工具不包含世界�
 });
 
 test('候选灵感和文风沙盒都不会写入正式消息或记忆', () => {
-    const inspiration = functionBody('generateInspiration', 'getCurrentSnippetTarget');
-    assert.match(inspiration, /Inspiration\.requestRecommendations/);
+    const inspiration = fs.readFileSync(require.resolve('../www/inspiration-ui.js'), 'utf8');
+    assert.match(inspiration, /core\.requestDirections/);
+    assert.match(inspiration, /core\.requestFullPrompt/);
     assert.doesNotMatch(inspiration, /\.conversations\.push|\.messages\.push|sharedMemory\s*=|characterMemories\s*=/);
     assert.match(html, /不会自动发送/);
 });

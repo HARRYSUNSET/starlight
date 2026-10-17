@@ -1,0 +1,36 @@
+/* An independent workspace; no changes to story/room composer styles. */
+#inspirationOverlay { padding:0; }
+#inspirationOverlay .inspiration-page { width:100%; max-width:none; height:100%; max-height:none; margin:0; border:0; border-radius:0; padding:0; display:flex; flex-direction:column; overflow:hidden; }
+.inspiration-page > .full-page-header { position:relative; top:auto; flex:none; margin:0; padding:calc(16px + env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 12px max(16px,env(safe-area-inset-left)); border-bottom:1px solid var(--border); }
+.inspiration-page .full-page-header-copy { max-width:650px; }
+.inspiration-scroll { min-height:0; overflow:auto; overscroll-behavior:contain; scrollbar-gutter:stable; padding:16px max(16px,env(safe-area-inset-right)) calc(22px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)); }
+.inspiration-content { width:100%; max-width:800px; margin:0 auto; }
+.inspiration-eyebrow { font-size:.73rem; letter-spacing:.08em; color:var(--accent); margin:0 0 6px; }
+.inspiration-toolbar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:10px 0; }
+.inspiration-toolbar select { max-width:100%; color:var(--text-primary); background:var(--card-bg); border:1px solid var(--border); padding:9px 12px; border-radius:10px; }
+.inspiration-help { color:var(--text-secondary); line-height:1.65; font-size:.8rem; margin:8px 0 14px; }
+#inspirationResults { display:grid; gap:10px; overflow:visible; max-height:none; }
+.inspiration-direction { display:grid; gap:8px; width:100%; padding:16px; text-align:left; border:1px solid var(--border); border-radius:15px; color:var(--text-primary); background:var(--card-bg); cursor:pointer; line-height:1.65; font:inherit; }
+.inspiration-direction strong { color:var(--text-primary); font-size:.95rem; }
+.inspiration-direction span { white-space:pre-wrap; overflow-wrap:anywhere; font-size:.88rem; }
+.inspiration-direction small { color:var(--text-secondary); line-height:1.6; }
+.inspiration-direction[aria-pressed="true"] { border-color:var(--accent); box-shadow:inset 3px 0 var(--accent); background:color-mix(in srgb,var(--accent) 6%,var(--card-bg)); }
+.inspiration-direction:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+.inspiration-actions { display:flex; flex-wrap:wrap; gap:8px; padding:14px 0; }
+.inspiration-actions > button { flex:1 1 150px; min-height:44px; }
+.inspiration-page .btn-confirm,.inspiration-page .btn-cancel { padding:10px 14px; min-height:44px; border:1px solid var(--border); border-radius:12px; font:inherit; font-size:.85rem; cursor:pointer; color:var(--text-primary); background:var(--bg); }
+.inspiration-page .btn-confirm { background:var(--accent); border-color:var(--accent); color:#fff; }
+.inspiration-footer { flex:none; width:100%; max-width:832px; align-self:center; background:var(--card-bg); border-top:1px solid var(--border); padding:8px 16px calc(10px + env(safe-area-inset-bottom)); }
+.inspiration-footer .inspiration-actions { padding:0 0 8px; flex-wrap:nowrap; }
+.inspiration-footer .inspiration-actions > button { min-width:0; }
+.inspiration-wide { width:100%; }
+.inspiration-footer > #btnCancelInspiration { margin-top:8px; }
+#inspirationDraft { display:block; width:100%; min-height:min(50vh,460px); resize:vertical; padding:16px; font:inherit; line-height:1.85; color:var(--text-primary); background:var(--input-bg,var(--card-bg)); border:1px solid var(--border); border-radius:14px; }
+#inspirationDraft:focus { outline:2px solid var(--accent); outline-offset:1px; }
+.inspiration-reference { padding:12px 0; border-bottom:1px solid var(--border); }
+.inspiration-reference p { white-space:pre-wrap; overflow-wrap:anywhere; color:var(--text-secondary); line-height:1.6; font-size:.82rem; }
+.inspiration-reference select { margin-top:8px; padding:8px; color:var(--text-primary); background:var(--card-bg); border:1px solid var(--border); border-radius:8px; }
+#inspirationReferencePanel,#inspirationInsertChoice { padding:14px; border:1px solid var(--border); border-radius:12px; background:var(--bg); }
+.inspiration-page [hidden] { display:none !important; }
+.inspiration-page button:disabled { opacity:.52; cursor:default; }
+@media (max-height:520px) { #inspirationDraft { min-height:180px; } .inspiration-page > .full-page-header { padding-top:8px; padding-bottom:8px; } }

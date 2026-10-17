@@ -2,6 +2,26 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const UI = require('../www/ui.js');
 
+test('原生键盘元数据有界，不参与第二次高度减法；网页环境无副作用', async()=>{
+    assert.equal(UI.nativeMotionState(null),null);
+    const state=UI.nativeMotionState({available:true,insetBottom:Infinity,progress:7,animationScale:-1,keyboardVisible:true});
+    assert.equal(state.insetBottom,0);assert.equal(state.progress,1);assert.equal(state.animationScale,0);
+    assert.deepEqual(UI.viewportMetrics({innerHeight:500,innerWidth:390,visualHeight:500,nativeInset:300}),{width:390,height:500,top:0});
+    assert.equal(await UI.nativeFeedback('longPress',{}),false);
+});
+
+test('原生事件丢弃过期序号，移除监听器与减少动态效果状态，触觉失败可降级',async()=>{
+    const classes=new Set(),styles=new Map();let receive,removed=0,updated=0;
+    const events=new Map();const doc={hidden:false,body:{classList:{toggle:(key,on)=>on?classes.add(key):classes.delete(key),remove:(...keys)=>keys.forEach(key=>classes.delete(key))}},documentElement:{style:{setProperty:(k,v)=>styles.set(k,v),removeProperty:k=>styles.delete(k)}},addEventListener:(k,v)=>events.set(k,v),removeEventListener:k=>events.delete(k)};
+    const win={setTimeout,clearTimeout,Capacitor:{getPlatform:()=> 'android',Plugins:{StarlightMotion:{addListener:async(name,fn)=>{receive=fn;return{remove:()=>{removed++;}};},getState:async()=>({available:true,sequence:2,animationScale:0,insetsKnown:true,keyboardVisible:true}),feedback:async()=>{throw new Error('disabled');}}}}};
+    const dispose=UI.attachNativeMotion(win,doc,()=>updated++);await new Promise(r=>setImmediate(r));
+    assert.equal(updated,1);assert.ok(classes.has('native-reduced-motion'));
+    receive({available:true,sequence:1,animationScale:1});assert.equal(updated,1);
+    assert.equal(await UI.nativeFeedback('longPress',win),false);
+    dispose();assert.equal(removed,1);assert.equal(events.size,0);assert.equal(classes.size,0);assert.equal(styles.size,0);
+    receive({available:true,sequence:3});assert.equal(updated,1);
+});
+
 test('键盘缩小可见区域时应用使用可见高度，旧WebView回退到窗口高度', () => {
     assert.deepEqual(UI.viewportMetrics({ innerWidth:390, innerHeight:844, visualHeight:390, offsetTop:20 }), { width:390, height:390, top:20 });
     assert.equal(UI.viewportMetrics({ innerWidth:390, innerHeight:620 }).height, 620);

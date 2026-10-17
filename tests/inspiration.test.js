@@ -1,7 +1,5 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const vm = require('node:vm');
 const Memory = require('../www/memory.js');
 const Inspiration = require('../www/inspiration.js');
 
@@ -162,79 +160,4 @@ test('返回空候选或损坏JSON会给出可重试错误，不触发额外付�
     }
 });
 
-// Exercise the actual UI request lifecycle in a small DOM-free harness.
-function uiHarness(requestRecommendations) {
-    const html = fs.readFileSync(require.resolve('../www/index.html'), 'utf8');
-    const start = html.indexOf('            function getInspirationState(');
-    const end = html.indexOf('            function getCurrentSnippetTarget(', start);
-    const element = () => ({ disabled: false, hidden: false, value: '', textContent: '', style: {}, innerHTML: '', querySelectorAll: () => [] });
-    const agent = { id: 'story-a', conversations: snapshot.conversations, memory: Memory.createEmptyMemory() };
-    const context = {
-        AbortController, Map, Date, JSON,
-        appData: { activeMode: 'story', apiKey: snapshot.apiKey, storyMemorySettings: {} },
-        Inspiration: { ...Inspiration, requestRecommendations }, Memory, Motion:require('../www/motion.js'),
-        Story: { buildStructuredPrompt: () => snapshot.settings }, StyleLab: { buildInfluencePrompt: () => '' },
-        getCurrentAgent: () => agent, getActiveModel: () => snapshot.model,
-        escapeHtml: value => value, showToast: () => {}, appendToComposer: () => {}, recordApiUsage: () => {},
-        inspirationStates: new Map(), activeInspirationRequest: null, activeBalanceRequest: null,
-    };
-    for (const name of ['btnGenerateInspiration', 'inspirationRequestInput', 'btnCancelInspiration', 'inspirationOverlay',
-        'inspirationNotice', 'inspirationNoticeText', 'inspirationDetails', 'inspirationDiagnostics', 'inspirationResults',
-        'apiBalanceStatus', 'inspirationBalanceStatus', 'btnRefreshApiBalance', 'btnInspirationBalance']) context['$' + name] = element();
-    vm.createContext(context);
-    vm.runInContext(html.slice(start, end), context);
-    return context;
-}
-
-test('界面首次成功、第二次失败后保留候选并恢复按钮，第三次可正常生成', async () => {
-    let count = 0;
-    const context = uiHarness(async () => {
-        if (++count === 2) throw new Error('temporary failure');
-        return { suggestions };
-    });
-    await context.generateInspiration();
-    const first = context.$inspirationResults.innerHTML;
-    await context.generateInspiration();
-    assert.equal(context.$inspirationResults.innerHTML, first);
-    assert.equal(context.$btnGenerateInspiration.disabled, false);
-    assert.match(context.$inspirationNoticeText.textContent, /上次成功的候选仍可使用/);
-    await context.generateInspiration();
-    assert.equal(count, 3);
-    assert.equal(context.activeInspirationRequest, null);
-});
-
-test('关闭窗口再发起生成时旧请求结果不会覆盖新候选，连点不会重复请求', async () => {
-    const pending = [];
-    const context = uiHarness(async () => new Promise(resolve => pending.push(resolve)));
-    const first = context.generateInspiration();
-    await context.generateInspiration();
-    assert.equal(pending.length, 1);
-    context.closeInspiration();
-    const second = context.generateInspiration();
-    const newer = [{ title: '新候选', text: '最新请求的结果' }];
-    pending[1]({ suggestions: newer });
-    await second;
-    pending[0]({ suggestions });
-    await first;
-    assert.match(context.$inspirationResults.innerHTML, /最新请求的结果/);
-    assert.doesNotMatch(context.$inspirationResults.innerHTML, /一起找书/);
-    assert.equal(context.$btnGenerateInspiration.disabled, false);
-});
-
-test('不同剧情的候选独立，生成不会增加正式消息或改变长期记忆', async () => {
-    const context = uiHarness(async () => ({ suggestions }));
-    const firstAgent = context.getCurrentAgent();
-    const firstBefore = JSON.stringify(firstAgent);
-    await context.generateInspiration();
-    context.closeInspiration();
-    const secondAgent = { id: 'story-b', conversations: [], memory: Memory.createEmptyMemory() };
-    context.getCurrentAgent = () => secondAgent;
-    context.openInspiration();
-    assert.doesNotMatch(context.$inspirationResults.innerHTML, /一起找书/);
-    context.getCurrentAgent = () => firstAgent;
-    context.openInspiration();
-    assert.match(context.$inspirationResults.innerHTML, /一起找书/);
-    assert.equal(JSON.stringify(firstAgent), firstBefore);
-    assert.equal(secondAgent.conversations.length, 0);
-    assert.deepEqual(secondAgent.memory, Memory.createEmptyMemory());
-});
+// The v2.3 controller's real DOM lifecycle is covered by inspiration-browser.js.

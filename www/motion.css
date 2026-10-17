@@ -1,0 +1,38 @@
+/* v2.3: composited motion, immediate press feedback and explicit gesture surfaces. */
+:root {
+    --motion-ease: cubic-bezier(.2,.8,.2,1);
+    --motion-settle: cubic-bezier(.16,1,.3,1);
+}
+.motion-ready.motion-press-ready button,
+.motion-ready.motion-press-ready .v2-work-card,
+.motion-ready.motion-press-ready [data-motion-press] {
+    transition: scale 180ms var(--motion-settle), background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+.motion-ready.motion-press-ready button:active:not(:disabled),
+.motion-ready.motion-press-ready .v2-work-card:active { transform:none; }
+.motion-ready.motion-press-ready .motion-pressed:not(:disabled) {
+    scale:.965;
+    transition-duration:70ms;
+}
+.motion-ready.motion-press-ready .v2-work-card.motion-pressed { scale:.987; }
+.motion-route-in,.motion-route-out { backface-visibility:hidden; }
+.motion-ready .action-sheet { transform-origin:50% 0; }
+.motion-dismiss-ready .action-sheet-title,
+.motion-dismiss-ready [data-motion-drag-handle] { touch-action:none; user-select:none; -webkit-user-select:none; cursor:grab; }
+.motion-dismiss-ready .action-sheet-title::before {
+    content:""; display:block; width:28px; height:3px; margin:0 auto 7px;
+    border-radius:3px; background:var(--text-muted); opacity:.35;
+}
+.motion-dragging .action-sheet { will-change:transform; cursor:grabbing; }
+.motion-ready.native-keyboard-animating button,
+.motion-ready.native-keyboard-animating .v2-work-card { transition:none; }
+.native-reduced-motion.motion-ready button,
+.native-reduced-motion.motion-ready .v2-work-card,
+.native-reduced-motion.motion-ready [data-motion-press] { transition:none; scale:1 !important; }
+.native-reduced-motion .motion-dismiss-ready .action-sheet-title::before { display:none; }
+@media (prefers-reduced-motion:reduce) {
+    .motion-ready.motion-press-ready button,
+    .motion-ready.motion-press-ready .v2-work-card,
+    .motion-ready.motion-press-ready [data-motion-press] { transition:none; scale:1 !important; }
+    .motion-dismiss-ready .action-sheet-title::before { display:none; }
+}

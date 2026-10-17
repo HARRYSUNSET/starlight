@@ -2,6 +2,21 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const Motion = require('../www/motion.js');
 
+test('拖动关闭要求足够距离或明确快速下滑，微动与横向滚动不会误关',()=>{
+    assert.equal(Motion.shouldDismiss(10,4,400),false);
+    assert.equal(Motion.shouldDismiss(80,0,400),false);
+    assert.equal(Motion.shouldDismiss(100,0,400),true);
+    assert.equal(Motion.shouldDismiss(40,.6,400),true);
+});
+
+test('Android 关闭动画时直接完成状态，动画时长0不被替换成默认时长',async()=>{
+    const h=harness(),panel=h.element();panel.ownerDocument.defaultView.__starlightNativeMotion={animationScale:0};
+    await Motion.setVisible(panel,true,{kind:'page'});assert.equal(h.animations.length,0);assert.equal(panel.style.display,'flex');
+    panel.ownerDocument.defaultView.__starlightNativeMotion={animationScale:1};
+    const task=Motion.animate(panel,[{opacity:0},{opacity:1}],{duration:0});assert.equal(h.animations[0].options.duration,0);
+    Motion.finishAll();await task;
+});
+
 function harness(reduce = false) {
     const animations = [];
     const frames = new Map();

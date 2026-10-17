@@ -11,6 +11,8 @@
     const StyleLab = typeof module === 'object' && module.exports
         ? require('./style-lab.js')
         : globalThis.StarlightStyleLab;
+    const Inspiration = typeof module === 'object' && module.exports
+        ? require('./inspiration.js') : globalThis.StarlightInspiration;
 
     const LEGACY_DEFAULT_STORY_RULES = [
         '这是一个持续发展的单角色剧情对话。你只扮演设定中的AI角色与必要的客观环境。',
@@ -80,6 +82,9 @@
             content: asString(source.content),
             createdAt: Number(source.createdAt) || 0,
             bookmarked: source.bookmarked === true,
+            ...(source.inspirationGenerated === true ? { inspirationGenerated:true } : {}),
+            ...(source.inspirationExample === true ? { inspirationExample:true } : {}),
+            ...(source.inspirationExcluded === true ? { inspirationExcluded:true } : {}),
             previousVersions: (Array.isArray(source.previousVersions)?source.previousVersions:[]).filter(item=>typeof item?.content==='string').slice(-5).map(item=>({content:item.content,createdAt:Number(item.createdAt)||0})),
         };
     }
@@ -206,6 +211,9 @@
                 : null,
             snippets: Array.isArray(source.snippets) ? source.snippets.map(String).filter(Boolean).slice(0, 80) : [],
             draft: asString(source.draft),
+            inspiration: Inspiration.normalizeState(source.inspiration),
+            inspirationProfile: Inspiration.normalizeProfile(source.inspirationProfile),
+            inspirationDraftSource: asString(source.inspirationDraftSource).slice(0,100000),
             chapters: Array.isArray(source.chapters) ? source.chapters.map(item => ({ ...item })) : [],
             readingPosition: source.readingPosition && typeof source.readingPosition === 'object' ? { ...source.readingPosition } : null,
             revisionHistory: Array.isArray(source.revisionHistory) ? JSON.parse(JSON.stringify(source.revisionHistory)) : [],
@@ -359,6 +367,7 @@
         normalizeCharacter,
         cloneCharacterSchema,
         normalizeAgent,
+        normalizePromptSettings,
         createAgent,
         getCharacterName,
         buildCharacterBlock,
