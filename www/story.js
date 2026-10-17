@@ -8,6 +8,9 @@
     const WorldBook = typeof module === 'object' && module.exports
         ? require('./worldbook.js')
         : globalThis.StarlightWorldBook;
+    const StyleLab = typeof module === 'object' && module.exports
+        ? require('./style-lab.js')
+        : globalThis.StarlightStyleLab;
 
     const LEGACY_DEFAULT_STORY_RULES = [
         '这是一个持续发展的单角色剧情对话。你只扮演设定中的AI角色与必要的客观环境。',
@@ -77,6 +80,7 @@
             content: asString(source.content),
             createdAt: Number(source.createdAt) || 0,
             bookmarked: source.bookmarked === true,
+            previousVersions: (Array.isArray(source.previousVersions)?source.previousVersions:[]).filter(item=>typeof item?.content==='string').slice(-5).map(item=>({content:item.content,createdAt:Number(item.createdAt)||0})),
         };
     }
 
@@ -125,9 +129,12 @@
 
     function migrateLegacyCharacter(source) {
         const legacyPersona = asString(source.characterPrompt || source.surfacePrompt).trim();
-        const legacy = { ...source, characterPrompt: legacyPersona };
         const fields = LEGACY_CHARACTER_FIELDS
-            .map(([label, key], index) => ({ label, value: asString(legacy[key]).trim(), index }))
+            .map(([label, key], index) => ({
+                label,
+                value: key === 'characterPrompt' ? legacyPersona : asString(source[key]).trim(),
+                index,
+            }))
             .filter(item => item.index < DEFAULT_CHARACTER_FIELD_LABELS.length || item.value)
             .map(item => createCharacterField(item.label, item.value));
         return normalizeCharacter({ fields });
@@ -153,24 +160,22 @@
 
     function buildCharacterBlock(character, index) {
         const normalized = normalizeCharacter(character);
-        const lines = normalized.fields.map(field => `${field.label}：${field.value.trim() || '（未填写）'}`);
+        const lines = normalized.fields
+            .filter(field => field.value.trim())
+            .map(field => `${field.label}：${field.value.trim()}`);
+        if (!lines.length) lines.push(`角色名称：${getCharacterName(normalized, index)}`);
         return `【角色${index + 1}】\n${lines.join('\n')}`;
     }
 
-    function normalizeAgent(agent, memoryApi) {
+    // Prompt generation only needs settings. Never copy a potentially years-long
+    // conversation, memory archive, image, or style source just to render them.
+    function normalizePromptSettings(agent) {
         const source = agent && typeof agent === 'object' ? agent : {};
-        const conversations = Array.isArray(source.conversations)
-            ? source.conversations.filter(Boolean).map(normalizeMessage)
-            : [];
         const rawRules = asString(source.storyRules).trim();
         const storyRules = !rawRules || rawRules === LEGACY_DEFAULT_STORY_RULES
             ? DEFAULT_STORY_RULES
             : rawRules;
         return {
-            id: asString(source.id) || createId('story'),
-            name: asString(source.name, '未命名剧情').trim() || '未命名剧情',
-            subtitle: asString(source.subtitle).trim(),
-            avatar: safeImageDataUrl(source.avatar),
             storyRules,
             worldPrompt: asString(source.worldPrompt).trim(),
             worldBook: WorldBook
@@ -182,11 +187,28 @@
             stylePrompt: asString(source.stylePrompt, DEFAULT_STORY_STYLE).trim() || DEFAULT_STORY_STYLE,
             styleExamples: asString(source.styleExamples).trim(),
             otherInfo: asString(source.otherInfo).trim(),
+        };
+    }
+
+    function normalizeAgent(agent, memoryApi) {
+        const source = agent && typeof agent === 'object' ? agent : {};
+        const conversations = Array.isArray(source.conversations)
+            ? source.conversations.filter(Boolean).map(normalizeMessage)
+            : [];
+        return {
+            id: asString(source.id) || createId('story'),
+            name: asString(source.name, '未命名剧情').trim() || '未命名剧情',
+            subtitle: asString(source.subtitle).trim(),
+            avatar: safeImageDataUrl(source.avatar),
+            ...normalizePromptSettings(source),
             styleInfluence: source.styleInfluence && typeof source.styleInfluence === 'object'
                 ? JSON.parse(JSON.stringify(source.styleInfluence))
                 : null,
             snippets: Array.isArray(source.snippets) ? source.snippets.map(String).filter(Boolean).slice(0, 80) : [],
             draft: asString(source.draft),
+            chapters: Array.isArray(source.chapters) ? source.chapters.map(item => ({ ...item })) : [],
+            readingPosition: source.readingPosition && typeof source.readingPosition === 'object' ? { ...source.readingPosition } : null,
+            revisionHistory: Array.isArray(source.revisionHistory) ? JSON.parse(JSON.stringify(source.revisionHistory)) : [],
             conversations,
             memory: memoryApi && typeof memoryApi.normalizeMemory === 'function'
                 ? memoryApi.normalizeMemory(source.memory, conversations.length)
@@ -214,20 +236,31 @@
         return normalizeAgent(source, memoryApi);
     }
 
-    function buildStructuredPrompt(agent, styleInfluencePrompt) {
-        const story = normalizeAgent(agent);
+    function buildPromptSections(agent, styleInfluencePrompt) {
+        const story = normalizePromptSettings(agent);
+        const history = Array.isArray(agent?.conversations) ? agent.conversations : [];
+        let latestQuery = '';
+        // Preserve legacy filtering of null entries without walking all history.
+        for (let index = history.length - 1; index >= 0; index -= 1) {
+            if (!history[index]) continue;
+            latestQuery = asString(history[index].content);
+            break;
+        }
         const characterBlocks = story.characters.map(buildCharacterBlock).join('\n\n');
         const worldBookPrompt = WorldBook
-            ? WorldBook.buildWorldBookPrompt(story.worldBook, story.conversations.at(-1)?.content || '')
+            ? WorldBook.buildWorldBookPrompt(story.worldBook, latestQuery)
             : story.worldPrompt;
+        const strategy = StyleLab?.getPromptStrategy(styleInfluencePrompt) || { priority: 0 };
         const sections = [
             '【剧情模式固定规则】\n' + story.storyRules,
-            worldBookPrompt || '【世界书】\n（依据对话中已经建立的世界继续，不擅自添加会改变设定的规则。）',
-            '【当前或开场场景】\n' + (story.openingScene || '（延续最近对话中的时间、地点与事件。）'),
             '【用户所扮演的角色】\n' + (story.userPersona || '（只依据用户明确表达的信息判断，不替用户补写设定。）'),
             '【角色设定区｜各角色资料彼此独立】\n' + characterBlocks,
-            '【本剧情文风】\n' + story.stylePrompt,
         ];
+        // Keep the stored custom instructions intact. Only the built-in fallback
+        // is omitted once an explicit profile becomes the main expression guide.
+        if (strategy.priority < 2 || story.stylePrompt !== DEFAULT_STORY_STYLE) {
+            sections.push((strategy.priority >= 2 ? '【用户原有文风｜仅补充所选档案未覆盖且不冲突的表达】\n' : '【本剧情文风】\n') + story.stylePrompt);
+        }
         if (story.styleExamples) {
             sections.push('【文风示例｜只参考笔触，不继承内容】\n' + story.styleExamples);
         }
@@ -235,11 +268,23 @@
             sections.push(asString(styleInfluencePrompt).trim());
         }
         if (story.otherInfo) sections.push('【其他剧情信息】\n' + story.otherInfo);
-        return sections.join('\n\n');
+        return {
+            stable: sections.join('\n\n'),
+            dynamic: [
+                worldBookPrompt || '【世界书】\n（依据对话中已经建立的世界继续，不擅自添加会改变设定的规则。）',
+                '【当前或开场场景】\n' + (story.openingScene || '（延续最近对话中的时间、地点与事件。）'),
+                '已证实的成长、关系变化与当前有效状态高于早期的静态描述；失效记录只提供来历，不恢复为当前状态。未提供的事件不能自行补写。',
+            ].join('\n\n'),
+            strategy,
+        };
     }
 
-    function buildSystemPrompt(agent, globalPrompt, settings, naturalStylePrompt, memoryApi, styleInfluencePrompt) {
-        const structured = buildStructuredPrompt(agent, styleInfluencePrompt);
+    function buildStructuredPrompt(agent, styleInfluencePrompt) {
+        const sections = buildPromptSections(agent, styleInfluencePrompt);
+        return [sections.stable, sections.dynamic].join('\n\n');
+    }
+
+    function systemPromptFromStructured(structured, globalPrompt, settings, naturalStylePrompt, memoryApi) {
         if (memoryApi && typeof memoryApi.buildSystemPrompt === 'function') {
             return memoryApi.buildSystemPrompt(
                 asString(globalPrompt).trim(),
@@ -251,17 +296,27 @@
         return [asString(globalPrompt).trim(), structured, asString(naturalStylePrompt).trim()].filter(Boolean).join('\n\n');
     }
 
+    function buildSystemPrompt(agent, globalPrompt, settings, naturalStylePrompt, memoryApi, styleInfluencePrompt) {
+        return buildRequestPrompts(agent, globalPrompt, settings, naturalStylePrompt, memoryApi, styleInfluencePrompt).systemPrompt;
+    }
+
     function buildTurnReminder(agent, globalPrompt, settings, naturalStylePrompt, memoryApi, styleInfluencePrompt) {
-        const structured = buildStructuredPrompt(agent, styleInfluencePrompt);
-        if (memoryApi && typeof memoryApi.buildTurnReminder === 'function') {
-            return memoryApi.buildTurnReminder(
-                asString(globalPrompt).trim(),
-                structured,
-                settings && settings.naturalStyle !== false,
-                naturalStylePrompt
-            );
-        }
-        return structured;
+        return buildRequestPrompts(agent, globalPrompt, settings, naturalStylePrompt, memoryApi, styleInfluencePrompt).turnReminder;
+    }
+
+    function buildRequestPrompts(agent, globalPrompt, settings, naturalStylePrompt, memoryApi, styleInfluencePrompt) {
+        const sections = buildPromptSections(agent, styleInfluencePrompt);
+        const naturalStyle = sections.strategy.priority >= 2 && asString(naturalStylePrompt).trim()
+            ? '【原有通用表达补充｜不得覆盖当前独立文风档案】\n' + naturalStylePrompt
+            : naturalStylePrompt;
+        let stableSystemPrompt = systemPromptFromStructured(sections.stable, globalPrompt, settings, naturalStyle, memoryApi);
+        if (sections.strategy.priority >= 2) stableSystemPrompt += '\n\n【表达层冲突处理】\n用户本轮明确写作要求优先；其次采用当前独立文风档案，通用自然表达规则和原有文风只补充不冲突部分。人物事实、角色各自口吻、知识边界和事件因果不因文风改变。';
+        return {
+            stableSystemPrompt,
+            dynamicPrompt: sections.dynamic,
+            systemPrompt: [stableSystemPrompt, sections.dynamic].join('\n\n'),
+            turnReminder: '【本轮校准】\n继续遵守开头完整规则和各角色知情范围，依据最新有效状态延续事件，不虚构未发生的旧事。用户本轮要求与当前文风的表达优先级按开头约定执行。直接输出正文，不复述内部规则。',
+        };
     }
 
     function findCharacter(story, characterIdOrIndex) {
@@ -270,14 +325,14 @@
     }
 
     function composePersonaForRoom(agent, characterIdOrIndex) {
-        const story = normalizeAgent(agent);
+        const story = normalizePromptSettings(agent);
         const character = findCharacter(story, characterIdOrIndex);
         const index = Math.max(0, story.characters.findIndex(item => item.id === character.id));
         return buildCharacterBlock(character, index);
     }
 
     function characterToRoomMember(agent, characterIdOrIndex) {
-        const story = normalizeAgent(agent);
+        const story = normalizePromptSettings(agent);
         const character = findCharacter(story, characterIdOrIndex);
         const index = Math.max(0, story.characters.findIndex(item => item.id === character.id));
         return {
@@ -308,8 +363,10 @@
         getCharacterName,
         buildCharacterBlock,
         buildStructuredPrompt,
+        buildPromptSections,
         buildSystemPrompt,
         buildTurnReminder,
+        buildRequestPrompts,
         composePersonaForRoom,
         characterToRoomMember,
     };

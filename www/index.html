@@ -2125,6 +2125,36 @@
         .my-panel .settings-group-body { display:block !important; padding:0; }
         .my-section-title { margin:22px 0 10px; font-size:.78rem; font-weight:800; letter-spacing:.12em; color:var(--text-secondary); }
         .my-version-card { margin-top:18px; padding:18px; border:1px solid var(--border); border-radius:16px; background:var(--card-bg); color:var(--text-secondary); line-height:1.65; }
+        .workspace-overlay { z-index:360; padding:0; align-items:stretch; background:var(--bg); }
+        .workspace-page { width:100%; max-width:1040px; margin:auto; height:100dvh; overflow:auto; padding:calc(18px + env(safe-area-inset-top)) 22px calc(28px + env(safe-area-inset-bottom)); box-sizing:border-box; }
+        .workspace-page .full-page-header { margin:0 0 8px; padding:10px 0 16px; top:0; background:var(--bg); backdrop-filter:none; }
+        .workspace-page .full-page-header>div:first-child { flex:1; min-width:0; }
+        .workspace-page h3 { font-size:1.15rem; overflow-wrap:anywhere; }
+        .workspace-page .hint,#styleStrategyStatus { color:var(--text-secondary); font-size:.82rem; line-height:1.75; margin:8px 0; }
+        .workspace-page .btn { min-height:42px; padding:10px 16px; border:1px solid var(--border); border-radius:12px; background:var(--card-bg); color:var(--text-primary); font:inherit; font-size:.84rem; cursor:pointer; flex-shrink:0; }
+        .workspace-page .btn-primary { background:var(--accent); border-color:var(--accent); color:white; }
+        .workspace-page .btn:disabled { opacity:.5; cursor:wait; }
+        .workspace-page .mini-action-btn { min-height:40px; padding:8px 12px; font-size:.8rem; }
+        .workspace-tool-tabs { scrollbar-width:none; }
+        .workspace-tool-tabs::-webkit-scrollbar { display:none; }
+        .workspace-tool-tabs { display:flex; gap:8px; overflow-x:auto; padding:18px 0; }
+        .workspace-tool-tabs button { flex-shrink:0; padding:10px 15px; border:1px solid var(--border); border-radius:99px; background:var(--card-bg); color:var(--text-secondary); cursor:pointer; }
+        .workspace-tool-tabs button.active { background:var(--accent); color:white; border-color:var(--accent); }
+        .workspace-list { display:grid; gap:12px; margin:18px 0; }
+        .workspace-card,.workspace-item { padding:16px; background:var(--card-bg); border:1px solid var(--border); border-radius:16px; }
+        .workspace-item { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+        .workspace-item-main { flex:1; min-width:180px; display:grid; gap:7px; background:transparent; border:0; color:var(--text-primary); text-align:left; overflow-wrap:anywhere; }
+        .workspace-item-main span,.workspace-item-main small { color:var(--text-secondary); line-height:1.6; }
+        .workspace-inline { display:flex; flex-wrap:wrap; gap:8px; margin:14px 0; }
+        .workspace-form { display:grid; gap:16px; max-width:800px; }
+        .workspace-page label { display:grid; gap:8px; line-height:1.6; }
+        .workspace-page input:not([type=checkbox]),.workspace-page textarea,.workspace-page select { width:100%; box-sizing:border-box; border:1px solid var(--border); border-radius:10px; padding:11px; color:var(--text-primary); background:var(--card-bg); font:inherit; }
+        .workspace-page textarea { min-height:110px; resize:vertical; }
+        .workspace-columns { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+        .workspace-preview,.style-comparison-text { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.85; max-height:50vh; overflow:auto; padding:16px; background:var(--card-bg); border:1px solid var(--border); border-radius:12px; font:inherit; }
+        .workspace-file { padding:20px 0; }
+        body.storage-busy { pointer-events:none; cursor:wait; }
+        @media(max-width:600px) { .workspace-page { padding-left:16px; padding-right:16px; } .workspace-columns { grid-template-columns:1fr; } }
         #chatShell { width:100%; height:100dvh; }
         #chatShell .sidebar,#chatShell .sidebar-overlay { display:none !important; }
         #chatShell .main-area { width:100%; min-width:0; }
@@ -2219,7 +2249,7 @@
                 <div class="library-page-heading"><h2>我的</h2><p>管理全局 API、模型、外观与存储设置。</p></div>
                 <div id="mySettingsMount"></div>
                 <div class="my-section-title">应用信息</div>
-                <div class="my-version-card"><strong>星陽之语 2.1.1</strong><br>本地优先 · 剧情与房间独立 · 世界书与分层长期记忆</div>
+                <div class="my-version-card"><strong>星陽之语 2.2.0</strong><br>文风策略 · 状态时间线 · 作品目录 · 本地备份</div>
             </section>
         </main>
         <nav class="bottom-nav" aria-label="主导航">
@@ -2266,6 +2296,9 @@
                         <input type="password" id="apiKeyInput" placeholder="sk-..." autocomplete="off">
                         <div class="hint" id="apiKeyHint">输入你的 DeepSeek API Key，仅存储在本地浏览器</div>
                         <div class="api-balance-row"><button type="button" class="mini-action-btn" id="btnRefreshApiBalance">查询余额</button><span id="apiBalanceStatus" role="status">查询当前 API Key 对应账户的可用余额</span></div>
+                        <div class="hint" id="apiUsageStatus" role="status">本次打开：尚无已返回的 token 用量。</div>
+                        <details><summary>本次请求分类与耗时</summary><div class="hint" id="apiTaskStatus">尚无请求。用量以接口报告为准；取消或断流可能没有 token 统计。</div></details>
+                        <div class="hint">用量仅汇总本次打开期间接口返回的统计，不含未返回用量的中断请求；不会额外调用 API。缓存命中表示输入被服务端复用，实际费用以平台账单为准。</div>
 
                         <label>🧠 思考方式</label>
                         <select id="thinkingModeSelect">
@@ -2727,6 +2760,9 @@
                             <div class="style-card-heading"><div><h4>② 查看细分因子</h4><p class="style-card-copy">细分因子按重要程度排列，用于解释这份综合因子；强度只由上方总滑杆统一控制。</p></div></div>
                             <div class="style-analysis-summary" id="styleAnalysisSummary">分析完成后会在这里展示文风概述。</div>
                             <div class="style-factor-list" id="styleFactorList"></div>
+                            <p class="hint" id="styleStrategyStatus"></p>
+                            <details><summary>可选写法示例（确认后才进入正式提示词）</summary><div id="styleExamplesList"></div></details>
+                            <details><summary>表达偏好反馈</summary><div id="styleFeedbackList"></div><button type="button" class="style-action" id="btnStyleFeedback">添加表达偏好</button></details>
                             <div class="style-detail-columns">
                                 <div class="style-detail-box"><strong>避免的 AI 化表达</strong><ul id="styleAvoidanceList"><li>等待分析</li></ul></div>
                                 <div class="style-detail-box"><strong>自然度检查</strong><ul id="styleNaturalnessList"><li>等待分析</li></ul></div>
@@ -2748,16 +2784,19 @@
                             <div class="style-preview-controls">
                                 <div class="style-field">
                                     <label for="stylePreviewModeSelect">参考范围</label>
-                                    <select id="stylePreviewModeSelect"><option value="custom">仅按我的要求</option><option value="current">结合当前作品设定</option></select>
+                                    <select id="stylePreviewModeSelect"><option value="custom">仅按我的要求</option><option value="current">结合当前作品设定</option><option value="practice">实战预览（正式上下文，只读）</option></select>
+                                    <label for="stylePreviewActor" id="stylePreviewActorLabel" hidden>试写角色</label><select id="stylePreviewActor" hidden></select>
                                 </div>
                                 <div class="style-field">
                                     <label for="stylePreviewRequestInput">本次创作要求（可选）</label>
                                     <textarea id="stylePreviewRequestInput" rows="3" maxlength="4000" placeholder="例如：写一段两名同学放学后争论晚饭吃什么的轻松互动"></textarea>
                                 </div>
                                 <button type="button" class="style-action primary" id="btnGenerateStylePreview">生成参考文本</button>
+                                <button type="button" class="style-action" id="btnCompareStyle">A/B 对比（两次请求）</button>
                             </div>
                             <div class="style-sandbox-note">🔒 隔离沙盒：这里的文本不是已发生剧情，不会进入消息、长期记忆、关系、亲密度、场景状态或定位记录。</div>
                             <div class="style-preview-output" id="stylePreviewOutput">参考文本会显示在这里。</div>
+                            <div id="styleComparison" hidden><div class="workspace-columns"><section><h4>A · 当前文风 / 无因子</h4><div class="style-comparison-text" id="styleCompareA"></div><button class="style-action" data-style-vote="a">更喜欢 A</button></section><section><h4>B · 所选因子</h4><div class="style-comparison-text" id="styleCompareB"></div><button class="style-action" data-style-vote="b">更喜欢 B</button></section></div><p class="hint">选择只记录表达偏好，不替换正式消息、不自动应用因子。不代表同一随机种子下的严格实验。</p></div>
                         </section>
                     </div>
                 </main>
@@ -2802,7 +2841,14 @@
     <div id="toastContainer"></div>
 
     <script src="worldbook.js"></script>
+    <script src="timeline.js"></script>
     <script src="memory.js"></script>
+    <script src="api.js"></script>
+    <script src="persistence.js"></script>
+    <script src="archive.js"></script>
+    <script src="workspace-tools.js"></script>
+    <script src="workspace-ui.js"></script>
+    <script src="history-search.js"></script>
     <script src="ui.js"></script>
     <script src="motion.js"></script>
     <script src="message-view.js"></script>
@@ -3017,6 +3063,11 @@
             // ==================== 状态 ====================
             const Memory = window.StarlightMemory;
             if (!Memory) throw new Error('长期记忆模块加载失败');
+            const API = window.StarlightAPI;
+            const Persistence = window.StarlightPersistence;
+            if (!API || !Persistence) throw new Error('请求或存储模块加载失败');
+            const HistorySearch = window.StarlightHistorySearch;
+            if (!HistorySearch) throw new Error('历史搜索模块加载失败');
             const UI = window.StarlightUI;
             if (!UI) throw new Error('界面模块加载失败');
             const Motion = window.StarlightMotion;
@@ -3055,9 +3106,9 @@
             const SETTINGS_STORAGE_KEY = 'deepseek_chat_platform_v3_settings';
             const FALLBACK_STORAGE_KEY = 'deepseek_chat_platform_v3_fallback';
             const DATABASE_NAME = 'starlight_chat_database';
-            const DATABASE_VERSION = 1;
-            const DATABASE_STORE = 'state';
-            const DATABASE_STATE_KEY = 'appData';
+            const Archive = window.StarlightArchive;
+            const Workspace = window.StarlightWorkspace;
+            const Timeline = window.StarlightTimeline;
             let appData = {
                 apiProvider: 'deepseek',
                 apiKeys: {
@@ -3103,22 +3154,37 @@
             let roomDraftIntimacyValueAtOpen = 0;
             let lastIntimacyDelta = null;
             let storageDb = null;
-            let saveQueue = Promise.resolve();
+            let storageReadFailed = false;
+            let maintenanceBusy = false;
+            let refinementBusy = false;
+            let refinementUI = null;
+            let workspaceUI = null;
+            const stateWriter = Persistence.createCoalescedWriter(() => {
+                if (storageReadFailed) throw new Error('数据读取未完成，已禁止覆盖原有数据；请重新打开应用');
+                if (storageDb) return writeDatabaseState(appData);
+                localStorage.setItem(FALLBACK_STORAGE_KEY, JSON.stringify(appData));
+            });
+            const apiUsage = API.createUsageTracker();
+            const taskMetrics = API.createTaskMetrics();
+            const auxiliaryCache = API.createAuxiliaryCache();
             let saveTimer = null;
             const MESSAGE_PAGE_SIZE = 200;
             let storyRenderedMessageRange = null;
             let roomRenderedMessageRange = null;
             let navigatorBookmarkedOnly = false;
+            let navigatorSearchTimer = null;
             let memoryDraftSegments = [];
             let memoryDraftFacts = [];
             let roomCharacterMemoryDrafts = {};
             let memoryEditorMode = 'story';
             let selectedStyleProfileId = null;
             let styleLabBusy = false;
+            let styleComparison = null;
             let snippetsDraft = [];
             let homeTab = 'story';
             const homeScrollPositions = { story:0, room:0, my:0 };
             let activeMessageActionIndex = null;
+            let selectedExpression = '';
             const inspirationStates = new Map();
             let activeInspirationRequest = null;
             let activeBalanceRequest = null;
@@ -3133,42 +3199,17 @@
 
             // ==================== 大容量数据持久化与兼容迁移 ====================
             function openDatabase() {
-                return new Promise((resolve, reject) => {
-                    if (!window.indexedDB) {
-                        reject(new Error('当前环境不支持 IndexedDB'));
-                        return;
-                    }
-                    const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
-                    request.onupgradeneeded = () => {
-                        const db = request.result;
-                        if (!db.objectStoreNames.contains(DATABASE_STORE)) {
-                            db.createObjectStore(DATABASE_STORE);
-                        }
-                    };
-                    request.onsuccess = () => resolve(request.result);
-                    request.onerror = () => reject(request.error || new Error('打开本地数据库失败'));
-                });
+                return Persistence.openDatabase({name:DATABASE_NAME, indexedDB:window.indexedDB});
             }
 
             function readDatabaseState() {
                 if (!storageDb) return Promise.resolve(null);
-                return new Promise((resolve, reject) => {
-                    const transaction = storageDb.transaction(DATABASE_STORE, 'readonly');
-                    const request = transaction.objectStore(DATABASE_STORE).get(DATABASE_STATE_KEY);
-                    request.onsuccess = () => resolve(request.result || null);
-                    request.onerror = () => reject(request.error || new Error('读取本地数据库失败'));
-                });
+                return Persistence.readState(storageDb);
             }
 
             function writeDatabaseState(snapshot) {
                 if (!storageDb) return Promise.resolve();
-                return new Promise((resolve, reject) => {
-                    const transaction = storageDb.transaction(DATABASE_STORE, 'readwrite');
-                    transaction.objectStore(DATABASE_STORE).put(snapshot, DATABASE_STATE_KEY);
-                    transaction.oncomplete = () => resolve();
-                    transaction.onerror = () => reject(transaction.error || new Error('写入本地数据库失败'));
-                    transaction.onabort = () => reject(transaction.error || new Error('本地数据库写入被中止'));
-                });
+                return Persistence.writeState(storageDb, snapshot);
             }
 
             function getSettingsSnapshot() {
@@ -3191,36 +3232,19 @@
                 };
             }
 
-            function cloneAppData() {
-                return JSON.parse(JSON.stringify(appData));
-            }
-
             function persistFullState() {
                 if (saveTimer) {
                     clearTimeout(saveTimer);
                     saveTimer = null;
                 }
-                const snapshot = cloneAppData();
-                if (storageDb) {
-                    saveQueue = saveQueue
-                        .catch(() => {})
-                        .then(() => writeDatabaseState(snapshot))
-                        .then(() => refreshStorageStatus())
-                        .catch((error) => {
-                            console.error('本地数据库保存失败:', error);
-                            showToast('本地数据库保存失败，请勿关闭页面并检查存储空间', 'error');
-                            throw error;
-                        });
-                    return saveQueue;
-                }
-
-                try {
-                    localStorage.setItem(FALLBACK_STORAGE_KEY, JSON.stringify(snapshot));
-                    return Promise.resolve();
-                } catch (error) {
-                    showToast('本地存储空间不足；请启用正常浏览模式后重试', 'error');
-                    return Promise.reject(error);
-                }
+                return stateWriter.request().then(() => {
+                    // Quota estimation is informative, not part of the write.
+                    if (homeTab === 'my') refreshStorageStatus();
+                }).catch(error => {
+                    console.error('本地数据保存失败:', error);
+                    showToast('本地数据保存失败，请勿关闭页面并检查存储空间', 'error');
+                    throw error;
+                });
             }
 
             function formatStorageBytes(bytes) {
@@ -3267,6 +3291,7 @@
             }
 
             function saveData() {
+                if (storageReadFailed || maintenanceBusy) return;
                 appData.updatedAt = Date.now();
                 try {
                     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(getSettingsSnapshot()));
@@ -3351,8 +3376,15 @@
                     storageDb = await openDatabase();
                     loaded = await readDatabaseState();
                 } catch (error) {
+                    // Never turn an unreadable/migration-failed database into an empty writable one.
+                    storageReadFailed = !!window.indexedDB;
+                    if (storageReadFailed) {
+                        console.error('数据库读取失败，保留原件并停止写入:', error);
+                        showToast('数据读取失败，原数据未改动。请重新打开应用；不要清除应用数据。', 'error');
+                        return;
+                    }
                     storageDb = null;
-                    console.warn('IndexedDB 不可用，将使用兼容存储:', error);
+                    console.warn('环境没有 IndexedDB，使用兼容存储:', error);
                 }
 
                 try {
@@ -3474,6 +3506,17 @@
                 UI.button($btnLocate, 'search', '搜索定位');
                 UI.button($btnMemoryManager, 'memory', '长期记忆');
                 UI.button($btnStyleLab, 'style', '文风因子');
+                const toolsButton = document.createElement('button');
+                toolsButton.id = 'btnWorkspaceTools';
+                toolsButton.className = 'btn-toolbar';
+                UI.button(toolsButton, 'history', '目录与工具');
+                toolsButton.addEventListener('click', () => getWorkspaceUI().open('chapters'));
+                $chatQuickTools.appendChild(toolsButton);
+                const archiveCard = document.createElement('div');
+                archiveCard.className = 'my-version-card';
+                archiveCard.innerHTML = '<strong>数据安全</strong><p>整库或单作品备份；导入前预览，不包含 API 密钥。</p><button type="button" class="btn btn-secondary" id="btnArchive">备份与恢复</button>';
+                archiveCard.querySelector('button').addEventListener('click', () => getWorkspaceUI().open('backup'));
+                $mySettingsMount.appendChild(archiveCard);
                 UI.button($btnHamburger, 'back', '返回作品库', true);
                 UI.button($btnChatSettings, 'more', '打开当前作品设定', true);
                 UI.button($btnLastInput, 'history', '上次输入');
@@ -3511,7 +3554,7 @@
                 closeHomeMenus();
                 const main = document.querySelector('.home-main');
                 main.scrollTop = homeScrollPositions[homeTab] || 0;
-                if (homeTab === 'my') syncSettingsControls();
+                if (homeTab === 'my') { syncSettingsControls(); refreshStorageStatus(); }
                 Motion.navigation(document.querySelector('.bottom-nav'), document.querySelector(`[data-home-tab="${homeTab}"]`), previousTab === homeTab);
                 if (previousTab !== homeTab && !$homeShell.classList.contains('is-hidden')) Motion.enter(document.querySelector(`#home${homeTab === 'my' ? 'My' : homeTab === 'room' ? 'Room' : 'Story'}Page`));
             }
@@ -3526,6 +3569,8 @@
                 $messageInput.blur();
                 const activeTarget = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
                 if (activeTarget) activeTarget.draft = $messageInput.value;
+                rememberReadingPosition();
+                saveData();
                 setHomeTab(tab || (appData.activeMode === 'room' ? 'room' : 'story'));
                 renderHomeLibraries();
                 $chatShell.classList.add('is-hidden');
@@ -3542,7 +3587,7 @@
                 updateModeUI();
                 renderMessages();
                 UI.resizeComposer($messageInput);
-                requestAnimationFrame(() => scrollToBottom());
+                restoreReadingPosition();
                 if (wasHomeOpen) Motion.screens($homeShell, $chatShell, 1);
             }
 
@@ -3551,6 +3596,7 @@
                 closeInspiration();
                 const previousTarget = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
                 if (previousTarget) previousTarget.draft = $messageInput.value;
+                rememberReadingPosition();
                 appData.activeMode = mode === 'room' ? 'room' : 'story';
                 if (appData.activeMode === 'room') {
                     appData.currentRoomId = id;
@@ -3562,6 +3608,8 @@
                 appData.model = getActiveModel();
                 appData.providerModels.deepseek = appData.model;
                 const nextTarget = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
+                const savedReading = Workspace.normalizeReading(nextTarget?.readingPosition, getActiveMessages().length);
+                if (savedReading && !savedReading.atLatest) setMessageRenderRange(Workspace.pageRange(getActiveMessages().length, Math.max(0, savedReading.index - 40), MESSAGE_PAGE_SIZE));
                 $messageInput.value = nextTarget?.draft || '';
                 $messageInput.dispatchEvent(new Event('input'));
                 resetScrollIntent();
@@ -3583,6 +3631,68 @@
                 renderHomeLibraries();
                 renderAgentsList();
                 renderRoomsList();
+            }
+
+            function getWorkspaceUI() {
+                if (!workspaceUI) workspaceUI = window.StarlightWorkspaceUI.create({
+                    workspace:Workspace, archive:Archive, memory:Memory, timeline:Timeline, motion:Motion,
+                    state:()=>appData, target:()=>appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent(),
+                    mode:()=>appData.activeMode, messages:getActiveMessages,
+                    busy:()=>isGenerating || styleLabBusy || refinementBusy || maintenanceBusy || storageReadFailed,
+                    notify:showToast, jump:jumpToMessage, visibleIndex:()=>captureReadingPosition()?.index || 0,
+                    download:downloadBackup, commitWork:commitWorkspaceWork, importBackup:importWorkspaceBackup,
+                });
+                return workspaceUI;
+            }
+
+            async function downloadBackup(name, text) {
+                if(window.Capacitor?.isNativePlatform?.()) {
+                    const nativeArchive=window.Capacitor.Plugins?.StarlightArchive || window.Capacitor.registerPlugin?.('StarlightArchive');
+                    if(!nativeArchive?.saveBackup)throw new Error('原生文件保存器未加载，请重新打开应用');
+                    await nativeArchive.saveBackup({name,text});return;
+                }
+                const file = new File([text], name, {type:'application/json'});
+                if (navigator.canShare?.({files:[file]})) {
+                    try { await navigator.share({files:[file], title:'星陽之语备份'}); return; }
+                    catch (error) { if (error.name === 'AbortError') throw new Error('已取消导出'); }
+                }
+                // Desktop browsers use a normal download; Android uses the
+                // native export bridge where WebView cannot save blob URLs.
+                const url = URL.createObjectURL(file);
+                const link = document.createElement('a'); link.href=url; link.download=name;
+                document.body.appendChild(link); link.click(); link.remove();
+                setTimeout(()=>URL.revokeObjectURL(url),60000);
+            }
+
+            async function commitCandidate(next) {
+                if (maintenanceBusy || storageReadFailed) throw new Error('本地存储暂不可写入，请稍后重试');
+                maintenanceBusy = true;
+                document.body.classList.add('storage-busy');
+                try {
+                    await persistFullState();
+                    next.updatedAt = Date.now();
+                    if (storageDb) await writeDatabaseState(next);
+                    else localStorage.setItem(FALLBACK_STORAGE_KEY, JSON.stringify(next));
+                    appData = next;
+                } finally { maintenanceBusy=false; document.body.classList.remove('storage-busy'); }
+                saveData();
+                renderHomeLibraries(); updateModeUI(); renderMessages({preserveScroll:true});
+            }
+
+            async function commitWorkspaceWork(work) {
+                const field = appData.activeMode === 'room' ? 'rooms' : 'agents';
+                const normalized = field === 'rooms' ? Rooms.normalizeRoom(work,Memory,Memory.NATURAL_STYLE_GUIDE) : Story.normalizeAgent(work,Memory);
+                await commitCandidate({...appData, [field]:appData[field].map(item=>item.id === work.id ? normalized : item)});
+            }
+
+            async function importWorkspaceBackup(backup, options) {
+                const planned = Archive.planImport(appData,backup,options);
+                planned.state.agents = planned.state.agents.map(work=>Story.normalizeAgent(work,Memory));
+                planned.state.rooms = planned.state.rooms.map(work=>Rooms.normalizeRoom(work,Memory,Memory.NATURAL_STYLE_GUIDE));
+                planned.state.styleProfiles = StyleLab.normalizeProfiles(planned.state.styleProfiles);
+                await commitCandidate(planned.state);
+                $messageInput.value = (appData.activeMode==='room'?getCurrentRoom():getCurrentAgent())?.draft || '';
+                UI.resizeComposer($messageInput);
             }
 
             function renderHomeCollection(container, items, mode) {
@@ -3699,6 +3809,7 @@
                 $styleEditorContent.hidden = !profile;
                 renderStyleList();
                 if (!profile) return;
+                document.getElementById('styleComparison').hidden=styleComparison?.profileId!==profile.id;
 
                 $styleProfileNameInput.value = profile.name;
                 $styleProfileStrengthRange.value = String(profile.strength);
@@ -3723,11 +3834,18 @@
                 $styleAnalysisStatus.className = `style-analysis-status${hasAnalysis && !sourceChangedAfterAnalysis ? ' ready' : ''}`;
                 $styleAnalysisSummary.textContent = analysis.summary || '分析完成后会在这里展示文风概述。';
                 $styleFactorList.innerHTML = hasAnalysis
-                    ? analysis.factors.map((factor, index) => `<div class="style-factor"><strong>${index + 1}. ${escapeHtml(factor.name)}</strong><p>${escapeHtml(factor.description)}${factor.description && factor.instruction ? '\n\n' : ''}${escapeHtml(factor.instruction)}</p></div>`).join('')
+                    ? analysis.factors.map((factor, index) => `<div class="style-factor"><strong>${index + 1}. ${escapeHtml(factor.name)}</strong><p>${escapeHtml(factor.description)}${factor.description && factor.instruction ? '\n\n' : ''}${escapeHtml(factor.instruction)}</p><p>${escapeHtml(factor.principle || '')}</p><small>${escapeHtml((factor.scenes || []).join(' · '))}</small></div>`).join('')
                     : '';
                 renderStyleDetailsList($styleAvoidanceList, analysis.avoidances, '等待分析');
                 renderStyleDetailsList($styleNaturalnessList, analysis.naturalnessChecks, '等待分析');
                 $styleConfidenceNotes.textContent = analysis.confidenceNotes ? `分析说明：${analysis.confidenceNotes}` : '';
+                document.getElementById('styleExamplesList').innerHTML=(analysis.examples||[]).map(example=>`<div class="style-factor"><label><input type="checkbox" data-style-example="${escapeHtml(example.id)}" ${example.approved?'checked':''}> 确认使用 · ${escapeHtml(example.scene)}</label><p>${escapeHtml(example.context)}</p><p>${escapeHtml(example.text)}</p><small>${escapeHtml(example.reason)}</small></div>`).join('') || '<p class="hint">重新分析参考文本后，可在这里选择少量独立写法示例。</p>';
+                document.getElementById('styleFeedbackList').innerHTML=(profile.feedback||[]).map(item=>`<div class="style-factor"><p>${escapeHtml(item.note || item.category)}</p>${item.text?`<small>原表达：${escapeHtml(item.text)}</small>`:''}${item.replacement?`<p>偏好表达：${escapeHtml(item.replacement)}</p>`:''}<button class="style-action" data-remove-feedback="${escapeHtml(item.id)}">删除</button></div>`).join('') || '<p class="hint">可以长按正文记录不喜欢的表达，再写出你希望的改法。</p>';
+                const actorSelect=document.getElementById('stylePreviewActor');
+                const previousActor=actorSelect.value;
+                actorSelect.innerHTML=appData.activeMode==='room'?(target?.participants||[]).filter(p=>p.active!==false).map(p=>`<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join(''):'';
+                if(Array.from(actorSelect.options).some(option=>option.value===previousActor)) actorSelect.value=previousActor;
+                actorSelect.hidden=document.getElementById('stylePreviewActorLabel').hidden=appData.activeMode!=='room';
 
                 if (!target) {
                     $styleAppliedStatus.textContent = '当前未选择剧情或房间。你仍可分析和生成参考文本，选择作品后再应用。';
@@ -3743,6 +3861,16 @@
                 $btnApplyStyle.disabled = styleLabBusy || !target || !hasAnalysis || sourceChangedAfterAnalysis;
                 $btnRemoveAppliedStyle.disabled = styleLabBusy || !target || !applied;
                 $btnGenerateStylePreview.disabled = styleLabBusy || !hasAnalysis;
+                document.getElementById('btnCompareStyle').disabled=styleLabBusy || !hasAnalysis;
+                renderStyleStrategy();
+            }
+
+            function renderStyleStrategy() {
+                const profile=getSelectedStyleProfile(); if(!profile)return;
+                const applied=getCurrentStyleTarget()?.styleInfluence;
+                document.getElementById('styleStrategyStatus').textContent=StyleLab.getStrengthStrategy(profile.strength).label+'。100% 表示表达优先级，不保证完全复刻；事实与人物边界始终保留。';
+                const state=StyleLab.getApplicationState(profile,applied);
+                $styleAppliedStatus.textContent=getCurrentStyleTargetLabel()+' · '+state.label+(applied?` · 实际强度 ${applied.strength}%`:'')+(state.stale?'；库中修改尚未应用，点击“应用这份因子”同步当前作品。':'');
             }
 
             function openStyleLab() {
@@ -3816,7 +3944,7 @@
                 try {
                     const messages = StyleLab.buildAnalysisMessages(sourceText, sourceNotes);
                     setStyleLabBusy(true, '正在分析表达规律并排除人物、事件与提示注入……');
-                    const result = await callDeepSeekJSON(messages, { temperature: 0.1, maxTokens: 6000, thinkingMode: 'disabled' });
+                    const result = await callDeepSeekJSON(messages, { temperature: 0.1, maxTokens: 6000, thinkingMode: 'disabled', purpose:'文风分析', cache:true });
                     const currentIndex = appData.styleProfiles.findIndex(item => item.id === profile.id);
                     if (currentIndex < 0) return;
                     appData.styleProfiles[currentIndex] = StyleLab.profileFromAnalysis(
@@ -3876,14 +4004,14 @@
                 ].join('\n\n');
             }
 
-            function callStylePreview(messages) {
+            function callStylePreview(messages, output = $stylePreviewOutput, purpose = '文风预览') {
                 return new Promise((resolve, reject) => {
                     callDeepSeekAPI(
                         messages,
-                        content => { $stylePreviewOutput.textContent = content || '正在生成……'; },
+                        content => { output.textContent = content || '正在生成……'; },
                         (content, metadata) => resolve({ content, metadata }),
                         reject,
-                        { temperature: 0.72, maxTokens: 4000, thinkingMode: 'disabled' }
+                        { temperature: 0.72, maxTokens: 4000, thinkingMode: 'disabled', purpose }
                     );
                 });
             }
@@ -3898,7 +4026,9 @@
                 try {
                     const request = $stylePreviewRequestInput.value.trim();
                     const context = $stylePreviewModeSelect.value === 'current' ? buildCurrentStylePreviewContext() : '';
-                    const messages = StyleLab.buildPreviewMessages(profile, request, context);
+                    const messages = $stylePreviewModeSelect.value==='practice'
+                        ? StyleLab.buildPracticeMessages(buildStylePracticeRequest(StyleLab.createAppliedStyle(profile,{messageIndex:getActiveMessages().length})),request)
+                        : StyleLab.buildPreviewMessages(profile, request, context);
                     setStyleLabBusy(true, '文风分析已就绪');
                     $stylePreviewOutput.textContent = '正在隔离沙盒中生成参考文本……';
                     const response = await callStylePreview(messages);
@@ -3925,7 +4055,8 @@
                 const profile = getSelectedStyleProfile();
                 if (!target || !profile) return;
                 try {
-                    target.styleInfluence = StyleLab.createAppliedStyle(profile);
+                    target.revisionHistory=Archive.captureRevision(target,{mode:appData.activeMode,label:'更新文风前'}).revisionHistory;
+                    target.styleInfluence = StyleLab.createAppliedStyle(profile,{messageIndex:getActiveMessages().length});
                     target.updatedAt = Date.now();
                     saveData();
                     renderStyleLab();
@@ -3935,6 +4066,57 @@
                     showToast(error.message, 'error');
                 }
             }
+
+            async function compareSelectedStyle() {
+                const profile=getSelectedStyleProfile(); if(!profile || styleLabBusy)return;
+                if(!appData.apiKey)return showToast('请先设置 API Key','error');
+                const request=$stylePreviewRequestInput.value.trim();
+                const mode=$stylePreviewModeSelect.value;
+                const context=mode==='current'?buildCurrentStylePreviewContext():'';
+                const selected=StyleLab.createAppliedStyle(profile,{messageIndex:getActiveMessages().length});
+                const build=style=>mode==='practice'?StyleLab.buildPracticeMessages(buildStylePracticeRequest(style),request):StyleLab.buildPreviewMessages(style || {...profile,strength:0},request,context);
+                try {
+                    const a=build(mode==='practice'?undefined:null), b=build(selected);
+                    setStyleLabBusy(true,'正在使用同一场景进行两次独立试写……');
+                    styleComparison=null;
+                    document.getElementById('styleComparison').hidden=false;
+                    const left=document.getElementById('styleCompareA'),right=document.getElementById('styleCompareB');
+                    left.textContent='正在生成 A……';right.textContent='等待生成 B……';
+                    const resultA=await callStylePreview(a,left,'文风对比 A');
+                    if(resultA.content===null)throw new Error('A 试写已取消');
+                    const resultB=await callStylePreview(b,right,'文风对比 B');
+                    if(resultB.content===null)throw new Error('B 试写已取消');
+                    styleComparison={profileId:profile.id,a:resultA.content,b:resultB.content,request};
+                }catch(error){showToast('文风对比未完成：'+error.message,'error');}
+                finally{setStyleLabBusy(false);renderStyleLab();}
+            }
+
+            function addStyleFeedback(text='', replacement='', defaultNote='') {
+                const profile=getSelectedStyleProfile();
+                if(!profile)return showToast('请先在文风工坊选择一份因子','info');
+                const note=prompt('希望保留或避免哪些表达？只记录写法偏好，不作为剧情事实。',defaultNote);
+                if(note===null || (!note.trim()&&!text&&!replacement))return;
+                updateSelectedStyleProfile({feedback:StyleLab.addFeedback(profile,{text,replacement,note:note.trim()}).feedback});
+                renderStyleLab();
+                showToast('已记录偏好；重新应用后才会影响当前作品','success');
+            }
+
+            document.getElementById('btnCompareStyle').addEventListener('click',compareSelectedStyle);
+            document.getElementById('btnStyleFeedback').addEventListener('click',()=>addStyleFeedback());
+            document.getElementById('styleExamplesList').addEventListener('change',event=>{
+                const profile=getSelectedStyleProfile(); if(!profile||!event.target.dataset.styleExample)return;
+                updateSelectedStyleProfile({analysis:{...profile.analysis,examples:profile.analysis.examples.map(item=>item.id===event.target.dataset.styleExample?{...item,approved:event.target.checked}:item)}});
+                renderStyleStrategy();
+            });
+            document.getElementById('styleFeedbackList').addEventListener('click',event=>{
+                const id=event.target.closest('[data-remove-feedback]')?.dataset.removeFeedback;if(!id)return;
+                updateSelectedStyleProfile({feedback:getSelectedStyleProfile().feedback.filter(item=>item.id!==id)});renderStyleLab();
+            });
+            document.getElementById('styleComparison').addEventListener('click',event=>{
+                const choice=event.target.closest('[data-style-vote]')?.dataset.styleVote;
+                if(!choice||styleComparison?.profileId!==getSelectedStyleProfile()?.id)return;
+                addStyleFeedback(styleComparison[choice==='a'?'b':'a'].slice(0,1200),styleComparison[choice].slice(0,1200),'更喜欢 '+choice.toUpperCase()+' 的表达。');
+            });
 
             function removeCurrentStyle() {
                 const target = getCurrentStyleTarget();
@@ -3965,6 +4147,7 @@
                 updateSelectedStyleProfile({ strength });
                 $styleProfileStrengthValue.textContent = `${strength}%`;
                 renderStyleList();
+                renderStyleStrategy();
             });
             $styleSourceTextInput.addEventListener('input', event => {
                 updateSelectedStyleProfile({ sourceText: event.target.value });
@@ -3983,7 +4166,8 @@
             });
 
             function canChangeConversationTarget() {
-                if (!isGenerating) return true;
+                if (storageReadFailed) { showToast('数据尚未安全载入，请重新打开应用', 'error'); return false; }
+                if (!isGenerating && !styleLabBusy && !maintenanceBusy && !refinementBusy) return true;
                 showToast('请先停止当前生成，再切换或修改对话', 'info');
                 return false;
             }
@@ -4605,7 +4789,7 @@
             }
 
             async function generateIntimacyRules(room) {
-                const rules = await callDeepSeekJSON(Rooms.buildIntimacyRulesMessages(room), { maxTokens: 3000 });
+                const rules = await callDeepSeekJSON(Rooms.buildIntimacyRulesMessages(room), { maxTokens: 3000, purpose:'亲密度规则' });
                 if (!rules || !Array.isArray(rules.positive_signals) || !Array.isArray(rules.negative_signals)) {
                     throw new Error('亲密度判定返回格式不完整，请重试');
                 }
@@ -4635,6 +4819,7 @@
                     }
                     room.updatedAt = Date.now();
                     if (existing) {
+                        room.revisionHistory = Archive.captureRevision(existing,{mode:'room',label:'修改房间设定前'}).revisionHistory;
                         const index = appData.rooms.findIndex(item => item.id === existing.id);
                         appData.rooms[index] = room;
                     } else {
@@ -5201,7 +5386,7 @@
                 if (editingAgentId) {
                     const agent = appData.agents.find(a => a.id === editingAgentId);
                     if (agent) {
-                        const updated = Story.normalizeAgent({ ...agent, ...input }, Memory);
+                        const updated = Story.normalizeAgent({ ...Archive.captureRevision(agent,{mode:'story',label:'修改剧情设定前'}), ...input }, Memory);
                         const index = appData.agents.findIndex(item => item.id === editingAgentId);
                         appData.agents[index] = updated;
                         showToast(`剧情智能体「${name}」已更新`, 'success');
@@ -5399,6 +5584,32 @@
                 return { scrollTop: $messagesContainer.scrollTop };
             }
 
+            function captureReadingPosition() {
+                const total=getActiveMessages().length;
+                if(!total) return null;
+                const top=$messagesContainer.getBoundingClientRect().top;
+                const node=Array.from($messagesContainer.querySelectorAll('[data-message-index]')).find(item=>item.getBoundingClientRect().bottom>top+8);
+                if(!node) return null;
+                return {index:Number(node.dataset.messageIndex),offset:node.getBoundingClientRect().top-top,
+                    atLatest:getMessageRenderRange(total).end===total && $messagesContainer.scrollHeight-$messagesContainer.scrollTop-$messagesContainer.clientHeight<96};
+            }
+
+            function rememberReadingPosition() {
+                if($chatShell.classList.contains('is-hidden')) return;
+                const target=appData.activeMode==='room'?getCurrentRoom():getCurrentAgent();
+                if(target) target.readingPosition=captureReadingPosition();
+            }
+
+            function restoreReadingPosition(position) {
+                const target=appData.activeMode==='room'?getCurrentRoom():getCurrentAgent();
+                const saved=Workspace.normalizeReading(position||target?.readingPosition,getActiveMessages().length);
+                requestAnimationFrame(()=>requestAnimationFrame(()=>{
+                    if(!saved||saved.atLatest) { resetScrollIntent(); scrollToBottom(); return; }
+                    const node=$messagesContainer.querySelector(`[data-message-index="${saved.index}"]`);
+                    if(node){isUserScrolledUp=true;$messagesContainer.scrollTop+=node.getBoundingClientRect().top-$messagesContainer.getBoundingClientRect().top-saved.offset;}
+                }));
+            }
+
             function finishMessageRender(viewport) {
                 if (!viewport) {
                     scrollToBottom();
@@ -5422,7 +5633,7 @@
                     return { start: Math.max(0, total - MESSAGE_PAGE_SIZE), end: total };
                 }
                 let start = Math.max(0, Math.min(Number(activeRange.start) || 0, Math.max(0, total - 1)));
-                let end = Math.max(start + 1, Math.min(Number(activeRange.end) || total, total));
+                let end = Math.max(start, Math.min(Number(activeRange.end) || total, total, start+MESSAGE_PAGE_SIZE));
                 return { start, end };
             }
 
@@ -5527,22 +5738,22 @@
 
             $messagesContainer.addEventListener('click', async (e) => {
                 if (e.target.dataset.action === 'load-earlier') {
-                    const previousHeight = $messagesContainer.scrollHeight;
-                    const previousTop = $messagesContainer.scrollTop;
+                    const anchor = captureReadingPosition();
                     const messages = getActiveMessages();
                     const range = getMessageRenderRange(messages.length);
-                    setMessageRenderRange({ start: Math.max(0, range.start - MESSAGE_PAGE_SIZE), end: range.end });
-                    renderMessages();
-                    requestAnimationFrame(() => {
-                        $messagesContainer.scrollTop = previousTop + ($messagesContainer.scrollHeight - previousHeight);
-                    });
+                    setMessageRenderRange(Workspace.pageRange(messages.length, Math.max(0,range.start - MESSAGE_PAGE_SIZE + 40), MESSAGE_PAGE_SIZE));
+                    renderMessages({preserveScroll:true});
+                    restoreReadingPosition(anchor);
                     return;
                 }
                 if (e.target.dataset.action === 'load-later') {
                     const messages = getActiveMessages();
                     const range = getMessageRenderRange(messages.length);
-                    setMessageRenderRange({ start: range.start, end: Math.min(messages.length, range.end + MESSAGE_PAGE_SIZE) });
+                    const anchor=captureReadingPosition();
+                    setMessageRenderRange(Workspace.pageRange(messages.length, Math.max(0,range.end-40), MESSAGE_PAGE_SIZE));
                     renderMessages({ preserveScroll: true });
+                    restoreReadingPosition(anchor);
+                    requestAnimationFrame(()=>{if(!anchor||!$messagesContainer.querySelector(`[data-message-index="${anchor.index}"]`)) $messagesContainer.scrollTop=0;});
                     return;
                 }
                 if (e.target.dataset.action === 'load-latest') {
@@ -5608,22 +5819,13 @@
             }
 
             function renderConversationNavigator() {
+                clearTimeout(navigatorSearchTimer);
+                navigatorSearchTimer = null;
                 const messages = getActiveMessages();
                 const query = $navigatorSearchInput.value.trim().toLowerCase();
-                let entries = messages.map((message, index) => ({ message, index }));
-                if (navigatorBookmarkedOnly) {
-                    entries = entries.filter(entry => entry.message.bookmarked === true);
-                }
-                if (query) {
-                    entries = entries.filter(entry => {
-                        const haystack = `${getMessageSpeakerLabel(entry.message)} #${entry.index + 1} ${entry.message.content || ''}`.toLowerCase();
-                        return haystack.includes(query);
-                    });
-                } else if (!navigatorBookmarkedOnly && entries.length > 300) {
-                    entries = entries.slice(-300);
-                }
-                const matchedCount = entries.length;
-                if (entries.length > 500) entries = entries.slice(-500);
+                const { entries, matchedCount } = HistorySearch.search(messages, {
+                    query, bookmarkedOnly: navigatorBookmarkedOnly, getSpeakerLabel: getMessageSpeakerLabel,
+                });
                 $navigatorSummary.textContent = query || navigatorBookmarkedOnly
                     ? `共找到 ${matchedCount} 条${matchedCount > entries.length ? `，显示最近 ${entries.length} 条` : ''}；点击结果即可定位。`
                     : `共 ${messages.length} 条消息，当前显示最近 ${entries.length} 条；可搜索全文、输入编号或收藏关键节点。`;
@@ -5658,6 +5860,8 @@
             }
 
             function closeConversationNavigator() {
+                clearTimeout(navigatorSearchTimer);
+                navigatorSearchTimer = null;
                 Motion.setVisible($navigatorOverlay, false);
             }
 
@@ -5686,7 +5890,15 @@
             }
 
             $btnLocate.addEventListener('click', () => openConversationNavigator());
-            $navigatorSearchInput.addEventListener('input', renderConversationNavigator);
+            $navigatorSearchInput.addEventListener('input', event => {
+                clearTimeout(navigatorSearchTimer);
+                // Let the input method finish a phrase before scanning long history.
+                if (!event.isComposing) navigatorSearchTimer = setTimeout(renderConversationNavigator, 150);
+            });
+            $navigatorSearchInput.addEventListener('compositionend', () => {
+                clearTimeout(navigatorSearchTimer);
+                navigatorSearchTimer = setTimeout(renderConversationNavigator, 150);
+            });
             $btnNavigatorBookmarks.addEventListener('click', () => {
                 navigatorBookmarkedOnly = !navigatorBookmarkedOnly;
                 renderConversationNavigator();
@@ -5742,6 +5954,7 @@
             function addMemoryFactToWorldBook(fact) {
                 const target = memoryEditorMode === 'room' ? getCurrentRoom() : getCurrentAgent();
                 if (!target) return;
+                target.revisionHistory=Archive.captureRevision(target,{mode:memoryEditorMode,label:'将事实加入世界书前'}).revisionHistory;
                 target.worldBook = WorldBook.normalizeWorldBook(target.worldBook, target.worldPrompt);
                 target.worldBook.progressEntries.push(WorldBook.createProgressFromMemory(fact));
                 target.worldBook.updatedAt = Date.now();
@@ -5769,6 +5982,8 @@
                 $memoryFactsList.querySelectorAll('[data-fact-index]').forEach(card => {
                     const index = Number(card.dataset.factIndex);
                     const fact = memoryDraftFacts[index];
+                    card.addEventListener('input',()=>{fact.userEdited=true;});
+                    card.addEventListener('change',()=>{fact.userEdited=true;});
                     card.querySelector('.memory-fact-category').addEventListener('change', event => fact.category = event.target.value);
                     card.querySelector('.memory-fact-status').addEventListener('change', event => fact.status = event.target.value);
                     card.querySelector('.memory-fact-importance').addEventListener('change', event => fact.importance = Number(event.target.value));
@@ -5794,7 +6009,7 @@
                 $roomCharacterMemoryList.querySelectorAll('[data-member-id]').forEach(card => {
                     const state = roomCharacterMemoryDrafts[card.dataset.memberId];
                     card.querySelector('.room-character-core').addEventListener('input', event => state.core = event.target.value);
-                    card.querySelectorAll('.room-character-fact').forEach(input => input.addEventListener('input', event => state.facts[Number(input.dataset.index)].text = event.target.value));
+                    card.querySelectorAll('.room-character-fact').forEach(input => input.addEventListener('input', event => { const fact=state.facts[Number(input.dataset.index)];fact.text=event.target.value;fact.userEdited=true; }));
                     card.querySelectorAll('.room-character-segment').forEach(input => input.addEventListener('input', event => state.segments[Number(input.dataset.index)].summary = event.target.value));
                 });
             }
@@ -5840,6 +6055,7 @@
             function saveMemoryEdits() {
                 const target = memoryEditorMode === 'room' ? getCurrentRoom() : getCurrentAgent();
                 if (!target) return;
+                target.revisionHistory=Archive.captureRevision(target,{mode:memoryEditorMode,label:'手工修改记忆前'}).revisionHistory;
                 const total = memoryEditorMode === 'room' ? target.messages.length : target.conversations.length;
                 const previous = Memory.normalizeMemory(memoryEditorMode === 'room' ? target.sharedMemory : target.memory, total);
                 const updated = Memory.normalizeMemory({ ...previous, core:$memoryCoreInput.value.trim(), facts:memoryDraftFacts, segments:memoryDraftSegments.map(segment => ({ ...segment, summary:String(segment.summary || '').trim() })).filter(segment => segment.summary), updatedAt:Date.now() }, total);
@@ -5862,6 +6078,7 @@
             $btnResetStoryMemory.addEventListener('click', () => {
                 const target = memoryEditorMode === 'room' ? getCurrentRoom() : getCurrentAgent();
                 if (!target || !confirm('确定清空当前整理结果吗？完整聊天原文不会删除；后续会从原文重新建立记忆。')) return;
+                target.revisionHistory=Archive.captureRevision(target,{mode:memoryEditorMode,label:'重建长期记忆前'}).revisionHistory;
                 if (memoryEditorMode === 'room') {
                     target.sharedMemory = Memory.createEmptyMemory();
                     target.characterMemories = {};
@@ -6053,6 +6270,20 @@
                 };
             }
 
+            function recordApiUsage(usage) {
+                if (!apiUsage.record(usage)) return;
+                const stats = apiUsage.snapshot();
+                const cache = stats.cacheReports
+                    ? `${stats.cacheHitTokens.toLocaleString()} tokens（${stats.cacheInputTokens ? (stats.cacheHitTokens / stats.cacheInputTokens * 100).toFixed(1) : '0.0'}%）`
+                    : '接口未返回';
+                document.getElementById('apiUsageStatus').textContent = `本次打开：${stats.requests} 次已统计请求 · 输入 ${stats.inputTokens.toLocaleString()} / 输出 ${stats.outputTokens.toLocaleString()} tokens · 缓存命中 ${cache}`;
+            }
+
+            function recordTaskMetric(label,start,usage,status) {
+                taskMetrics.record(label,performance.now()-start,usage,status);
+                document.getElementById('apiTaskStatus').innerHTML=taskMetrics.snapshot().map(row=>`<p>${escapeHtml(row.name)} · ${row.requests} 次 · ${(row.elapsedMs/1000).toFixed(1)} 秒<br>已报告 ${row.reported} 次：输入 ${row.input.toLocaleString()} / 输出 ${row.output.toLocaleString()} · 失败 ${row.failures} / 取消 ${row.cancelled}</p>`).join('');
+            }
+
             function getRequestOptions(overrides = {}) {
                 const settings = Memory.normalizeConfig(getActiveMemorySettings());
                 const provider = getApiProviderConfig();
@@ -6075,9 +6306,11 @@
                     onError(new Error('请先设置API Key'));
                     return;
                 }
-                abortController = new AbortController();
+                const request = API.createRequestScope();
+                abortController = request.controller;
                 const apiUrl = getApiProviderConfig().apiUrl;
                 const requestOptions = getRequestOptions(overrides);
+                const metricStart=performance.now();let metricUsage=null,metricStatus='failed';
 
                 try {
                     const response = await fetch(apiUrl, {
@@ -6088,11 +6321,12 @@
                             messages: messages,
                             stream: true,
                         }),
-                        signal: abortController.signal,
+                        signal: request.signal,
                     });
+                    request.touch();
 
                     if (!response.ok) {
-                        const errorBody = await response.text();
+                        const errorBody = await API.readResponseText(response, { signal: request.signal, onActivity: request.touch });
                         let errorMsg = `API请求失败 (${response.status})`;
                         try {
                             const errJson = JSON.parse(errorBody);
@@ -6101,57 +6335,26 @@
                         throw new Error(errorMsg);
                     }
 
-                    const reader = response.body.getReader();
-                    const decoder = new TextDecoder();
-                    let fullContent = '';
-                    let buffer = '';
-                    let finishReason = null;
-                    let usage = null;
-                    let streamError = null;
-
-                    const consumeSseLine = (line) => {
-                        const trimmed = line.trim();
-                        if (!trimmed || !trimmed.startsWith('data:')) return;
-                        const jsonStr = trimmed.slice(5).trim();
-                        if (!jsonStr || jsonStr === '[DONE]') return;
-                        try {
-                            const parsed = JSON.parse(jsonStr);
-                            if (parsed.error) {
-                                streamError = new Error(parsed.error.message || '流式响应中断');
-                                return;
-                            }
-                            const delta = parsed.choices?.[0]?.delta?.content;
-                            if (delta) {
-                                fullContent += delta;
-                                onChunk(fullContent);
-                            }
-                            if (parsed.choices?.[0]?.finish_reason) finishReason = parsed.choices[0].finish_reason;
-                            if (parsed.usage) usage = parsed.usage;
-                        } catch (parseError) {
-                            console.warn('忽略无法解析的流式响应片段:', parseError);
-                        }
-                    };
-
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        buffer += decoder.decode(value, { stream: true });
-                        const lines = buffer.split('\n');
-                        buffer = lines.pop() || '';
-                        lines.forEach(consumeSseLine);
-                    }
-                    buffer += decoder.decode();
-                    if (buffer.trim()) consumeSseLine(buffer);
-                    if (streamError) throw streamError;
-                    onDone(fullContent, { finishReason, usage });
+                    const result = await API.readCompletionStream(response, {
+                        signal: request.signal,
+                        onActivity: request.touch,
+                        onChunk,
+                    });
+                    recordApiUsage(result.usage);
+                    metricUsage=result.usage;metricStatus='success';
+                    onDone(result.content, { finishReason: result.finishReason, usage: result.usage });
                 } catch (error) {
+                    error = request.error(error);
                     if (error.name === 'AbortError') {
+                        metricStatus='cancelled';
                         onDone(null, { aborted: true });
                         return;
                     }
                     onError(error);
                 } finally {
-                    abortController = null;
+                    recordTaskMetric(overrides.purpose || (appData.activeMode==='room'?'房间正文':'剧情正文'),metricStart,metricUsage,metricStatus);
+                    request.dispose();
+                    if (abortController === request.controller) abortController = null;
                 }
             }
 
@@ -6169,7 +6372,12 @@
 
             async function callDeepSeekJSON(messages, overrides = {}) {
                 if (!appData.apiKey) throw new Error('请先设置 API Key');
-                abortController = new AbortController();
+                const cacheKey=overrides.cache?JSON.stringify([appData.apiKey,getActiveModel(),overrides,messages]):null;
+                const cached=cacheKey?auxiliaryCache.get(cacheKey):undefined;
+                if(cached!==undefined){showToast('输入未变化，复用本次打开期间的分析结果（未新增请求）','info');return cached;}
+                const metricStart=performance.now();let metricUsage=null,metricStatus='failed';
+                const request = API.createRequestScope();
+                abortController = request.controller;
                 try {
                     const provider = getApiProviderConfig();
                     const requestBody = {
@@ -6188,27 +6396,38 @@
                         method: 'POST',
                         headers: getApiRequestHeaders(),
                         body: JSON.stringify(requestBody),
-                        signal: abortController.signal,
+                        signal: request.signal,
                     });
+                    request.touch();
                     if (!response.ok) {
-                        const errorBody = await response.text();
+                        const errorBody = await API.readResponseText(response, { signal: request.signal, onActivity: request.touch });
                         let errorMessage = `结构化AI请求失败 (${response.status})`;
                         try {
                             errorMessage = JSON.parse(errorBody).error?.message || errorMessage;
                         } catch (error) {}
                         throw new Error(errorMessage);
                     }
-                    const result = await response.json();
+                    const result = JSON.parse(await API.readResponseText(response, { signal: request.signal, onActivity: request.touch }));
+                    recordApiUsage(result.usage);
+                    metricUsage=result.usage;
                     const content = result.choices?.[0]?.message?.content;
                     if (!content) throw new Error('结构化AI请求返回了空内容');
-                    return parseJsonResponse(content);
+                    if(result.choices?.[0]?.finish_reason==='length')throw new Error('结构化结果超出长度上限，未覆盖原有数据');
+                    const parsed=parseJsonResponse(content);metricStatus='success';
+                    if(cacheKey)auxiliaryCache.set(cacheKey,parsed);
+                    return parsed;
+                } catch (error) {
+                    if(error.name==='AbortError')metricStatus='cancelled';
+                    throw request.error(error);
                 } finally {
-                    abortController = null;
+                    recordTaskMetric(overrides.purpose || '记忆整理',metricStart,metricUsage,metricStatus);
+                    request.dispose();
+                    if (abortController === request.controller) abortController = null;
                 }
             }
 
             async function summarizeMemoryChunk(agent, chunk) {
-                const memory = Memory.normalizeMemory(agent.memory, agent.conversations.length);
+                let memory = Memory.normalizeMemory(agent.memory, agent.conversations.length);
                 const summarySystemPrompt = [
                     '你是长期对话的记忆整理器。只提取给定记录中明确出现的事实，严禁推测或补写。',
                     '你必须输出合法 json 对象，且只输出 json。格式：',
@@ -6218,6 +6437,7 @@
                     'episode_summary 要保留事件顺序、关键原话含义、因果、参与者、地点、物件、情绪与关系变化；不评价文笔，不把提示词写入故事记忆。',
                     'importance 为1到5的整数：日常过渡为1，普通事件为2到3，改变关系、角色或主线的事件为4到5。',
                     'facts只提取值得跨篇章保持的独立事实；category只能从核心设定、角色状态、角色成长、关系变化、装备技能、时间地点、重要事件、伏笔目标、知识秘密、更正失效中选择。',
+                    'facts每项附subject（对象名）、aliases（昵称列表）、keywords（检索关键词）。额外输出state_changes数组，仅记录明确的状态变化：{subject,attribute,before,after,sourceStartIndex,sourceEndIndex}，来源为原始消息编号，startIndex从0开始，endIndex为末条编号。没有变化输出空数组，不虚构变化。',
                 ].join('\n');
                 const summaryUserPrompt = [
                     '请把下面内容整理为 json 长期记忆。',
@@ -6247,7 +6467,7 @@
                 });
                 memory.summarizedUntil = chunk.endIndex;
                 memory.updatedAt = Date.now();
-                agent.memory = memory;
+                agent.memory = Memory.mergeTimelineEvents(memory, result.state_changes, chunk);
                 saveData();
             }
 
@@ -6297,6 +6517,7 @@
                             'shared_core按“时间地点、公开事实、场景状态、关系变化、承诺、关键物件、未解决线索”组织，并明确新旧状态的变化顺序。',
                             'character_memory必须使用给定角色id作为键，在旧独立记忆基础上保守更新角色的感受、认知、秘密、目标和成长。character_episode只记录该角色确实经历或能够知道的本段内容。',
                             'importance 为1到5的整数；改变角色、关系或主线的事件应为4到5。',
+                            '所有facts附subject、aliases和keywords。另输出state_changes（公开状态变化数组）和character_state_changes（以角色id为键的私有变化数组），每项为{subject,attribute,before,after,sourceStartIndex,sourceEndIndex}。startIndex为起始消息编号减1，endIndex为末条消息编号。只记录确已发生或得知的变化；公共部分不得包含私人认知。无变化输出空数组。',
                         ].join('\n'),
                     },
                     {
@@ -6326,13 +6547,13 @@
                 });
                 shared.summarizedUntil = chunk.endIndex;
                 shared.updatedAt = Date.now();
-                room.sharedMemory = shared;
+                room.sharedMemory = Memory.mergeTimelineEvents(shared, (result.state_changes||[]).map(event=>({...event,knowledgeScope:'public',observedBy:[]})), chunk);
                 room.characterMemories = room.characterMemories || {};
                 room.participants.forEach(member => {
                     const state = Memory.normalizeMemory(room.characterMemories[member.id], room.messages.length);
                     const nextCore = result.character_memory?.[member.id];
                     if (typeof nextCore === 'string' && nextCore.trim()) state.core = nextCore.trim().slice(0, 24000);
-                    state.facts = Memory.mergeMemoryFacts(state.facts, result.character_facts?.[member.id], chunk);
+                    state.facts = Memory.mergeMemoryFacts(state.facts, (result.character_facts?.[member.id]||[]).map(fact=>({...fact,knowledgeScope:'private',observedBy:[member.id]})), chunk);
                     const characterEpisode = result.character_episode?.[member.id];
                     if (typeof characterEpisode === 'string' && characterEpisode.trim()) {
                         state.segments.push({
@@ -6348,7 +6569,7 @@
                     }
                     state.summarizedUntil = chunk.endIndex;
                     state.updatedAt = Date.now();
-                    room.characterMemories[member.id] = state;
+                    room.characterMemories[member.id] = Memory.mergeTimelineEvents(state, (result.character_state_changes?.[member.id]||[]).map(event=>({...event,knowledgeScope:'private',observedBy:[member.id]})), chunk);
                 });
                 room.updatedAt = Date.now();
                 saveData();
@@ -6383,7 +6604,7 @@
                 const characterState = Memory.normalizeMemory(room.characterMemories?.[memberId], room.messages.length);
                 return {
                     sharedMemory,
-                    characterMemory: Memory.buildMemoryContext(characterState, query || '', settings, { tokenBudget: 14000 }),
+                    characterMemory: Memory.buildMemoryContext(characterState, query || '', settings, { tokenBudget: 14000, characterId:memberId }),
                     liveContextTokenBudget: settings.liveContextTokenBudget,
                 };
             }
@@ -6402,15 +6623,22 @@
                 );
             }
 
-            function buildMessagesForAPI() {
+            function buildMessagesForAPI(styleOverride) {
                 const agent = getCurrentAgent();
-                const systemPrompt = buildSystemPrompt();
-                const messages = [{ role: 'system', content: systemPrompt }];
+                const settings = Memory.normalizeConfig(appData.storyMemorySettings);
+                const style = styleOverride === undefined ? agent?.styleInfluence : styleOverride;
+                const latestQuery = agent?.conversations?.findLast(message=>message.role==='user')?.content || '';
+                const prompts = Story.buildRequestPrompts(agent, appData.storyGlobalPrompt, settings,
+                    appData.storyNaturalStylePrompt, Memory, StyleLab.buildInfluencePrompt(style,{query:latestQuery}));
+                const messages = [{ role: 'system', content: prompts.stableSystemPrompt || prompts.systemPrompt }];
+                if(prompts.dynamicPrompt) messages.push({role:'system',content:prompts.dynamicPrompt});
                 if (!agent || agent.conversations.length === 0) return messages;
 
-                const settings = Memory.normalizeConfig(appData.storyMemorySettings);
                 const memory = Memory.normalizeMemory(agent.memory, agent.conversations.length);
-                const latestUserMessage = [...agent.conversations].reverse().find(message => message.role === 'user');
+                let latestUserMessage = null;
+                for (let index = agent.conversations.length - 1; index >= 0; index--) {
+                    if (agent.conversations[index].role === 'user') { latestUserMessage = agent.conversations[index]; break; }
+                }
                 const memoryContext = settings.enabled
                     ? Memory.buildMemoryContext(memory, latestUserMessage?.content || '', settings)
                     : '';
@@ -6425,23 +6653,28 @@
                     settings.liveContextTokenBudget,
                     1200
                 );
-                const recentHistory = recentWindow.messages;
+                const recentHistory = recentWindow.messages.map(message=>({role:message.role,content:message.content}));
                 const latestMessage = recentHistory[recentHistory.length - 1];
                 const earlierMessages = recentHistory.slice(0, -1);
                 messages.push(...earlierMessages);
                 messages.push({
                     role: 'system',
-                    content: Story.buildTurnReminder(
-                        agent,
-                        appData.storyGlobalPrompt,
-                        settings,
-                        appData.storyNaturalStylePrompt,
-                        Memory,
-                        StyleLab.buildInfluencePrompt(agent?.styleInfluence)
-                    ),
+                    content: prompts.turnReminder,
                 });
                 if (latestMessage) messages.push(latestMessage);
                 return messages;
+            }
+
+            function buildStylePracticeRequest(styleOverride) {
+                if(appData.activeMode==='story') return buildMessagesForAPI(styleOverride);
+                const room=getCurrentRoom();
+                if(!room) throw new Error('请先选择房间');
+                const memberId=document.getElementById('stylePreviewActor')?.value || Rooms.getActiveMembers(room)[0]?.id;
+                const member=Rooms.getMember(room,memberId);
+                if(!member) throw new Error('请先设置一个在场角色');
+                const query=room.messages.findLast(message=>message.role==='user')?.content || '';
+                return Rooms.buildCharacterMessages(room,member.id,getRoomMemoryContexts(room,member.id,query),100,Memory,
+                    StyleLab.buildInfluencePrompt(styleOverride===undefined?room.styleInfluence:styleOverride,{query}));
             }
 
             // ==================== 发送消息 ====================
@@ -6468,7 +6701,7 @@
                 if (room.turnMode === 'mention' && !allowSmartFallback) {
                     throw new Error('当前房间设置为“仅指定角色”，请使用下方菜单或@角色名');
                 }
-                const decision = await callDeepSeekJSON(Rooms.buildDirectorMessages(room, userContent), { maxTokens: 800 });
+                const decision = await callDeepSeekJSON(Rooms.buildDirectorMessages(room, userContent), { maxTokens: 800, purpose:'房间导演' });
                 const speakerIds = Rooms.sanitizeSpeakerIds(room, decision?.speakers);
                 return {
                     speakerIds: speakerIds.length ? speakerIds : [active[0].id],
@@ -6482,7 +6715,7 @@
                 const turnMessages = room.messages.filter(message => message.turnId === turnId);
                 if (!turnMessages.some(message => message.role === 'user') || !turnMessages.some(message => message.role === 'assistant')) return;
                 updateMemoryStatus('正在进行隐藏亲密度判定…', true);
-                const result = await callDeepSeekJSON(Rooms.buildIntimacyJudgeMessages(room, turnMessages), { maxTokens: 600 });
+                const result = await callDeepSeekJSON(Rooms.buildIntimacyJudgeMessages(room, turnMessages), { maxTokens: 600, purpose:'亲密度判定' });
                 const applied = Rooms.applyIntimacyResult(room, result);
                 room.turnEffects = room.turnEffects || {};
                 room.turnEffects[turnId] = { intimacyDelta: applied.delta };
@@ -6515,7 +6748,7 @@
             }
 
             async function sendRoomMessage(userContent, options = {}) {
-                if (isGenerating) return;
+                if (!canChangeConversationTarget()) return;
                 if (!appData.apiKey) {
                     showToast('请先在“我的”中设置 API Key', 'error');
                     return;
@@ -6571,8 +6804,8 @@
                         const narration = await callDeepSeekStreamPromise(Rooms.buildNarrationMessages(
                             room,
                             selection.narrationHint,
-                            StyleLab.buildInfluencePrompt(room.styleInfluence)
-                        ), null, { maxTokens: 800 });
+                            StyleLab.buildInfluencePrompt(room.styleInfluence,{query:content})
+                        ), null, { maxTokens: 800, purpose:'房间旁白' });
                         if (narration.content?.trim()) {
                             room.messages.push({
                                 id: Rooms.createId('roommsg'),
@@ -6600,7 +6833,7 @@
                             contexts,
                             100,
                             Memory,
-                            StyleLab.buildInfluencePrompt(room.styleInfluence)
+                            StyleLab.buildInfluencePrompt(room.styleInfluence,{query:content})
                         );
                         const response = await generateValidRoomResponse(room, messages, member, index + 1, selection.speakerIds.length);
                         if (response.content === null || response.content === undefined || !isGenerating) break;
@@ -6647,6 +6880,7 @@
             }
 
             async function sendMessage(userContent) {
+                if (!canChangeConversationTarget()) return;
                 if (appData.activeMode === 'room') {
                     await sendRoomMessage(userContent);
                     return;
@@ -6746,6 +6980,9 @@
                 if (oldMessage.role !== 'assistant') return;
                 const member = Rooms.getMember(room, oldMessage.speakerId);
                 if (!member) return;
+                const memoryBefore={shared:room.sharedMemory,characters:room.characterMemories};
+                room.sharedMemory=Memory.invalidateMemoryFromIndex(room.sharedMemory,messageIndex);
+                room.characterMemories=Object.fromEntries(Object.entries(room.characterMemories||{}).map(([id,memory])=>[id,Memory.invalidateMemoryFromIndex(memory,messageIndex)]));
                 room.messages.splice(messageIndex, 1);
                 saveData();
                 renderRoomMessages({ preserveScroll: true });
@@ -6762,7 +6999,7 @@
                         contexts,
                         100,
                         Memory,
-                        StyleLab.buildInfluencePrompt(room.styleInfluence)
+                        StyleLab.buildInfluencePrompt(room.styleInfluence,{query:latestUser?.content||''})
                     );
                     const response = await generateValidRoomResponse(room, messages, member, 1, 1);
                     if (response.content !== null && response.content !== undefined && isGenerating) {
@@ -6778,7 +7015,7 @@
                 } catch (error) {
                     if (error.name !== 'AbortError') showToast('重新生成失败：' + error.message, 'error');
                 } finally {
-                    if (!replacementSaved) room.messages.splice(messageIndex, 0, oldMessage);
+                    if (!replacementSaved) { room.messages.splice(messageIndex, 0, oldMessage);room.sharedMemory=memoryBefore.shared;room.characterMemories=memoryBefore.characters; }
                     removeRoomStreamingMessage();
                     isGenerating = false;
                     saveData();
@@ -6790,7 +7027,7 @@
             }
 
             async function regenerate() {
-                if (isGenerating) return;
+                if (!canChangeConversationTarget()) return;
                 if (appData.activeMode === 'room') {
                     await regenerateRoomLastMessage();
                     return;
@@ -6799,7 +7036,8 @@
                 if (!agent || agent.conversations.length === 0) return;
                 const lastMsg = agent.conversations[agent.conversations.length - 1];
                 if (lastMsg.role !== 'assistant') return;
-
+                const memoryBefore=agent.memory;
+                agent.memory=Memory.invalidateMemoryFromIndex(agent.memory,agent.conversations.length-1);
                 agent.conversations.pop();
                 saveData();
                 renderMessages({ preserveScroll: true });
@@ -6814,6 +7052,7 @@
                 const restoreOriginalResponse = () => {
                     if (replacementCommitted || originalRestored) return;
                     agent.conversations.push(lastMsg);
+                    agent.memory=memoryBefore;
                     originalRestored = true;
                     saveData();
                 };
@@ -6871,17 +7110,11 @@
 
             // ==================== 撤回消息 ====================
             function normalizeMemoryAfterUndo(memory, conversationLength) {
-                const previous = Memory.normalizeMemory(memory);
-                const containsRemovedMessages = previous.summarizedUntil > conversationLength
-                    || previous.segments.some(segment => segment.endIndex > conversationLength)
-                    || previous.facts.some(fact => Number.isInteger(fact.sourceEndIndex) && fact.sourceEndIndex > conversationLength);
-                return containsRemovedMessages
-                    ? Memory.createEmptyMemory()
-                    : Memory.normalizeMemory(previous, conversationLength);
+                return Memory.invalidateMemoryFromIndex(memory, conversationLength);
             }
 
             function undoMessage() {
-                if (isGenerating) return;
+                if (!canChangeConversationTarget()) return;
                 if (appData.activeMode === 'room') {
                     const room = getCurrentRoom();
                     if (!room?.messages?.length) return;
@@ -6900,6 +7133,8 @@
                         }
                     }
                     room.sharedMemory = normalizeMemoryAfterUndo(room.sharedMemory, room.messages.length);
+                    room.chapters=Workspace.normalizeChapters(room.chapters,room.messages.length);
+                    room.readingPosition=Workspace.normalizeReading(room.readingPosition,room.messages.length);
                     Object.keys(room.characterMemories || {}).forEach(memberId => {
                         room.characterMemories[memberId] = normalizeMemoryAfterUndo(
                             room.characterMemories[memberId],
@@ -6927,6 +7162,8 @@
                     agent.conversations.pop();
                 }
                 agent.memory = normalizeMemoryAfterUndo(agent.memory, agent.conversations.length);
+                agent.chapters=Workspace.normalizeChapters(agent.chapters,agent.conversations.length);
+                agent.readingPosition=Workspace.normalizeReading(agent.readingPosition,agent.conversations.length);
                 storyRenderedMessageRange = null;
                 saveData();
                 renderMessages();
@@ -6936,7 +7173,7 @@
 
             // ==================== 重启对话 ====================
             function restartConversation() {
-                if (isGenerating) return;
+                if (!canChangeConversationTarget()) return;
                 if (appData.activeMode === 'room') {
                     const room = getCurrentRoom();
                     if (!room) return;
@@ -6947,6 +7184,8 @@
                     const intimacyText = room.roomType === 'double' ? '亲密度将回到房间设定的初始值；' : '';
                     if (!confirm(`确定清空当前房间的全部对话和记忆吗？${intimacyText}角色与场景设定会保留。`)) return;
                     room.messages = [];
+                    room.chapters=[];room.readingPosition=null;
+                    if(room.styleInfluence)room.styleInfluence.appliedMessageIndex=0;
                     room.sharedMemory = Memory.createEmptyMemory();
                     room.characterMemories = {};
                     room.participants.forEach(member => room.characterMemories[member.id] = Memory.createEmptyMemory());
@@ -6974,6 +7213,8 @@
                 }
                 if (!confirm('确定清空当前剧情的全部对话和长期记忆吗？人物设定会保留，但聊天原文无法恢复。')) return;
                 agent.conversations = [];
+                agent.chapters=[];agent.readingPosition=null;
+                if(agent.styleInfluence)agent.styleInfluence.appliedMessageIndex=0;
                 agent.memory = Memory.createEmptyMemory();
                 storyRenderedMessageRange = null;
                 saveData();
@@ -7141,6 +7382,7 @@
                         },
                     });
                     if (activeInspirationRequest !== request) return;
+                    recordApiUsage(result.usage);
                     state.suggestions = result.suggestions;
                     state.notice = result.compact ? '已使用精简上下文生成候选。点击“使用”填入输入框。' : '';
                     if (result.balance) displayApiBalance(result.balance);
@@ -7227,6 +7469,9 @@
                 const messages = getActiveMessages();
                 const message = messages[index];
                 if (!message) return;
+                const selection=window.getSelection();
+                const selectedNode=$messagesContainer.querySelector(`[data-message-index="${index}"]`);
+                selectedExpression=selectedNode?.contains(selection?.anchorNode)&&selectedNode?.contains(selection?.focusNode)?String(selection).slice(0,1200):'';
                 activeMessageActionIndex = index;
                 const lastConversationalIndex = messages.map((item, itemIndex) => ({ item, itemIndex })).reverse().find(entry => entry.item.role === 'user' || entry.item.role === 'assistant')?.itemIndex;
                 const latest = index === lastConversationalIndex;
@@ -7234,13 +7479,17 @@
                     '<button type="button" data-message-action="copy">复制正文</button>',
                     '<button type="button" data-message-action="bookmark">' + (message.bookmarked ? '取消收藏' : '收藏并加入定位') + '</button>',
                     '<button type="button" data-message-action="locate">定位这条消息</button>',
+                    '<button type="button" data-message-action="chapter">添加章节标记</button>',
+                    message.role==='assistant'?'<button type="button" data-message-action="feedback">记录文风反馈</button>':'',
+                    latest&&message.role==='assistant'?'<button type="button" data-message-action="refine">文风精修（先预览）</button>':'',
+                    latest&&message.previousVersions?.length?'<button type="button" data-message-action="restore-text">恢复上版正文</button>':'',
                     latest && message.role === 'assistant' ? '<button type="button" data-message-action="regenerate">重新生成这次回复</button>' : '',
                     latest ? '<button type="button" data-message-action="undo">撤回上一轮</button>' : '',
                     '<button type="button" class="danger" data-message-action="restart">重启当前对话</button>',
                 ].filter(Boolean).join('');
                 $messageActionSheet.innerHTML = `<div class="action-sheet-title">消息 #${index + 1}</div>${actions}`;
                 $messageActionOverlay.hidden = false;
-                const icons = { copy:'copy', bookmark:'bookmark', locate:'search', regenerate:'regenerate', undo:'undo', restart:'delete' };
+                const icons = { copy:'copy', bookmark:'bookmark', locate:'search', chapter:'history', feedback:'style', refine:'style', 'restore-text':'undo', regenerate:'regenerate', undo:'undo', restart:'delete' };
                 $messageActionSheet.querySelectorAll('[data-message-action]').forEach(button => {
                     UI.button(button, icons[button.dataset.messageAction], button.textContent);
                 });
@@ -7262,7 +7511,21 @@
                 const index = activeMessageActionIndex;
                 const message = getActiveMessages()[index];
                 const action = button.dataset.messageAction;
+                const expression=selectedExpression;
                 closeMessageActions();
+                if(action==='chapter') { try{await getWorkspaceUI().addChapter(index);}catch(error){showToast(error.message,'error');} }
+                if(action==='feedback'){
+                    const source=getCurrentStyleTarget()?.styleInfluence?.sourceProfileId;
+                    if(appData.styleProfiles.some(profile=>profile.id===source))selectedStyleProfileId=source;
+                    if(!getSelectedStyleProfile())return showToast('请先在文风工坊选择或创建因子','info');
+                    const replacement=prompt('可选：你希望改成什么样？', '');
+                    if(replacement!==null)addStyleFeedback(expression||message.content.slice(0,1200),replacement);
+                }
+                if(action==='refine')openRefinement(index);
+                if(action==='restore-text'&&message.previousVersions?.length&&confirm('恢复上一个正文版本？记忆将按来源重新整理。')){
+                    const versions=message.previousVersions.slice();const old=versions.pop();
+                    await replaceMessageText(index,old.content,versions);
+                }
                 if (action === 'copy') await copyMessageAt(index);
                 if (action === 'bookmark' && message) { message.bookmarked = !message.bookmarked; saveData(); renderMessages({ preserveScroll:true }); }
                 if (action === 'locate') { setMessageRenderRange({ start:Math.max(0,index - 70), end:Math.min(getActiveMessages().length,index + 80) }); renderMessages({ preserveScroll:true }); requestAnimationFrame(() => document.querySelector(`[data-message-index="${index}"]`)?.scrollIntoView({ block:'center' })); }
@@ -7271,6 +7534,52 @@
                 if (action === 'restart') restartConversation();
             });
             $messageActionOverlay.addEventListener('click', event => { if (event.target === $messageActionOverlay) closeMessageActions(); });
+
+            function closeRefinement(){if(refinementBusy)return showToast('请等待精修完成，或点击停止','info');if(refinementUI)Motion.setVisible(refinementUI,false);}
+
+            async function replaceMessageText(index,text,previousVersions) {
+                const target=getCurrentStyleTarget(),field=appData.activeMode==='room'?'messages':'conversations';
+                const original=target?.[field]?.[index];if(!original)throw new Error('原消息已不存在');
+                let next={...Archive.captureRevision(target,{mode:appData.activeMode,label:'正文调整前'}),[field]:target[field].map((message,i)=>i===index?{...message,content:text,previousVersions:previousVersions||[...(message.previousVersions||[]),{content:message.content,createdAt:Date.now()}].slice(-5)}:message)};
+                if(appData.activeMode==='room'){
+                    next.sharedMemory=Memory.invalidateMemoryFromIndex(next.sharedMemory,index);
+                    next.characterMemories=Object.fromEntries(Object.entries(next.characterMemories||{}).map(([id,memory])=>[id,Memory.invalidateMemoryFromIndex(memory,index)]));
+                }else next.memory=Memory.invalidateMemoryFromIndex(next.memory,index);
+                await commitWorkspaceWork(next);
+            }
+
+            function openRefinement(index) {
+                if(!canChangeConversationTarget())return;
+                const target=getCurrentStyleTarget(),message=getActiveMessages()[index];
+                if(!message || message.role!=='assistant')return;
+                if(!refinementUI){refinementUI=document.createElement('div');refinementUI.className='modal-overlay workspace-overlay';refinementUI.id='refinementOverlay';document.body.appendChild(refinementUI);}
+                const original=message.content, targetId=target.id;
+                refinementUI.innerHTML=`<div class="workspace-page"><div class="full-page-header"><h3>文风精修</h3><button class="btn btn-secondary" id="refineClose">关闭</button></div><p class="hint">仅手动发起一次额外请求，不自动修改正文。请核对事实、人物行为和信息量后再采纳。原版保留最近 5 次，可长按恢复。</p><label>改写要求<textarea id="refineRequest" placeholder="减少解释腔，让对白顺口，但不添加情节"></textarea></label><div class="workspace-inline"><button class="btn btn-primary" id="refineGenerate">生成候选稿</button><button class="btn btn-secondary" id="refineStop" disabled>停止</button><button class="btn btn-secondary" id="refineAccept" disabled>确认替换正文</button></div><div class="workspace-columns"><section><h4>当前正文</h4><div class="workspace-preview" id="refineOriginal"></div></section><section><h4>候选正文</h4><div class="workspace-preview" id="refineCandidate"></div></section></div></div>`;
+                const get=id=>refinementUI.querySelector('#'+id);get('refineOriginal').textContent=original;
+                let candidate='';
+                get('refineClose').onclick=closeRefinement;
+                get('refineStop').onclick=()=>abortController?.abort();
+                get('refineGenerate').onclick=async()=>{
+                    if(refinementBusy)return;
+                    refinementBusy=true;get('refineGenerate').disabled=true;get('refineAccept').disabled=true;get('refineStop').disabled=false;
+                    candidate='';
+                    try{
+                        const context=getActiveMessages().slice(Math.max(0,index-3),index).map(item=>`${item.role}: ${item.content}`).join('\n');
+                        const messages=StyleLab.buildRefinementMessages(original,get('refineRequest').value,context,target.styleInfluence);
+                        const result=await callStylePreview(messages,get('refineCandidate'),'手动文风精修');
+                        if(result.content!==null&&result.metadata?.finishReason!=='length')candidate=String(result.content||'').trim();
+                        else if(result.metadata?.finishReason==='length')showToast('候选稿被截断，不能替换完整正文，请缩短请求后重试','info');
+                    }catch(error){showToast(error.message,'error');}
+                    finally{refinementBusy=false;get('refineGenerate').disabled=false;get('refineAccept').disabled=!candidate;get('refineStop').disabled=true;}
+                };
+                get('refineAccept').onclick=async()=>{
+                    if(!candidate||refinementBusy)return;
+                    if(getCurrentStyleTarget()?.id!==targetId || getActiveMessages()[index]?.content!==original)return showToast('原对话已变化，请重新打开精修','error');
+                    if(!confirm('确认候选稿只调整表达，没有改变事实或剧情发展？'))return;
+                    try{await replaceMessageText(index,candidate);closeRefinement();showToast('已采纳精修，原文可长按恢复','success');}catch(error){showToast(error.message,'error');}
+                };
+                Motion.setVisible(refinementUI,true,{kind:'page'});
+            }
 
             function updateJumpLatest() {
                 const total = getActiveMessages().length;
@@ -7299,6 +7608,8 @@
             });
 
             function handleInterfaceBack() {
+                if (workspaceUI && Motion.isOpen(workspaceUI.overlay)) { workspaceUI.close(); return true; }
+                if (refinementUI && Motion.isOpen(refinementUI)) { closeRefinement(); return true; }
                 const overlays = [
                     [$messageActionOverlay, closeMessageActions],
                     [$inspirationOverlay, closeInspiration],
@@ -7451,6 +7762,7 @@
             }
 
             $apiKeyInput.addEventListener('input', () => {
+                auxiliaryCache.clear();
                 cancelInspiration();
                 if (activeBalanceRequest) activeBalanceRequest.controller.abort();
                 activeBalanceRequest = null;
@@ -7504,9 +7816,11 @@
                 saveData();
             });
             document.addEventListener('visibilitychange', () => {
+                if(document.visibilityState==='hidden') { rememberReadingPosition(); saveData(); }
                 if (document.visibilityState === 'hidden' && saveTimer) persistFullState().catch(() => {});
             });
             window.addEventListener('pagehide', () => {
+                rememberReadingPosition(); saveData();
                 if (saveTimer) persistFullState().catch(() => {});
             });
 

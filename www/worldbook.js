@@ -59,10 +59,9 @@
     function normalizeEntry(entry, kind = 'initial') {
         const source = entry && typeof entry === 'object' ? entry : {};
         const normalizedKind = kind === 'progress' || source.kind === 'progress' ? 'progress' : 'initial';
-        const fallback = createEntry(normalizedKind);
         const fields = Array.isArray(source.fields) && source.fields.length
             ? source.fields.map(normalizeField)
-            : fallback.fields;
+            : (normalizedKind === 'progress' ? PROGRESS_FIELD_LABELS : INITIAL_FIELD_LABELS).map(label => createField(label));
         return {
             id: asString(source.id) || createId(normalizedKind === 'progress' ? 'progress' : 'world'),
             kind: normalizedKind,
@@ -120,6 +119,14 @@
             .join('\n');
     }
 
+    function promptEntryText(entry) {
+        // Entries have already been normalized. Empty editor fields are not facts.
+        return entry.fields
+            .filter(field => field.value.trim())
+            .map(field => `${field.label}：${field.value.trim()}`)
+            .join('\n');
+    }
+
     function matchesQuery(entry, query) {
         if (entry.activationMode !== 'keywords') return true;
         const source = asString(query).toLowerCase();
@@ -142,18 +149,28 @@
             .filter(entry => matchesQuery(entry, query))
             .filter(entry => isVisibleTo(entry, characterId))
             .sort((a, b) => b.priority - a.priority || a.createdAt - b.createdAt);
-        const initial = select(book.initialEntries);
-        const progress = select(book.progressEntries);
+        const initial = select(book.initialEntries).map(promptEntryText).filter(Boolean);
+        const progress = select(book.progressEntries).map(promptEntryText).filter(Boolean);
         const sections = [];
         if (initial.length) {
-            sections.push('【世界书｜初始世界设定】\n' + initial.map((entry, index) => `〔设定${index + 1}〕\n${entryText(entry)}`).join('\n\n'));
+            sections.push('【世界书｜初始世界设定】\n' + initial.map((text, index) => `〔设定${index + 1}〕\n${text}`).join('\n\n'));
         }
         if (progress.length) {
-            sections.push('【世界书｜已经确认的后续进展】\n' + progress.map((entry, index) => `〔进展${index + 1}〕\n${entryText(entry)}`).join('\n\n'));
+            sections.push('【世界书｜已经确认的后续进展】\n' + progress.map((text, index) => `〔进展${index + 1}〕\n${text}`).join('\n\n'));
         }
         const output = sections.join('\n\n');
         if (output.length <= maxCharacters) return output;
-        return output.slice(0, maxCharacters).trimEnd() + '\n……（世界书已按本轮预算截断）';
+        // Include truncation notices in the budget and retain confirmed progress
+        // even when initial world settings alone exceed the entire budget.
+        const notice = '\n……（世界书本节已按本轮预算截断）';
+        const available = maxCharacters - notice.length * sections.length - (sections.length - 1) * 2;
+        const firstBudget = sections.length === 1
+            ? available
+            : Math.min(sections[0].length, Math.max(Math.floor(available / 2), available - sections[1].length));
+        return sections.map((section, index) => {
+            const budget = index === 0 ? firstBudget : available - firstBudget;
+            return section.length <= budget ? section : section.slice(0, budget).trimEnd() + notice;
+        }).join('\n\n');
     }
 
     function createProgressFromMemory(memoryItem) {

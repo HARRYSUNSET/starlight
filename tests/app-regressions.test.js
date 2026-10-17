@@ -55,9 +55,9 @@ test('作品卡片菜单监听器只在主页渲染器中绑定到卡片自身',
 
 test('应用版本号在 npm 与 Android 配置中一致', () => {
     const gradle = fs.readFileSync(path.join(root, 'android', 'app', 'build.gradle'), 'utf8');
-    assert.equal(packageJson.version, '2.1.1');
-    assert.match(gradle, /versionCode\s+15/);
-    assert.match(gradle, /versionName\s+"2\.1\.1"/);
+    assert.equal(packageJson.version, '2.2.0');
+    assert.match(gradle, /versionCode\s+16/);
+    assert.match(gradle, /versionName\s+"2\.2\.0"/);
 });
 
 test('模型列表只保留 DeepSeek 官方当前模型标识', () => {
@@ -159,9 +159,9 @@ test('文风工坊具有独立全屏页面、因子库和应用快照', () => {
     assert.match(html, /id="styleProfileStrengthRange"/);
     assert.match(html, /id="styleFactorList"/);
     assert.match(html, /styleProfiles:\s*\[\]/);
-    assert.match(html, /StyleLab\.createAppliedStyle\(profile\)/);
+    assert.match(html, /StyleLab\.createAppliedStyle\(profile,\{messageIndex:getActiveMessages\(\)\.length\}\)/);
     assert.match(html, /StyleLab\.buildInfluencePrompt\(agent\?\.styleInfluence\)/);
-    assert.match(html, /StyleLab\.buildInfluencePrompt\(room\.styleInfluence\)/);
+    assert.match(html, /StyleLab\.buildInfluencePrompt\(room\.styleInfluence,\{query:/);
 });
 
 test('沙盒参考文本不写入对话、记忆或房间状态', () => {

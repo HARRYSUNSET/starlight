@@ -175,7 +175,7 @@ function uiHarness(requestRecommendations) {
         Inspiration: { ...Inspiration, requestRecommendations }, Memory, Motion:require('../www/motion.js'),
         Story: { buildStructuredPrompt: () => snapshot.settings }, StyleLab: { buildInfluencePrompt: () => '' },
         getCurrentAgent: () => agent, getActiveModel: () => snapshot.model,
-        escapeHtml: value => value, showToast: () => {}, appendToComposer: () => {},
+        escapeHtml: value => value, showToast: () => {}, appendToComposer: () => {}, recordApiUsage: () => {},
         inspirationStates: new Map(), activeInspirationRequest: null, activeBalanceRequest: null,
     };
     for (const name of ['btnGenerateInspiration', 'inspirationRequestInput', 'btnCancelInspiration', 'inspirationOverlay',

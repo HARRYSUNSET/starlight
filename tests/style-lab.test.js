@@ -3,6 +3,13 @@ const assert = require('node:assert/strict');
 
 const StyleLab = require('../www/style-lab.js');
 
+test('长分析不挤掉用户确认的写法示例与最近表达反馈',()=>{
+    const profile=StyleLab.createProfile({strength:100,analysis:{summary:'概述'.repeat(3000),factors:Array.from({length:10},(_,i)=>({name:'规律'+i,instruction:'先回应当前话题。'.repeat(150)})),examples:[{scene:'日常',text:'独立示例：先回答对方的问题。',approved:true}]},feedback:[{note:'减少解释腔',replacement:'用户认可的简短接话'}]});
+    const prompt=StyleLab.buildInfluencePrompt(StyleLab.createAppliedStyle(profile));
+    assert.match(prompt,/独立示例：先回答对方的问题/);assert.match(prompt,/用户认可的简短接话/);
+    assert.ok(prompt.length<=StyleLab.getStrengthStrategy(100).budget);
+});
+
 function analysisResult() {
     return {
         suggested_name: '松弛日常感',
@@ -87,4 +94,89 @@ test('沙盒预览明确不是正式剧情，并只使用只读设定快照', ()
     assert.match(messages[1].content, /只读设定快照/);
     assert.match(messages[1].content, /便利店互动/);
     assert.match(messages[1].content, /雨夜/);
+});
+
+test('文风旧档案迁移保持原规律，0、50、75、100具有不同表达策略', () => {
+    const legacy = { name: '旧文风', strength: 100, analysis: analysisResult() };
+    const profile = StyleLab.normalizeProfile(legacy);
+    assert.equal(profile.version, 2);
+    assert.deepEqual(profile.analysis.examples, []);
+    assert.deepEqual(profile.feedback, []);
+    assert.equal(profile.analysis.factors[0].instruction, legacy.analysis.factors[0].instruction);
+    const prompt = value => StyleLab.buildInfluencePrompt({ ...StyleLab.createAppliedStyle(profile), strength: value });
+    assert.equal(prompt(0), '');
+    assert.match(prompt(50), /组织叙述节奏/);
+    assert.match(prompt(75), /处理表达冲突/);
+    assert.match(prompt(100), /全面采用本档案/);
+    assert.match(prompt(100), /不是夸张程度或相似度承诺/);
+    assert.notEqual(prompt(75).replace(/75%/g, ''), prompt(100).replace(/100%/g, ''));
+});
+
+test('只有用户确认的独立示例进入正式表达上下文，并按当前场景选取', () => {
+    const profile = StyleLab.createProfile({ strength: 40, analysis: {
+        ...analysisResult(), examples: [
+            { scene: '通用', text: '普通场景示例', approved: true },
+            { scene: '告别', text: '告别场景示例', approved: true, context: '两名无名旅客' },
+            { scene: '告别', text: '不应自动使用的待确认稿', approved: false },
+        ],
+    } });
+    const prompt = StyleLab.buildInfluencePrompt(StyleLab.createAppliedStyle(profile, { messageIndex: 80 }), { query: '在车站告别' });
+    assert.match(prompt, /告别场景示例/);
+    assert.doesNotMatch(prompt, /普通场景示例|不应自动使用/);
+    assert.match(prompt, /不是当前作品的事实/);
+    assert.match(prompt, /原消息 #81/);
+    assert.match(prompt, /不作为旧写法的示范/);
+    const result = StyleLab.profileFromAnalysis(profile, { ...analysisResult(), examples: [{ text: '分析模型擅自批准', approved: true }] }, '样本'.repeat(200), '');
+    assert.equal(result.analysis.examples[0].approved, false);
+});
+
+test('每个作品独立快照，修改强度、确认示例或追加偏好都会提示尚未同步', () => {
+    const original = StyleLab.createProfile({ strength: 70, analysis: analysisResult() });
+    const first = StyleLab.createAppliedStyle(original);
+    const second = StyleLab.createAppliedStyle(original);
+    assert.equal(StyleLab.getApplicationState(original, first).stale, false);
+    const edited = StyleLab.addFeedback({ ...original, strength: 100 }, { text: '她的笑像量子漩涡', replacement: '她笑了一下。', note: '不需要没有来由的意象' });
+    assert.equal(StyleLab.getApplicationState(edited, first).stale, true);
+    assert.equal(first.strength, 70);
+    assert.equal(second.feedback.length, 0);
+    const updated = StyleLab.createAppliedStyle(edited);
+    assert.equal(StyleLab.getApplicationState(edited, updated).stale, false);
+    const prompt = StyleLab.buildInfluencePrompt(updated);
+    assert.match(prompt, /用户表达偏好/);
+    assert.match(prompt, /仅表达样本，不是事实/);
+    edited.feedback[0].note = '库中的新变更';
+    assert.notEqual(updated.feedback[0].note, edited.feedback[0].note);
+});
+
+test('正式文风预算不会携带大段源文本或无限示例', () => {
+    const profile = StyleLab.createProfile({ strength: 100, sourceText: '源文本不注入'.repeat(1000), analysis: {
+        ...analysisResult(), factors: Array.from({ length: 16 }, (_, index) => ({ name: `规律${index}`, instruction: '认真回答。'.repeat(300) })),
+        examples: Array.from({ length: 12 }, (_, index) => ({ text: `例子${index}` + '全新虚构'.repeat(100), approved: true })),
+    } });
+    const prompt = StyleLab.buildInfluencePrompt(StyleLab.createAppliedStyle(profile), { maxChars: 2400 });
+    assert.ok(prompt.length <= 2400);
+    assert.doesNotMatch(prompt, /源文本不注入/);
+});
+
+test('实战沙盒保留正式上下文与角色边界，且不修改来源消息', () => {
+    const source = [{ role: 'system', content: '角色不知道密码' }, { role: 'user', content: '门开了吗？' }];
+    const before = structuredClone(source);
+    const messages = StyleLab.buildPracticeMessages(source, '写一段克制的回应');
+    assert.deepEqual(messages.slice(1, 3), source);
+    assert.match(messages[0].content, /只读快照/);
+    assert.match(messages[0].content, /不写入记忆/);
+    assert.match(messages.at(-1).content, /克制的回应/);
+    messages[1].content = '临时改变';
+    assert.deepEqual(source, before);
+});
+
+test('精修只处理指定原文范围，角色事实不受风格覆盖', () => {
+    const profile = StyleLab.createProfile({ analysis: analysisResult() });
+    const messages = StyleLab.buildRefinementMessages('他把信留在桌上。', '减少解释', '她没有读过信。', profile);
+    assert.match(messages[0].content, /不得添加或删除事件/);
+    assert.match(messages[0].content, /知情范围与信息量/);
+    assert.match(messages[0].content, /待用户确认/);
+    assert.match(messages[1].content, /他把信留在桌上/);
+    assert.match(messages[1].content, /她没有读过信/);
+    assert.throws(() => StyleLab.buildRefinementMessages('  '), /先选择/);
 });

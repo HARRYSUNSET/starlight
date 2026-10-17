@@ -336,7 +336,13 @@ async function main() {
                 return new Response(new ReadableStream({start(controller){
                     for(const character of text)controller.enqueue(encoder.encode('data: '+JSON.stringify({choices:[{delta:{content:character}}]})+'\\n\\n'));
                     if(window.__qaHold)options.signal.addEventListener('abort',()=>controller.error(new DOMException('Cancelled','AbortError')),{once:true});
-                    else {controller.enqueue(encoder.encode('data: [DONE]\\n\\n'));controller.close();}
+                    else {
+                        if(!window.__qaTruncate){
+                            controller.enqueue(encoder.encode('data: '+JSON.stringify({choices:[{delta:{},finish_reason:'stop'}],usage:{prompt_tokens:1000,completion_tokens:30,prompt_cache_hit_tokens:800}})+'\\n\\n'));
+                            controller.enqueue(encoder.encode('data: [DONE]\\n\\n'));
+                        }
+                        controller.close();
+                    }
                 }}),{status:200,headers:{'Content-Type':'text/event-stream'}});
             };
             window.__qaStable=document.querySelector('#messagesContainer [data-message-index="234"] .message-bubble');
@@ -375,6 +381,69 @@ async function main() {
         assert.equal(await evaluate('document.querySelector("#message-237 .message-bubble").textContent.trim().startsWith('+JSON.stringify(mockText)+')'),true,'Stream batching lost room text');
         assert.equal(await evaluate('window.__qaCalls'),3,'Offline generation made unexpected requests');
         console.log('PASS mocked story / room streaming and cancellation; zero external API calls');
+        assert.match(await evaluate('document.querySelector("#apiUsageStatus").textContent'), /2 次已统计请求/,'Cancelled response must not invent usage');
+        assert.match(await evaluate('document.querySelector("#apiUsageStatus").textContent'), /80\.0%/,'Cache usage must reflect reported input');
+
+        // A clean TCP EOF without SSE completion must never become a canonical
+        // assistant message, and the user must be able to send again afterwards.
+        await click('#btnHamburger');await click('[data-home-tab="story"]');await click('#homeStoryList .v2-work-card');
+        await evaluate(`window.__qaTruncate=true;document.querySelector('#messageInput').value='模拟网络提前结束。';document.querySelector('#btnSend').click();`);
+        for(let i=0;i<80;i++) {
+            if(await evaluate('window.__qaCalls===4 && !document.querySelector("#btnSend").classList.contains("stop-mode")'))break;
+            await delay(50);if(i===79)throw new Error('Interrupted response left send locked');
+        }
+        assert.equal(await evaluate('document.querySelector("#messagesContainer [data-message-index]:last-child").dataset.messageIndex'),'239','Truncated response was saved as completed');
+        assert.equal(await evaluate('Boolean(document.querySelector("#streamingMessage"))'),false,'Truncated response left unfinished streaming state');
+        await evaluate(`window.__qaTruncate=false;document.querySelector('#messageInput').value='网络恢复后的下一次输入。';document.querySelector('#btnSend').click();`);
+        for(let i=0;i<80;i++) {
+            if(await evaluate('window.__qaCalls===5 && !document.querySelector("#btnSend").classList.contains("stop-mode")'))break;
+            await delay(50);if(i===79)throw new Error('Sending after interrupted response did not recover');
+        }
+        assert.equal(await evaluate('document.querySelector("#messagesContainer [data-message-index]:last-child").dataset.messageIndex'),'241');
+        assert.match(await evaluate('document.querySelector("#apiUsageStatus").textContent'), /3 次已统计请求/);
+        console.log('PASS interrupted EOF rejected / next send recovers / actual token usage');
+
+        // Test the real IndexedDB path, not just an in-memory queue fixture.
+        await evaluate(`window.__qaReadState=async()=>{
+            const db=await StarlightPersistence.openDatabase({name:'starlight_chat_database'});
+            try{return await StarlightPersistence.readState(db);}finally{db.close();}
+        };
+        const input=document.querySelector('#messageInput');
+        for(let i=0;i<20;i++){input.value='快速编辑草稿 '+i;input.dispatchEvent(new Event('input'));}
+        document.querySelector('#btnHamburger').click();`);
+        await settle();
+        for(let i=0;i<60;i++) {
+            if(await evaluate(`window.__qaReadState().then(state=>state?.agents.find(item=>item.id==='ui-story')?.draft==='快速编辑草稿 19')`))break;
+            await delay(50);if(i===59)throw new Error('Latest draft not committed to IndexedDB');
+        }
+        const persistedCounts = await evaluate(`window.__qaReadState().then(state=>({story:state.agents[0].conversations.filter(m=>m.role==='assistant').length,room:state.rooms[0].messages.filter(m=>m.role==='assistant').length}))`);
+        assert.deepEqual(persistedCounts,{story:120,room:119},'Incomplete response polluted persisted conversation');
+        await click('[data-home-tab="room"]');await click('#homeRoomList .v2-work-card');
+        assert.notEqual(await evaluate('document.querySelector("#messageInput").value'),'快速编辑草稿 19','Story draft leaked into room');
+        await click('#btnHamburger');await click('[data-home-tab="story"]');await click('#homeStoryList .v2-work-card');
+        assert.equal(await evaluate('document.querySelector("#messageInput").value'),'快速编辑草稿 19');
+        await click('#btnLocate');
+        await evaluate(`const search=document.querySelector('#navigatorSearchInput');search.value='网络恢复后的下一次输入。';search.dispatchEvent(new Event('input'));`);
+        await delay(200);
+        assert.equal(await evaluate('document.querySelectorAll("#navigatorResults .navigator-result").length'),1,'Debounced history search did not update');
+        await click('#btnNavigatorClose');
+        console.log('PASS actual IndexedDB latest-draft save / mode isolation / debounced search');
+        const persistenceChecks=await evaluate(`(${require('../tests/persistence-browser.js').toString()})()`);
+        assert.ok(persistenceChecks.checks>=10);
+        console.log('PASS IndexedDB migration / atomic abort / changed-record writes / cross-window conflict: '+persistenceChecks.checks+' checks');
+        const workspaceChecks=await evaluate(`(${require('../tests/workspace-browser.js').toString()})()`);
+        console.log('PASS workspace / timeline / style A-B / refinement / backup: '+workspaceChecks.checks+' checks');
+        await click('#btnWorkspaceTools');
+        await screenshot('workspace-directory-v220');
+        await click('[data-work-tab="timeline"]');
+        await screenshot('workspace-timeline-v220');
+        await click('[data-work-tab="backup"]');
+        await screenshot('workspace-backup-v220');
+        await click('[data-work-action="close"]');
+        await click('#btnStyleLab');
+        await evaluate('document.querySelector("#styleAnalysisCard").scrollIntoView({block:"start"})');
+        await screenshot('style-strategy-v220');
+        await click('#btnStyleLabClose');
         assert.equal(exceptions.length,0,'Runtime errors: ' + JSON.stringify(exceptions));
         console.log('All real-browser layout and motion checks passed; no external API calls were made.');
     } finally {

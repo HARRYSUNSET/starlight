@@ -24,6 +24,9 @@ jobs:
       - name: 运行逻辑回归测试
         run: npm test
 
+      - name: 运行隔离浏览器与数据迁移回归
+        run: npm run test:ui
+
       - name: 4. 同步网页代码到 Android 工程
         run: npx cap sync android
 

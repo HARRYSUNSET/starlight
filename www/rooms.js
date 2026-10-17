@@ -8,6 +8,9 @@
     const WorldBook = typeof module === 'object' && module.exports
         ? require('./worldbook.js')
         : globalThis.StarlightWorldBook;
+    const StyleLab = typeof module === 'object' && module.exports
+        ? require('./style-lab.js')
+        : globalThis.StarlightStyleLab;
 
     const MAX_INTIMACY = 200;
     const MAX_GROUP_MEMBERS = 8;
@@ -228,6 +231,7 @@
             turnId: asString(source.turnId) || null,
             kind: asString(source.kind, 'message'),
             bookmarked: source.bookmarked === true,
+            previousVersions: (Array.isArray(source.previousVersions)?source.previousVersions:[]).filter(item=>typeof item?.content==='string').slice(-5).map(item=>({content:item.content,createdAt:Number(item.createdAt)||0})),
             createdAt: Number(source.createdAt) || Date.now(),
         };
     }
@@ -268,6 +272,9 @@
                 : null,
             snippets: Array.isArray(source.snippets) ? source.snippets.map(String).filter(Boolean).slice(0, 80) : [],
             draft: asString(source.draft),
+            chapters: Array.isArray(source.chapters) ? source.chapters.map(item => ({ ...item })) : [],
+            readingPosition: source.readingPosition && typeof source.readingPosition === 'object' ? { ...source.readingPosition } : null,
+            revisionHistory: Array.isArray(source.revisionHistory) ? JSON.parse(JSON.stringify(source.revisionHistory)) : [],
             styleEnabled: source.styleEnabled !== false,
             stylePrompt: legacyDefaultStyle
                 ? STORY_STYLE_GUIDE
@@ -391,19 +398,20 @@
         return room.intimacy.nodes.filter(node => node.value <= room.intimacy.value);
     }
 
-    function buildCharacterSystemPrompt(room, member, contexts, styleInfluencePrompt) {
+    function buildCharacterPromptParts(room, member, contexts = {}, styleInfluencePrompt) {
         const availableNodes = getAvailableNodes(room);
         const characterMemory = asString(contexts.characterMemory).trim();
         const sharedMemory = asString(contexts.sharedMemory).trim();
-        const latestQuery = [...(room.messages || [])].reverse().find(message => message.role === 'user')?.content || '';
+        let latestQuery = '';
+        for (let index = (room.messages || []).length - 1; index >= 0; index--) {
+            if (room.messages[index]?.role === 'user') { latestQuery = asString(room.messages[index].content); break; }
+        }
         const worldBookPrompt = WorldBook
             ? WorldBook.buildWorldBookPrompt(room.worldBook, latestQuery, { characterId: member.id })
             : room.worldPrompt;
         const sections = [
             '【房间模式固定规则】\n' + DEFAULT_ROOM_PROMPT,
-            '【本房间底层规则】\n' + (room.basePrompt || '（无附加规则）'),
-            worldBookPrompt || '【世界书】\n（未单独设定）',
-            '【当前场景】\n' + (room.scenePrompt || '（延续最近对话）'),
+            room.basePrompt !== DEFAULT_ROOM_PROMPT && '【本房间底层规则】\n' + (room.basePrompt || '（无附加规则）'),
             '【用户所扮演的角色】\n' + (room.userPersona || '（用户未填写详细设定，只能依据其明确发言判断）'),
             '【其他补充信息】\n' + (room.otherInfo || '（无）'),
             `【角色基础档案｜稳定底色】\n姓名：${member.name}\n${member.personaPrompt || '严格依据对话中已经建立的形象行动。'}`,
@@ -415,18 +423,23 @@
             '【角色对白参考】\n' + (member.dialogueExamples || '（无固定台词示例；依据人物与情境自然表达。）'),
             '【你的私人目标】\n' + (member.privateGoal || '依据人物设定自然行动，不强行推动剧情。'),
             '【其他在场角色的公开身份】\n' + buildParticipantDirectory(room, member.id),
+        ].filter(Boolean);
+        const dynamicSections = [
+            worldBookPrompt || '【世界书】\n（未单独设定）',
+            '【当前场景】\n' + (room.scenePrompt || '（延续最近对话）'),
         ];
-        if (sharedMemory) sections.push('【房间公共长期记忆】\n' + sharedMemory);
-        if (characterMemory) sections.push('【只有你可以使用的角色独立记忆】\n' + characterMemory);
+        if (sharedMemory) dynamicSections.push('【房间公共长期记忆】\n' + sharedMemory);
+        if (characterMemory) dynamicSections.push('【只有你可以使用的角色独立记忆】\n' + characterMemory);
         if (room.roomType === 'double') {
-            sections.push(`【当前亲密度】\n${room.intimacy.value}/${MAX_INTIMACY}。亲密度只约束关系进展，不得直接朗读数值。`);
-            sections.push('【当前已达到的关系节点】\n' + (availableNodes.length
+            dynamicSections.push(`【当前亲密度】\n${room.intimacy.value}/${MAX_INTIMACY}。亲密度只约束关系进展，不得直接朗读数值。`);
+            dynamicSections.push('【当前已达到的关系节点】\n' + (availableNodes.length
                 ? availableNodes.map(node => `- ${node.value}：${node.description}`).join('\n')
                 : '（尚未达到任何自定义节点）'));
-            sections.push('达到节点只表示相关互动在人物和情境允许时可以发生，并不要求立刻发生；仍须尊重人设、上下文与用户意愿。');
+            dynamicSections.push('达到节点只表示相关互动在人物和情境允许时可以发生，并不要求立刻发生；仍须尊重人设、上下文与用户意愿。');
         }
-        if (room.styleEnabled && room.stylePrompt) {
-            sections.push('【自然表达规则】\n' + room.stylePrompt);
+        const strategy = StyleLab?.getPromptStrategy(styleInfluencePrompt) || { priority: 0 };
+        if (room.styleEnabled && room.stylePrompt && (strategy.priority < 2 || room.stylePrompt !== STORY_STYLE_GUIDE)) {
+            sections.push((strategy.priority >= 2 ? '【原有文风补充｜仅采用不冲突的表达】\n' : '【自然表达规则】\n') + room.stylePrompt);
         }
         if (room.styleExamples) {
             sections.push('【用户提供的文风示例｜只参考笔触，不继承内容】\n' + room.styleExamples);
@@ -434,8 +447,14 @@
         if (asString(styleInfluencePrompt).trim()) {
             sections.push(asString(styleInfluencePrompt).trim());
         }
+        if (strategy.priority >= 2) sections.push('【表达层优先级】\n用户本轮写作要求优先，其次由当前独立文风档案决定表达，原有通用文风仅作不冲突补充。当前角色独有口吻、私人目标、身份与知情范围始终保留，不把其他角色写成相同语气。');
         sections.push('【本轮强制要求】\n' + ROOM_TURN_REMINDER);
-        return sections.join('\n\n');
+        return { stableSystemPrompt: sections.join('\n\n'), dynamicPrompt: dynamicSections.join('\n\n') };
+    }
+
+    function buildCharacterSystemPrompt(room, member, contexts, styleInfluencePrompt) {
+        const parts = buildCharacterPromptParts(room, member, contexts, styleInfluencePrompt);
+        return [parts.stableSystemPrompt, parts.dynamicPrompt].join('\n\n');
     }
 
     function buildCharacterMessages(room, memberId, contexts, recentLimit, memoryApi, styleInfluencePrompt) {
@@ -452,10 +471,15 @@
             )
             : { messages: room.messages.slice(fallbackStart) };
         const recentMessages = window.messages;
-        const latestInput = [...recentMessages].reverse().find(message => message.role === 'user' || message.kind === 'control');
+        let latestInput;
+        for (let index = recentMessages.length - 1; index >= 0; index--) {
+            if (recentMessages[index].role === 'user' || recentMessages[index].kind === 'control') { latestInput = recentMessages[index]; break; }
+        }
         const pacing = buildTurnPacing(latestInput?.content || '');
+        const parts = buildCharacterPromptParts(room, member, contexts || {}, styleInfluencePrompt);
         return [
-            { role: 'system', content: buildCharacterSystemPrompt(room, member, contexts || {}, styleInfluencePrompt) + `\n\n【本轮节奏】\n${pacing}` },
+            { role: 'system', content: parts.stableSystemPrompt },
+            { role: 'system', content: parts.dynamicPrompt + `\n\n【本轮节奏】\n${pacing}` },
             ...recentMessages.map(message => roomMessageForModel(room, message, memberId)).filter(Boolean),
         ];
     }
@@ -726,6 +750,8 @@
         getActiveMembers,
         detectMentionedMembers,
         buildCharacterMessages,
+        buildCharacterPromptParts,
+        buildCharacterSystemPrompt,
         buildDirectorMessages,
         buildNarrationMessages,
         sanitizeSpeakerIds,

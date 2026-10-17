@@ -65,9 +65,9 @@ test('为单个角色构建历史时不会把其他角色伪装成当前助手',
 
     const messages = Rooms.buildCharacterMessages(room, 'alice', {}, 100);
     assert.equal(messages[0].role, 'system');
-    assert.deepEqual(messages[2], { role: 'assistant', content: '先看看证据。' });
-    assert.equal(messages[3].role, 'user');
-    assert.match(messages[3].content, /另一位角色“顾言”/);
+    assert.deepEqual(messages[3], { role: 'assistant', content: '先看看证据。' });
+    assert.equal(messages[4].role, 'user');
+    assert.match(messages[4].content, /另一位角色“顾言”/);
     assert.doesNotMatch(messages[0].content, /通用模式/);
 });
 
@@ -169,7 +169,7 @@ test('结构化事实可以锁定、标记状态并进入长期记忆上下文',
             { category: '更正失效', text: '旧门仍然无法打开。', importance: 2, status: 'expired' },
         ],
     });
-    assert.equal(memory.version, 3);
+    assert.equal(memory.version, 4);
     assert.equal(memory.facts[0].locked, true);
     const context = Memory.buildMemoryContext(memory, '钥匙', Memory.normalizeConfig(), { tokenBudget: 5000 });
     assert.match(context, /林澈已经取得银色钥匙/);
@@ -228,4 +228,37 @@ test('角色回应与旁白都可使用当前房间的独立文风快照', () =>
     assert.match(characterPrompt, /房间专用/);
     assert.match(narrationPrompt, /房间专用/);
     assert.equal(room.styleInfluence.name, '房间专用');
+});
+
+test('房间固定前缀稳定，动态世界书与记忆只对指定角色开放', () => {
+    const room = createGroupRoom();
+    room.worldBook = { initialEntries: [
+        { fields: [{ label: '信息', value: '大家可见的车站' }], knowledgeScope: 'public' },
+        { fields: [{ label: '秘密', value: '林澈独有密码' }], knowledgeScope: 'private', characterIds: ['alice'] },
+        { fields: [{ label: '秘密', value: '顾言独有目的地' }], knowledgeScope: 'private', characterIds: ['bob'] },
+    ] };
+    room.messages = [{ role: 'user', content: '你知道什么？' }];
+    const first = Rooms.buildCharacterMessages(room, 'alice', { sharedMemory: '公开事实', characterMemory: '林澈私人记忆' }, 100, Memory);
+    const next = Rooms.buildCharacterMessages(room, 'alice', { sharedMemory: '下一轮公开事实', characterMemory: '更新的私人记忆' }, 100, Memory);
+    assert.equal(first[0].content, next[0].content);
+    assert.match(first[1].content, /林澈独有密码/);
+    assert.match(first[1].content, /林澈私人记忆/);
+    assert.doesNotMatch(first.map(message => message.content).join('\n'), /顾言独有目的地/);
+    const narrator = Rooms.buildNarrationMessages(room, '简短场景');
+    assert.doesNotMatch(narrator.map(message => message.content).join('\n'), /林澈独有密码|顾言独有目的地/);
+});
+
+test('房间高强度文风保留角色口吻与自定义原文，读档元数据不丢', () => {
+    const StyleLab = require('../www/style-lab.js');
+    const room = Rooms.normalizeRoom({ roomType: 'double', participants: [{ id: 'a', name: '林澈', speakingStyle: '不抢话，偶尔省略句尾。' }],
+        stylePrompt: '用户手填完整风格', chapters: [{ name: '章节' }], readingPosition: { index: 7 }, revisionHistory: [{ timestamp: 12 }],
+    }, Memory);
+    const influence = StyleLab.buildInfluencePrompt(StyleLab.createAppliedStyle(StyleLab.createProfile({ strength: 100, analysis: { factors: [{ name: '克制', instruction: '让信息留有分寸' }] } })));
+    const messages = Rooms.buildCharacterMessages(room, 'a', {}, 100, Memory, influence);
+    assert.match(messages[0].content, /用户手填完整风格/);
+    assert.match(messages[0].content, /不抢话，偶尔省略句尾/);
+    assert.match(messages[0].content, /表达层优先级/);
+    assert.equal(room.readingPosition.index, 7);
+    assert.equal(room.chapters.length, 1);
+    assert.equal(room.revisionHistory.length, 1);
 });
