@@ -98,7 +98,7 @@ async function main() {
             storyMemorySettings:{enabled:false},roomMemorySettings:{enabled:false},
             agents:[{ id:'ui-story', name:'图书馆的午后', subtitle:'日常轻小说 · 本地测试剧情', characterPrompt:'角色A', conversations }],
             rooms:[{ id:'ui-room', name:'放学后的教室', subtitle:'多人互动 · 本地测试房间', roomType:'group',
-                participants:[{ id:'member-a', name:'小夏', personaPrompt:'同班同学' },{ id:'member-b', name:'小秋', personaPrompt:'图书委员' }],
+                participants:[{ id:'member-a', name:'小夏', personaPrompt:'同班同学', relationshipPolicy:{enabled:false} },{ id:'member-b', name:'小秋', personaPrompt:'图书委员', relationshipPolicy:{enabled:false} }],
                 messages:conversations.map((message,index) => ({ ...message, id:`room-msg-${index}`, speakerId:message.role === 'assistant' ? 'member-a' : null })) }],
         };
         await send('Page.addScriptToEvaluateOnNewDocument', { source:`if(location.origin===${JSON.stringify(origin)})localStorage.setItem('deepseek_chat_platform_v2',${JSON.stringify(JSON.stringify(fixture))});` });
@@ -384,7 +384,7 @@ async function main() {
                 if(new URL(url,location.href).hostname!=='api.deepseek.com')return realFetch(url,options);
                 window.__qaCalls++;
                 const body=JSON.parse(options.body);if(!body.stream)throw new Error('Unexpected non-stream request in offline fixture');
-                const text=${JSON.stringify(mockText)};const encoder=new TextEncoder();
+                const text=body.response_format?JSON.stringify({expression:'',speech:${JSON.stringify(mockText)}}):${JSON.stringify(mockText)};const encoder=new TextEncoder();
                 return new Response(new ReadableStream({start(controller){
                     for(const character of text)controller.enqueue(encoder.encode('data: '+JSON.stringify({choices:[{delta:{content:character}}]})+'\\n\\n'));
                     if(window.__qaHold)options.signal.addEventListener('abort',()=>controller.error(new DOMException('Cancelled','AbortError')),{once:true});
@@ -507,6 +507,34 @@ async function main() {
         await evaluate('document.querySelector("#styleAnalysisCard").scrollIntoView({block:"start"})');
         await screenshot('style-strategy-v220');
         await click('#btnStyleLabClose');
+        const roomChecks=await evaluate(`(${require('../tests/room-browser.js').toString()})()`);
+        console.log('PASS manual room channels / preview isolation / evidence scoring / cancellation / regeneration: '+roomChecks.checks+' checks');
+        for(const [width,height] of [[320,568],[844,390],[390,844]]){
+            await resize(width,height);
+            await click('#btnRoomState');
+            const panel=await evaluate('(() => {const root=document.querySelector(".room-experience-page"),r=root.getBoundingClientRect();return {top:r.top,bottom:r.bottom,overflow:root.scrollWidth>root.clientWidth+1};})()');
+            assert.ok(panel.top>=0&&panel.bottom<=height+1&&!panel.overflow,'Room experience page overflows '+width+'x'+height);
+            await evaluate('document.querySelector(".room-experience-scroll").scrollTop=1e8');
+            const reachable=await evaluate('(() => {const button=document.querySelector("#roomExperienceClose"),r=button.getBoundingClientRect();return button.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})()');
+            assert.equal(reachable,true,'Room header close is covered');
+            if(width===390)await screenshot('room-experience-scene-v240');
+            await click('[data-room-tab="relations"]');
+            if(!await evaluate('document.querySelector("#roomAuthorView").checked'))await click('#roomAuthorView');
+            const edit=await evaluate('(() => {const root=document.querySelector(".room-experience-page");return root.scrollWidth<=root.clientWidth+1;})()');
+            assert.equal(edit,true,'Room author fields overflow '+width+'x'+height);
+            if(width===390){
+                await evaluate(`window.__qaRoomViewport=Object.getOwnPropertyDescriptor(window,'visualViewport');document.querySelector('#roomRelationConditions').focus();Object.defineProperty(window,'visualViewport',{configurable:true,value:{height:360,offsetTop:24,scale:1}});window.dispatchEvent(new Event('resize'));`);
+                await delay(100);
+                const keyboard=await evaluate('(() => {const p=document.querySelector(".room-experience-page"),r=p.getBoundingClientRect();return {top:r.top,bottom:r.bottom,overflow:p.scrollWidth>p.clientWidth+1};})()');
+                assert.ok(keyboard.top>=23&&keyboard.bottom<=385&&!keyboard.overflow,'Room editor keyboard layout overlaps viewport');
+                await evaluate('document.querySelector("#roomRelationSave").scrollIntoView({block:"center",behavior:"instant"})');
+                assert.equal(await evaluate('(() => {const b=document.querySelector("#roomRelationSave"),r=b.getBoundingClientRect();return b.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})()'),true,'Room author save covered by keyboard/footer');
+                await screenshot('room-author-keyboard-v240');
+                await evaluate('document.activeElement?.blur();Object.defineProperty(window,"visualViewport",window.__qaRoomViewport);window.dispatchEvent(new Event("resize"));');await delay(100);
+            }
+            if(width===390){await evaluate('document.querySelector(".room-experience-scroll").scrollTop=0');await screenshot('room-experience-relations-v240');}
+            await click('#roomExperienceClose');
+        }
         assert.equal(exceptions.length,0,'Runtime errors: ' + JSON.stringify(exceptions));
         console.log('All real-browser layout and motion checks passed; no external API calls were made.');
     } finally {

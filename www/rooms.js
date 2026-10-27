@@ -11,6 +11,8 @@
     const StyleLab = typeof module === 'object' && module.exports
         ? require('./style-lab.js')
         : globalThis.StarlightStyleLab;
+    const Experience = typeof module === 'object' && module.exports
+        ? require('./room-engine.js') : globalThis.StarlightRoomEngine;
 
     const MAX_INTIMACY = 200;
     const MAX_GROUP_MEMBERS = 8;
@@ -40,7 +42,7 @@
     ].join('\n');
 
     const ROOM_TURN_REMINDER = [
-        '只生成当前指定角色本人的语言、动作和可见反应。',
+        '只生成当前指定角色本人的普通说话内容；括号内只放简短外显神态，不夹入心理独白、环境旁白或时间地点跳跃。',
         '不得替用户行动或发言；不得代写其他角色的台词、动作或内心。',
         '不得泄露当前角色不知道的秘密或后台设定。',
         '直接输出角色内容，不要输出角色名前缀、姓名标签、空白标签、分析、规则说明或JSON。',
@@ -179,6 +181,9 @@
             id: asString(source.id) || createId('node'),
             value: finiteInt(source.value, Math.min(MAX_INTIMACY, (index + 1) * 40), 1, MAX_INTIMACY),
             description: asString(source.description).trim(),
+            minTrust: finiteInt(source.minTrust,10,0,100),
+            minEvents: finiteInt(source.minEvents,2,0,1000),
+            condition: asString(source.condition).trim(),
         };
     }
 
@@ -208,6 +213,7 @@
             relationships: asString(source.relationships).trim(),
             knowledgeBoundary: asString(source.knowledgeBoundary).trim(),
             dialogueExamples: asString(source.dialogueExamples).trim(),
+            relationshipPolicy: Experience ? Experience.policy(source) : source.relationshipPolicy,
             avatar: safeImageDataUrl(source.avatar),
             color: /^#[0-9a-f]{6}$/i.test(asString(source.color)) ? source.color : memberColor(index),
             enabled: source.enabled !== false,
@@ -230,6 +236,7 @@
             content: asString(source.content),
             turnId: asString(source.turnId) || null,
             kind: asString(source.kind, 'message'),
+            ...(source.dialogue && typeof source.dialogue==='object' ? {dialogue:{speech:asString(source.dialogue.speech),expression:asString(source.dialogue.expression)}} : {}),
             bookmarked: source.bookmarked === true,
             previousVersions: (Array.isArray(source.previousVersions)?source.previousVersions:[]).filter(item=>typeof item?.content==='string').slice(-5).map(item=>({content:item.content,createdAt:Number(item.createdAt)||0})),
             createdAt: Number(source.createdAt) || Date.now(),
@@ -253,7 +260,7 @@
         });
         const roomType = source.roomType === 'group' ? 'group' : 'double';
         const legacyDefaultStyle = typeof defaultStylePrompt === 'string' && source.stylePrompt === defaultStylePrompt;
-        return {
+        const result = {
             id: asString(source.id) || createId('room'),
             roomType,
             name: asString(source.name, roomType === 'double' ? '双人房间' : '多人房间').trim(),
@@ -288,10 +295,13 @@
             sharedMemory: normalizeMemory(source.sharedMemory, messages.length, memoryApi),
             characterMemories,
             turnEffects: source.turnEffects && typeof source.turnEffects === 'object' ? source.turnEffects : {},
+            experience: source.experience,
             intimacy: roomType === 'double' ? normalizeIntimacy(source.intimacy) : null,
             createdAt: Number(source.createdAt) || Date.now(),
             updatedAt: Number(source.updatedAt) || Date.now(),
         };
+        if(Experience) Experience.ensure(result);
+        return result;
     }
 
     function normalizeIntimacy(intimacy) {
@@ -326,7 +336,7 @@
     }
 
     function getActiveMembers(room) {
-        return (room?.participants || []).filter(member => member.enabled !== false);
+        return Experience && room ? Experience.presentMembers(room) : (room?.participants || []).filter(member => member.enabled !== false);
     }
 
     function detectMentionedMembers(room, text) {
@@ -352,6 +362,7 @@
     }
 
     function roomMessageForModel(room, message, currentMemberId) {
+        if(message.kind==='control'||message.kind==='intimacy-node')return {role:'system',content:'（历史操作／界面提示，不是已经发生的场景，不作为人物见闻。）'};
         if (message.role === 'user') {
             return { role: 'user', content: message.content };
         }
@@ -382,7 +393,7 @@
             if (message.role === 'user') {
                 return { role: 'user', content: `用户的发言或行动：${asString(message.content)}` };
             }
-            return { role: 'system', content: `场景事件：${asString(message.content)}` };
+            return { role: 'system', content: message.kind==='control'||message.kind==='intimacy-node' ? '（本条为操作或界面提示，没有可记忆的剧情事实。）' : `场景事件：${asString(message.content)}` };
         });
     }
 
@@ -395,7 +406,7 @@
 
     function getAvailableNodes(room) {
         if (room?.roomType !== 'double' || !room.intimacy) return [];
-        return room.intimacy.nodes.filter(node => node.value <= room.intimacy.value);
+        return Experience ? Experience.availableNodes(room) : room.intimacy.nodes.filter(node => node.value <= room.intimacy.value);
     }
 
     function buildCharacterPromptParts(room, member, contexts = {}, styleInfluencePrompt) {
@@ -426,8 +437,9 @@
         ].filter(Boolean);
         const dynamicSections = [
             worldBookPrompt || '【世界书】\n（未单独设定）',
-            '【当前场景】\n' + (room.scenePrompt || '（延续最近对话）'),
+            '【当前场景｜已采纳进展优先于开场】\n' + ((Experience && Experience.currentScenePrompt(room)) || room.scenePrompt || '（延续最近对话）'),
         ];
+        if(Experience)dynamicSections.push(Experience.relationPrompt(room,member.id));
         if (sharedMemory) dynamicSections.push('【房间公共长期记忆】\n' + sharedMemory);
         if (characterMemory) dynamicSections.push('【只有你可以使用的角色独立记忆】\n' + characterMemory);
         if (room.roomType === 'double') {
@@ -510,7 +522,7 @@
                     '你是多人角色扮演的隐藏发言调度器，不创作台词。',
                     '根据直接点名、问题对象、人物关系、在场状态和自然交流节奏，选择本轮真正需要回应的人。',
                     '不要机械安排所有人发言。通常选1人，确有互动必要时选2人，绝不超过给定上限。',
-                    '只输出合法JSON对象：{"speakers":["角色id"],"narration_needed":false,"narration_hint":""}',
+                    '只输出合法JSON对象：{"speakers":["角色id"]}。你只选择回应者，不自动生成旁白、事件、心理或切换情景。',
                     'speakers按发言顺序排列；只能使用候选列表里的id。',
                 ].join('\n'),
             },
@@ -520,7 +532,7 @@
                     `【本轮最多发言人数】${room.maxSpeakers}`,
                     '【候选角色】\n' + JSON.stringify(directory),
                     '【用户角色设定】\n' + (room.userPersona || '（未设定）'),
-                    '【场景】\n' + (room.scenePrompt || '延续当前场景'),
+                    '【场景】\n' + ((Experience && Experience.currentScenePrompt(room)) || room.scenePrompt || '延续当前场景'),
                     '【剧情补充】\n' + (room.otherInfo || '（无）'),
                     '【最近对话】\n' + (recent || '（尚无）'),
                     '【用户最新消息】\n' + latestUserText,
@@ -549,7 +561,7 @@
                 role: 'user',
                 content: [
                     (WorldBook ? WorldBook.buildWorldBookPrompt(room.worldBook, hint || '') : room.worldPrompt) || '【世界书】\n（未设定）',
-                    '【当前场景】\n' + (room.scenePrompt || '（延续当前场景）'),
+                    '【当前场景】\n' + ((Experience && Experience.currentScenePrompt(room)) || room.scenePrompt || '（延续当前场景）'),
                     '【调度提示】\n' + (asString(hint) || '自然衔接当前交流'),
                     '【最近对话】\n' + recent,
                 ].join('\n\n'),
