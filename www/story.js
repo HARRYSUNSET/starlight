@@ -13,6 +13,8 @@
         : globalThis.StarlightStyleLab;
     const Inspiration = typeof module === 'object' && module.exports
         ? require('./inspiration.js') : globalThis.StarlightInspiration;
+    const Voice = typeof module === 'object' && module.exports
+        ? require('./voice.js') : globalThis.StarlightVoice;
 
     const LEGACY_DEFAULT_STORY_RULES = [
         '这是一个持续发展的单角色剧情对话。你只扮演设定中的AI角色与必要的客观环境。',
@@ -187,6 +189,7 @@
                 ? WorldBook.normalizeWorldBook(source.worldBook, source.worldPrompt)
                 : source.worldBook,
             openingScene: asString(source.openingScene).trim(),
+            currentScene: asString(source.currentScene).trim(),
             userPersona: asString(source.userPersona).trim(),
             characters: normalizeCharacters(source),
             stylePrompt: asString(source.stylePrompt, DEFAULT_STORY_STYLE).trim() || DEFAULT_STORY_STYLE,
@@ -280,7 +283,11 @@
             stable: sections.join('\n\n'),
             dynamic: [
                 worldBookPrompt || '【世界书】\n（依据对话中已经建立的世界继续，不擅自添加会改变设定的规则。）',
-                '【当前或开场场景】\n' + (story.openingScene || '（延续最近对话中的时间、地点与事件。）'),
+                story.currentScene
+                    ? (Voice ? Voice.sceneAnchor(story.currentScene) : '【当前场景｜每轮自动带入】\n' + story.currentScene)
+                    : (story.openingScene
+                        ? '【开场场景】\n' + story.openingScene
+                        : '【当前或开场场景】\n（延续最近对话中的时间、地点与事件。）'),
                 '已证实的成长、关系变化与当前有效状态高于早期的静态描述；失效记录只提供来历，不恢复为当前状态。未提供的事件不能自行补写。',
             ].join('\n\n'),
             strategy,
@@ -319,11 +326,22 @@
             : naturalStylePrompt;
         let stableSystemPrompt = systemPromptFromStructured(sections.stable, globalPrompt, settings, naturalStyle, memoryApi);
         if (sections.strategy.priority >= 2) stableSystemPrompt += '\n\n【表达层冲突处理】\n用户本轮明确写作要求优先；其次采用当前独立文风档案，通用自然表达规则和原有文风只补充不冲突部分。人物事实、角色各自口吻、知识边界和事件因果不因文风改变。';
+        // 活人化引擎：只读取最近一条用户消息的长度与轮次序号，绝不携带原文。
+        const conversations = Array.isArray(agent?.conversations) ? agent.conversations : [];
+        let lastUserText = '';
+        for (let index = conversations.length - 1; index >= 0; index -= 1) {
+            const message = conversations[index];
+            if (message && message.role === 'user') { lastUserText = asString(message.content); break; }
+        }
+        const voiceBlock = Voice
+            ? Voice.turnBlock({ lastUserText, turnIndex: conversations.length, seed: asString(agent?.id) })
+            : '';
         return {
             stableSystemPrompt,
             dynamicPrompt: sections.dynamic,
             systemPrompt: [stableSystemPrompt, sections.dynamic].join('\n\n'),
-            turnReminder: '【本轮校准】\n继续遵守开头完整规则和各角色知情范围，依据最新有效状态延续事件，不虚构未发生的旧事。用户本轮要求与当前文风的表达优先级按开头约定执行。直接输出正文，不复述内部规则。',
+            turnReminder: '【本轮校准】\n继续遵守开头完整规则和各角色知情范围，依据最新有效状态延续事件，不虚构未发生的旧事。用户本轮要求与当前文风的表达优先级按开头约定执行。直接输出正文，不复述内部规则。'
+                + (voiceBlock ? '\n\n' + voiceBlock : ''),
         };
     }
 

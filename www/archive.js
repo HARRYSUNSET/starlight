@@ -11,7 +11,7 @@
     const SECRET_KEYS = new Set(['apiKey', 'apiKeys']);
     const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype', '$starlightAsset']);
     const MEDIA_KEYS = new Set(['avatar', 'backgroundImage']);
-    const STORY_FIELDS = ['name', 'subtitle', 'storyRules', 'worldPrompt', 'worldBook', 'openingScene', 'userPersona', 'characters', 'stylePrompt', 'styleExamples', 'otherInfo', 'styleInfluence', 'memory'];
+    const STORY_FIELDS = ['name', 'subtitle', 'storyRules', 'worldPrompt', 'worldBook', 'openingScene', 'currentScene', 'userPersona', 'characters', 'stylePrompt', 'styleExamples', 'otherInfo', 'styleInfluence', 'memory'];
     const ROOM_FIELDS = ['name', 'subtitle', 'basePrompt', 'worldPrompt', 'worldBook', 'scenePrompt', 'userPersona', 'participants', 'styleEnabled', 'stylePrompt', 'styleExamples', 'otherInfo', 'styleInfluence', 'narrationEnabled', 'turnMode', 'maxSpeakers', 'sharedMemory', 'characterMemories', 'intimacy'];
     const fieldsFor = mode => mode === 'room' ? ROOM_FIELDS : STORY_FIELDS;
     const clone = value => JSON.parse(JSON.stringify(value));

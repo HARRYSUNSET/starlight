@@ -13,6 +13,8 @@
         : globalThis.StarlightStyleLab;
     const Experience = typeof module === 'object' && module.exports
         ? require('./room-engine.js') : globalThis.StarlightRoomEngine;
+    const Voice = typeof module === 'object' && module.exports
+        ? require('./voice.js') : globalThis.StarlightVoice;
 
     const MAX_INTIMACY = 200;
     const MAX_GROUP_MEMBERS = 8;
@@ -488,10 +490,13 @@
             if (recentMessages[index].role === 'user' || recentMessages[index].kind === 'control') { latestInput = recentMessages[index]; break; }
         }
         const pacing = buildTurnPacing(latestInput?.content || '');
+        const voiceBlock = Voice
+            ? Voice.turnBlock({ lastUserText: latestInput?.content || '', turnIndex: (room.messages || []).length, seed: asString(room.id), room: true })
+            : '';
         const parts = buildCharacterPromptParts(room, member, contexts || {}, styleInfluencePrompt);
         return [
             { role: 'system', content: parts.stableSystemPrompt },
-            { role: 'system', content: parts.dynamicPrompt + `\n\n【本轮节奏】\n${pacing}` },
+            { role: 'system', content: parts.dynamicPrompt + `\n\n【本轮节奏】\n${pacing}` + (voiceBlock ? `\n\n${voiceBlock}` : '') },
             ...recentMessages.map(message => roomMessageForModel(room, message, memberId)).filter(Boolean),
         ];
     }

@@ -2013,6 +2013,7 @@
         .style-strength-value { min-width: 48px; color: var(--accent); font-weight: 800; text-align: right; font-size: .78rem; }
         .style-profile-actions { display: flex; gap: 7px; }
         .style-source-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(220px, .8fr); gap: 13px; }
+        .style-anchor-field { grid-column: 1 / -1; }
         .style-text-counter { margin-top: 5px; color: var(--text-muted); font-size: .63rem; text-align: right; }
         .style-analysis-status { color: var(--text-muted); font-size: .68rem; line-height: 1.5; }
         .style-analysis-status.ready { color: #2a9d8f; }
@@ -2252,7 +2253,7 @@
                 <div class="library-page-heading"><h2>我的</h2><p>管理全局 API、模型、外观与存储设置。</p></div>
                 <div id="mySettingsMount"></div>
                 <div class="my-section-title">应用信息</div>
-                <div class="my-version-card"><strong>星陽之语 2.4.0</strong><br>房间对白与情景分离 · 场景预览 · 关系档案</div>
+                <div class="my-version-card"><strong>星陽之语 2.5.0</strong><br>活人化引擎 · 语感锚 · 单拍与许可卡 · AI腔体检</div>
             </section>
         </main>
         <nav class="bottom-nav" aria-label="主导航">
@@ -2465,7 +2466,8 @@
                 <div class="section-description">世界书分为初始设定与后续进展；后续进展是经你确认的正史，不会被自动记忆擅自覆盖。</div>
                 <div class="worldbook-editor" id="storyWorldBookEditor"></div>
                 <div class="story-form-grid">
-                    <div><label for="storyOpeningInput">当前／开场场景</label><textarea id="storyOpeningInput" style="min-height:180px" placeholder="时间、地点、正在发生的事件和人物位置"></textarea></div>
+                    <div><label for="storyOpeningInput">开场场景</label><textarea id="storyOpeningInput" style="min-height:180px" placeholder="时间、地点、正在发生的事件和人物位置"></textarea></div>
+                    <div class="full"><label for="storyCurrentSceneInput">当前场景（每轮自动带入）</label><textarea id="storyCurrentSceneInput" style="min-height:120px" placeholder="留空则沿用开场场景。剧情推进后可以随时更新，例如：夜晚的教室，只剩两人在收拾画具"></textarea></div>
                     <div class="full"><label for="storyUserPersonaInput">用户所扮演的角色</label><textarea id="storyUserPersonaInput" style="min-height:150px" placeholder="姓名、身份、性格、外貌、能力、与AI角色的关系以及知识边界"></textarea></div>
                 </div>
             </section>
@@ -2753,6 +2755,11 @@
                                     <label for="styleSourceNotesInput">希望重点保留／避免的方向（可选）</label>
                                     <textarea id="styleSourceNotesInput" rows="13" maxlength="4000" placeholder="例如：保留对白的松弛感；不要照搬原文人物和事件；避免无厘头比喻……"></textarea>
                                 </div>
+                                <div class="style-field style-anchor-field">
+                                    <label for="styleAnchorInput">语感锚 · 直接给模型参考的原文片段（可选）</label>
+                                    <textarea id="styleAnchorInput" rows="4" maxlength="2000" placeholder="分析完成后自动截取参考文本的代表片段；只学语感与停顿，不继承内容。可手动修改或清空"></textarea>
+                                    <div class="style-text-counter" id="styleAnchorCounter">0 / 2000</div>
+                                </div>
                             </div>
                             <div class="style-analysis-status" id="styleAnalysisStatus">尚未分析</div>
                         </section>
@@ -2875,6 +2882,7 @@
     <script src="inspiration.js"></script>
     <script src="inspiration-ui.js"></script>
     <script src="style-lab.js"></script>
+    <script src="voice.js"></script>
     <script src="story.js"></script>
     <script src="room-engine.js"></script>
     <script src="room-ui.js"></script>
@@ -2936,6 +2944,7 @@
             const $storyRulesInput = document.getElementById('storyRulesInput');
             const $storyWorldBookEditor = document.getElementById('storyWorldBookEditor');
             const $storyOpeningInput = document.getElementById('storyOpeningInput');
+            const $storyCurrentSceneInput = document.getElementById('storyCurrentSceneInput');
             const $storyUserPersonaInput = document.getElementById('storyUserPersonaInput');
             const $storyCharactersEditor = document.getElementById('storyCharactersEditor');
             const $btnAddStoryCharacter = document.getElementById('btnAddStoryCharacter');
@@ -3034,6 +3043,8 @@
             const $btnDeleteStyleProfile = document.getElementById('btnDeleteStyleProfile');
             const $styleSourceTextInput = document.getElementById('styleSourceTextInput');
             const $styleSourceNotesInput = document.getElementById('styleSourceNotesInput');
+            const $styleAnchorInput = document.getElementById('styleAnchorInput');
+            const $styleAnchorCounter = document.getElementById('styleAnchorCounter');
             const $styleSourceCounter = document.getElementById('styleSourceCounter');
             const $btnAnalyzeStyle = document.getElementById('btnAnalyzeStyle');
             const $styleAnalysisStatus = document.getElementById('styleAnalysisStatus');
@@ -3102,6 +3113,8 @@
             if (!WorldBook) throw new Error('世界书模块加载失败');
             const StyleLab = window.StarlightStyleLab;
             if (!StyleLab) throw new Error('文风工坊模块加载失败');
+            const Voice = window.StarlightVoice;
+            if (!Voice) throw new Error('活人化引擎模块加载失败');
             const Story = window.StarlightStory;
             if (!Story) throw new Error('剧情模式模块加载失败');
             const Rooms = window.StarlightRooms;
@@ -3896,6 +3909,8 @@
                 $styleSourceTextInput.value = profile.sourceText;
                 $styleSourceNotesInput.value = profile.sourceNotes;
                 $styleSourceCounter.textContent = `${profile.sourceText.length} / ${StyleLab.MAX_SOURCE_LENGTH}`;
+                $styleAnchorInput.value = profile.anchor || '';
+                $styleAnchorCounter.textContent = `${(profile.anchor || '').length} / ${StyleLab.MAX_ANCHOR_LENGTH}`;
                 $stylePreviewRequestInput.value = profile.previewRequest || '';
                 $stylePreviewOutput.textContent = profile.previewText || '参考文本会显示在这里。';
 
@@ -4026,12 +4041,16 @@
                     const result = await callDeepSeekJSON(messages, { temperature: 0.1, maxTokens: 6000, thinkingMode: 'disabled', purpose:'文风分析', cache:true });
                     const currentIndex = appData.styleProfiles.findIndex(item => item.id === profile.id);
                     if (currentIndex < 0) return;
-                    appData.styleProfiles[currentIndex] = StyleLab.profileFromAnalysis(
+                    const analyzed = StyleLab.profileFromAnalysis(
                         appData.styleProfiles[currentIndex],
                         result,
                         sourceText,
                         sourceNotes
                     );
+                    // 自动截取参考文本的代表片段作为「语感锚」：成品文字比抽象
+                    // 因子更能决定措辞选择。用户手动填写的锚不会被覆盖。
+                    if (!analyzed.anchor) analyzed.anchor = StyleLab.deriveAnchor(sourceText);
+                    appData.styleProfiles[currentIndex] = analyzed;
                     selectedStyleProfileId = appData.styleProfiles[currentIndex].id;
                     saveData();
                     showToast('文风因子分析完成', 'success');
@@ -4055,7 +4074,7 @@
                         `模式：剧情`,
                         `作品：${agent.name}`,
                         WorldBook.buildWorldBookPrompt(agent.worldBook, '') || '世界书：（未设定）',
-                        `当前或开场场景：${agent.openingScene || '（未设定）'}`,
+                        `当前场景：${agent.currentScene || agent.openingScene || '（未设定）'}`,
                         `用户角色：${agent.userPersona || '（未设定）'}`,
                         `角色设定：\n${characters || '（未设定）'}`,
                         `其他设定：${agent.otherInfo || '（无）'}`,
@@ -4233,6 +4252,10 @@
                 $styleSourceCounter.textContent = `${event.target.value.length} / ${StyleLab.MAX_SOURCE_LENGTH}`;
             });
             $styleSourceNotesInput.addEventListener('input', event => updateSelectedStyleProfile({ sourceNotes: event.target.value }));
+            $styleAnchorInput.addEventListener('input', event => {
+                updateSelectedStyleProfile({ anchor: event.target.value });
+                $styleAnchorCounter.textContent = `${event.target.value.length} / ${StyleLab.MAX_ANCHOR_LENGTH}`;
+            });
             $stylePreviewRequestInput.addEventListener('input', event => updateSelectedStyleProfile({ previewRequest: event.target.value }));
             $btnResetStyleProfile.addEventListener('click', resetSelectedStyleProfile);
             $btnDeleteStyleProfile.addEventListener('click', deleteSelectedStyleProfile);
@@ -5403,6 +5426,7 @@
                 storyDraftWorldBook = WorldBook.normalizeWorldBook(story.worldBook, story.worldPrompt);
                 renderWorldBookEditor($storyWorldBookEditor, storyDraftWorldBook, false);
                 $storyOpeningInput.value = story.openingScene;
+                $storyCurrentSceneInput.value = story.currentScene;
                 $storyUserPersonaInput.value = story.userPersona;
                 storyDraftCharacters = story.characters.map(Story.normalizeCharacter);
                 renderStoryCharactersEditor();
@@ -5466,6 +5490,7 @@
                     worldPrompt: '',
                     worldBook,
                     openingScene: $storyOpeningInput.value.trim(),
+                    currentScene: $storyCurrentSceneInput.value.trim(),
                     userPersona: $storyUserPersonaInput.value.trim(),
                     characters,
                     stylePrompt: $storyStyleInput.value.trim() || Story.DEFAULT_STORY_STYLE,
@@ -7528,8 +7553,21 @@
                 if(!message || message.role!=='assistant')return;
                 if(!refinementUI){refinementUI=document.createElement('div');refinementUI.className='modal-overlay workspace-overlay';refinementUI.id='refinementOverlay';document.body.appendChild(refinementUI);}
                 const original=message.content, targetId=target.id;
-                refinementUI.innerHTML=`<div class="workspace-page"><div class="full-page-header"><h3>文风精修</h3><button class="btn btn-secondary" id="refineClose">关闭</button></div><p class="hint">仅手动发起一次额外请求，不自动修改正文。请核对事实、人物行为和信息量后再采纳。原版保留最近 5 次，可长按恢复。</p><label>改写要求<textarea id="refineRequest" placeholder="减少解释腔，让对白顺口，但不添加情节"></textarea></label><div class="workspace-inline"><button class="btn btn-primary" id="refineGenerate">生成候选稿</button><button class="btn btn-secondary" id="refineStop" disabled>停止</button><button class="btn btn-secondary" id="refineAccept" disabled>确认替换正文</button></div><div class="workspace-columns"><section><h4>当前正文</h4><div class="workspace-preview" id="refineOriginal"></div></section><section><h4>候选正文</h4><div class="workspace-preview" id="refineCandidate"></div></section></div></div>`;
+                refinementUI.innerHTML=`<div class="workspace-page"><div class="full-page-header"><h3>文风精修</h3><button class="btn btn-secondary" id="refineClose">关闭</button></div><p class="hint">仅手动发起一次额外请求，不自动修改正文。请核对事实、人物行为和信息量后再采纳。原版保留最近 5 次，可长按恢复。</p><div class="workspace-preview" id="refineTells" hidden></div><label>改写要求<textarea id="refineRequest" placeholder="减少解释腔，让对白顺口，但不添加情节"></textarea></label><div class="workspace-inline"><button class="btn btn-primary" id="refineGenerate">生成候选稿</button><button class="btn btn-secondary" id="refineFillHints" disabled>把AI腔体检结果填入改写要求</button><button class="btn btn-secondary" id="refineStop" disabled>停止</button><button class="btn btn-secondary" id="refineAccept" disabled>确认替换正文</button></div><div class="workspace-columns"><section><h4>当前正文</h4><div class="workspace-preview" id="refineOriginal"></div></section><section><h4>候选正文</h4><div class="workspace-preview" id="refineCandidate"></div></section></div></div>`;
                 const get=id=>refinementUI.querySelector('#'+id);get('refineOriginal').textContent=original;
+                const tellReport = Voice.tellReport(original);
+                const tellBox = get('refineTells');
+                if (tellReport.count > 0) {
+                    tellBox.hidden = false;
+                    tellBox.textContent = tellReport.summary + '\n\n' + tellReport.items.map(item => `· ${item.type}：${item.sample}`).join('\n');
+                    get('refineFillHints').disabled = false;
+                }
+                get('refineFillHints').onclick = () => {
+                    const hint = Voice.cleanupHint(tellReport.items);
+                    const request = get('refineRequest');
+                    request.value = request.value ? `${request.value}\n${hint}` : hint;
+                    UI.focusEditor(request);
+                };
                 let candidate='';
                 get('refineClose').onclick=closeRefinement;
                 get('refineStop').onclick=()=>abortController?.abort();

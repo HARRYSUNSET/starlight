@@ -66,9 +66,9 @@ test('作品卡片菜单监听器只在主页渲染器中绑定到卡片自身',
 
 test('应用版本号在 npm 与 Android 配置中一致', () => {
     const gradle = fs.readFileSync(path.join(root, 'android', 'app', 'build.gradle'), 'utf8');
-    assert.equal(packageJson.version, '2.4.0');
-    assert.match(gradle, /versionCode\s+19/);
-    assert.match(gradle, /versionName\s+"2\.4\.0"/);
+    assert.equal(packageJson.version, '2.5.0');
+    assert.match(gradle, /versionCode\s+20/);
+    assert.match(gradle, /versionName\s+"2\.5\.0"/);
 });
 
 test('模型列表只保留 DeepSeek 官方当前模型标识', () => {
@@ -166,10 +166,16 @@ test('手机粗指针设备的 Enter 保留为换行', () => {
 
 test('文风工坊具有独立全屏页面、因子库和应用快照', () => {
     assert.match(html, /<script src="style-lab\.js"><\/script>/);
+    assert.match(html, /<script src="voice\.js"><\/script>/);
     assert.match(html, /id="styleLabOverlay"/);
     assert.match(html, /id="styleProfileList"/);
     assert.match(html, /id="styleProfileStrengthRange"/);
     assert.match(html, /id="styleFactorList"/);
+    assert.match(html, /id="styleAnchorInput"/);
+    assert.match(html, /StyleLab\.deriveAnchor\(sourceText\)/);
+    assert.match(html, /window\.StarlightVoice/);
+    assert.match(html, /Voice\.tellReport/);
+    assert.match(html, /Voice\.cleanupHint/);
     assert.match(html, /styleProfiles:\s*\[\]/);
     assert.match(html, /StyleLab\.createAppliedStyle\(profile,\{messageIndex:getActiveMessages\(\)\.length\}\)/);
     assert.match(html, /StyleLab\.buildInfluencePrompt\(agent\?\.styleInfluence\)/);
