@@ -24,7 +24,11 @@ public class ArchivePlugin extends Plugin {
         String name = call.getString("name", "starlight-backup.json");
         Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
-        intent.setType("application/json");
+        String mime = call.getString("mime", "application/json");
+        if (!"application/json".equals(mime) && !"text/markdown".equals(mime) && !"text/plain".equals(mime)) {
+            mime = "application/json";
+        }
+        intent.setType(mime);
         intent.putExtra(Intent.EXTRA_TITLE, name.replaceAll("[\\\\/:*?\"<>|]", "_"));
         try { startActivityForResult(call, intent, "saveDocument"); }
         catch (Exception error) { call.reject("无法打开文件保存器", error); }

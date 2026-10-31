@@ -2232,6 +2232,7 @@
     <link rel="stylesheet" href="room-ui.css">
     <link rel="stylesheet" href="motion.css">
     <link rel="stylesheet" href="inspiration.css">
+    <link rel="stylesheet" href="writing-skill.css">
 </head>
 <body>
     <div class="home-shell" id="homeShell">
@@ -2253,7 +2254,7 @@
                 <div class="library-page-heading"><h2>我的</h2><p>管理全局 API、模型、外观与存储设置。</p></div>
                 <div id="mySettingsMount"></div>
                 <div class="my-section-title">应用信息</div>
-                <div class="my-version-card"><strong>星陽之语 2.5.0</strong><br>活人化引擎 · 语感锚 · 单拍与许可卡 · AI腔体检</div>
+                <div class="my-version-card"><strong>星陽之语 2.6.0</strong><br>整篇剧情 · 一键写作技能 · 可干预分析 · 独立快照</div>
             </section>
         </main>
         <nav class="bottom-nav" aria-label="主导航">
@@ -2709,7 +2710,7 @@
             <div class="style-lab-body">
                 <aside class="style-library-panel">
                     <div class="style-library-heading">
-                        <strong>综合因子库</strong>
+                        <strong>写作档案库</strong>
                         <button type="button" class="style-library-add" id="btnAddStyleProfile">＋ 新建</button>
                     </div>
                     <div class="style-library-note">因子库可被多个作品使用；应用时会复制一份独立快照，后续编辑不会串到其他对话。</div>
@@ -2720,6 +2721,11 @@
                         <div><strong>建立第一份文风因子</strong><span>粘贴一段参考文本，分析后即可生成沙盒样稿或应用到当前作品。</span></div>
                     </div>
                     <div class="style-editor-content" id="styleEditorContent" hidden>
+                        <nav class="writing-skill-nav" aria-label="写作档案页面区域">
+                            <button type="button" class="style-action" data-style-section="styleSourceCard">参考文本</button>
+                            <button type="button" class="style-action" data-style-section="styleAnalysisCard">写作档案</button>
+                            <button type="button" class="style-action" data-style-section="stylePreviewCard">试写与反馈</button>
+                        </nav>
                         <section class="style-card">
                             <div class="style-profile-toolbar">
                                 <div class="style-field">
@@ -2740,10 +2746,11 @@
                             </div>
                         </section>
 
-                        <section class="style-card">
+                        <section class="style-card" id="styleSourceCard">
                             <div class="style-card-heading">
-                                <div><h4>① 输入参考文本</h4><p class="style-card-copy">样本文本只在你点击分析时发送给 DeepSeek；提取表达规律，不继承人物、剧情或具体句子。</p></div>
-                                <button type="button" class="style-action primary" id="btnAnalyzeStyle">分析并生成因子</button>
+                                <div><h4>① 输入参考文本</h4><p class="style-card-copy">点击一次提取分段、标点、对白、心理与叙述等写法；保留原文格式，代表段落仅作写法参考。</p></div>
+                                <button type="button" class="style-action primary" id="btnAnalyzeStyle">一键分析写作方式</button>
+                                <button type="button" class="style-action" id="btnStopStyleAnalysis" hidden>停止分析</button>
                             </div>
                             <div class="style-source-grid">
                                 <div class="style-field">
@@ -2752,12 +2759,12 @@
                                     <div class="style-text-counter" id="styleSourceCounter">0 / 30000</div>
                                 </div>
                                 <div class="style-field">
-                                    <label for="styleSourceNotesInput">希望重点保留／避免的方向（可选）</label>
-                                    <textarea id="styleSourceNotesInput" rows="13" maxlength="4000" placeholder="例如：保留对白的松弛感；不要照搬原文人物和事件；避免无厘头比喻……"></textarea>
+                                    <label for="styleSourceNotesInput">分析补充要求（可选，优先采纳）</label>
+                                    <textarea id="styleSourceNotesInput" rows="13" maxlength="4000" placeholder="例如：对白改用「」；犹豫时允许……，被打断时允许——；重点学习对白与叙述的交错，保留心理活动。无需限定标点次数。"></textarea>
                                 </div>
                                 <div class="style-field style-anchor-field">
                                     <label for="styleAnchorInput">语感锚 · 直接给模型参考的原文片段（可选）</label>
-                                    <textarea id="styleAnchorInput" rows="4" maxlength="2000" placeholder="分析完成后自动截取参考文本的代表片段；只学语感与停顿，不继承内容。可手动修改或清空"></textarea>
+                                    <textarea id="styleAnchorInput" rows="4" maxlength="2000" placeholder="分析后展示自动代表段落；手动修改可固定参考，清空后恢复按场景自动选段。只学习写法。"></textarea>
                                     <div class="style-text-counter" id="styleAnchorCounter">0 / 2000</div>
                                 </div>
                             </div>
@@ -2765,9 +2772,10 @@
                         </section>
 
                         <section class="style-card" id="styleAnalysisCard">
-                            <div class="style-card-heading"><div><h4>② 查看细分因子</h4><p class="style-card-copy">细分因子按重要程度排列，用于解释这份综合因子；强度只由上方总滑杆统一控制。</p></div></div>
+                            <div class="style-card-heading"><div><h4>② 写作技能档案</h4><p class="style-card-copy">展开查看和编辑具体方法、原文依据与用户指定写法；总体强度统一控制，应用后每次创作自动使用。</p></div></div>
                             <div class="style-analysis-summary" id="styleAnalysisSummary">分析完成后会在这里展示文风概述。</div>
-                            <div class="style-factor-list" id="styleFactorList"></div>
+                            <div id="writingSkillMount"></div>
+                            <details><summary>综合因子与旧版规律</summary><div class="style-factor-list" id="styleFactorList"></div></details>
                             <p class="hint" id="styleStrategyStatus"></p>
                             <details><summary>可选写法示例（确认后才进入正式提示词）</summary><div id="styleExamplesList"></div></details>
                             <details><summary>表达偏好反馈</summary><div id="styleFeedbackList"></div><button type="button" class="style-action" id="btnStyleFeedback">添加表达偏好</button></details>
@@ -2787,7 +2795,7 @@
                             </div>
                         </section>
 
-                        <section class="style-card">
+                        <section class="style-card" id="stylePreviewCard">
                             <div class="style-card-heading"><div><h4>④ 沙盒参考文本</h4><p class="style-card-copy">可按你的要求生成，也可借用当前剧情／房间的设定快照。生成结果永远不会写入正式对话。</p></div></div>
                             <div class="style-preview-controls">
                                 <div class="style-field">
@@ -2881,7 +2889,9 @@
     <script src="message-view.js"></script>
     <script src="inspiration.js"></script>
     <script src="inspiration-ui.js"></script>
+    <script src="writing-skill.js"></script>
     <script src="style-lab.js"></script>
+    <script src="writing-skill-ui.js"></script>
     <script src="voice.js"></script>
     <script src="story.js"></script>
     <script src="room-engine.js"></script>
@@ -3217,6 +3227,8 @@
             let memoryEditorMode = 'story';
             let selectedStyleProfileId = null;
             let styleLabBusy = false;
+            let styleAnalysisController = null;
+            let writingSkillUI = null;
             let styleComparison = null;
             let snippetsDraft = [];
             let homeTab = 'story';
@@ -3550,6 +3562,21 @@
                 UI.button(toolsButton, 'history', '目录与工具');
                 toolsButton.addEventListener('click', () => getWorkspaceUI().open('chapters'));
                 $chatQuickTools.appendChild(toolsButton);
+                const incompleteButton=document.createElement('button');
+                incompleteButton.id='btnIncompleteStory';incompleteButton.className='btn-toolbar';incompleteButton.hidden=true;
+                UI.button(incompleteButton,'history','未完成稿');
+                incompleteButton.addEventListener('click',()=>{
+                    const owner=getCurrentAgent();if(appData.activeMode!=='story'||!owner?.incompleteDraft)return;
+                    let overlay=document.getElementById('incompleteStoryOverlay');
+                    if(!overlay){overlay=document.createElement('div');overlay.id='incompleteStoryOverlay';overlay.className='modal-overlay workspace-overlay';document.body.appendChild(overlay);}
+                    overlay.innerHTML='<div class="workspace-page"><div class="full-page-header"><h3>未完成正文</h3><button type="button" class="btn" data-draft-close>关闭</button></div><p class="hint">模型达到输出上限，本稿未进入正式消息与记忆。可复制保留，或调整篇幅后重新生成整篇。</p><div class="workspace-inline"><button type="button" class="btn" data-draft-copy>复制正文</button><button type="button" class="btn" data-draft-delete>删除草稿</button></div><pre class="writing-skill-preview"></pre></div>';
+                    overlay.querySelector('pre').textContent=owner.incompleteDraft.text;
+                    overlay.querySelector('[data-draft-close]').onclick=()=>Motion.setVisible(overlay,false);
+                    overlay.querySelector('[data-draft-copy]').onclick=async()=>{try{try{await navigator.clipboard.writeText(owner.incompleteDraft.text);}catch(error){UI.copyTextFallback(owner.incompleteDraft.text,document);}showToast('已复制未完成正文','success');}catch(error){showToast('复制失败，可手动选择正文','error');}};
+                    overlay.querySelector('[data-draft-delete]').onclick=()=>{if(!confirm('删除这份未完成正文？'))return;owner.incompleteDraft=null;saveData();updateToolbarButtons();Motion.setVisible(overlay,false);};
+                    Motion.setVisible(overlay,true,{kind:'page'});
+                });
+                $chatQuickTools.appendChild(incompleteButton);
                 const archiveCard = document.createElement('div');
                 archiveCard.className = 'my-version-card';
                 archiveCard.innerHTML = '<strong>数据安全</strong><p>整库或单作品备份；导入前预览，不包含 API 密钥。</p><button type="button" class="btn btn-secondary" id="btnArchive">备份与恢复</button>';
@@ -3737,13 +3764,13 @@
                 return roomExperienceUI;
             }
 
-            async function downloadBackup(name, text) {
+            async function downloadBackup(name, text, mime = 'application/json') {
                 if(window.Capacitor?.isNativePlatform?.()) {
                     const nativeArchive=window.Capacitor.Plugins?.StarlightArchive || window.Capacitor.registerPlugin?.('StarlightArchive');
                     if(!nativeArchive?.saveBackup)throw new Error('原生文件保存器未加载，请重新打开应用');
-                    await nativeArchive.saveBackup({name,text});return;
+                    await nativeArchive.saveBackup({name,text,mime});return;
                 }
-                const file = new File([text], name, {type:'application/json'});
+                const file = new File([text], name, {type:mime});
                 if (navigator.canShare?.({files:[file]})) {
                     try { await navigator.share({files:[file], title:'星陽之语备份'}); return; }
                     catch (error) { if (error.name === 'AbortError') throw new Error('已取消导出'); }
@@ -3862,6 +3889,9 @@
                 $styleLabOverlay.querySelectorAll('button, input, textarea, select').forEach(control => {
                     control.disabled = busy;
                 });
+                document.getElementById('btnStopStyleAnalysis').hidden = !styleAnalysisController || !busy;
+                document.getElementById('btnStopStyleAnalysis').disabled = false;
+                if (styleAnalysisController) $btnStyleLabClose.disabled = false;
                 if (busy && statusText) {
                     $styleAnalysisStatus.textContent = statusText;
                     $styleAnalysisStatus.className = 'style-analysis-status busy';
@@ -3930,6 +3960,13 @@
                 $styleFactorList.innerHTML = hasAnalysis
                     ? analysis.factors.map((factor, index) => `<div class="style-factor"><strong>${index + 1}. ${escapeHtml(factor.name)}</strong><p>${escapeHtml(factor.description)}${factor.description && factor.instruction ? '\n\n' : ''}${escapeHtml(factor.instruction)}</p><p>${escapeHtml(factor.principle || '')}</p><small>${escapeHtml((factor.scenes || []).join(' · '))}</small></div>`).join('')
                     : '';
+                if (!writingSkillUI) writingSkillUI = StarlightWritingSkillUI.create({
+                    document, core:StarlightWritingSkill, styleLab:StyleLab, mount:document.getElementById('writingSkillMount'),
+                    profile:getSelectedStyleProfile, busy:()=>styleLabBusy, notify:showToast, download:downloadBackup,
+                    update:patch=>{updateSelectedStyleProfile(patch);renderStyleStrategy();},
+                    add:profile=>{appData.styleProfiles.push(profile);selectedStyleProfileId=profile.id;saveData();renderStyleLab();},
+                });
+                writingSkillUI.render(profile);
                 renderStyleDetailsList($styleAvoidanceList, analysis.avoidances, '等待分析');
                 renderStyleDetailsList($styleNaturalnessList, analysis.naturalnessChecks, '等待分析');
                 $styleConfidenceNotes.textContent = analysis.confidenceNotes ? `分析说明：${analysis.confidenceNotes}` : '';
@@ -3978,6 +4015,11 @@
 
             function closeStyleLab() {
                 if (styleLabBusy) {
+                    if (styleAnalysisController) {
+                        styleAnalysisController.abort();
+                        Motion.setVisible($styleLabOverlay, false);
+                        return;
+                    }
                     showToast('请等待当前文风任务完成', 'info');
                     return;
                 }
@@ -4027,6 +4069,7 @@
             }
 
             async function analyzeSelectedStyle() {
+                if (styleLabBusy) return;
                 const profile = getSelectedStyleProfile();
                 if (!profile) return;
                 if (!appData.apiKey) {
@@ -4035,10 +4078,13 @@
                 }
                 const sourceText = $styleSourceTextInput.value.trim();
                 const sourceNotes = $styleSourceNotesInput.value.trim();
+                const controller = new AbortController();
                 try {
                     const messages = StyleLab.buildAnalysisMessages(sourceText, sourceNotes);
-                    setStyleLabBusy(true, '正在分析表达规律并排除人物、事件与提示注入……');
-                    const result = await callDeepSeekJSON(messages, { temperature: 0.1, maxTokens: 6000, thinkingMode: 'disabled', purpose:'文风分析', cache:true });
+                    styleAnalysisController = controller;
+                    setStyleLabBusy(true, '正在提取分段、对白、标点、情绪与叙述方式……');
+                    const result = await callDeepSeekJSON(messages, { temperature: 0.1, maxTokens: 8000, thinkingMode: 'disabled', purpose:'文风分析', cache:true, independent:true, signal:controller.signal });
+                    if (controller.signal.aborted) return;
                     const currentIndex = appData.styleProfiles.findIndex(item => item.id === profile.id);
                     if (currentIndex < 0) return;
                     const analyzed = StyleLab.profileFromAnalysis(
@@ -4049,7 +4095,10 @@
                     );
                     // 自动截取参考文本的代表片段作为「语感锚」：成品文字比抽象
                     // 因子更能决定措辞选择。用户手动填写的锚不会被覆盖。
-                    if (!analyzed.anchor) analyzed.anchor = StyleLab.deriveAnchor(sourceText);
+                    if (!analyzed.anchor && !analyzed.skill) {
+                        analyzed.anchor = StyleLab.deriveAnchor(sourceText);
+                        analyzed.baseline.anchor = analyzed.anchor;
+                    }
                     appData.styleProfiles[currentIndex] = analyzed;
                     selectedStyleProfileId = appData.styleProfiles[currentIndex].id;
                     saveData();
@@ -4057,6 +4106,7 @@
                 } catch (error) {
                     if (error.name !== 'AbortError') showToast('文风分析失败：' + error.message, 'error');
                 } finally {
+                    if (styleAnalysisController === controller) styleAnalysisController = null;
                     setStyleLabBusy(false);
                     renderStyleLab();
                 }
@@ -4228,6 +4278,11 @@
             }
 
             $btnStyleLab.addEventListener('click', openStyleLab);
+            $styleLabOverlay.addEventListener('click', event => {
+                const section=event.target.closest('[data-style-section]');
+                if(section)document.getElementById(section.dataset.styleSection)?.scrollIntoView({block:'start',behavior:'smooth'});
+            });
+            document.getElementById('btnStopStyleAnalysis').addEventListener('click',()=>styleAnalysisController?.abort());
             $btnStyleLabClose.addEventListener('click', closeStyleLab);
             $btnAddStyleProfile.addEventListener('click', addStyleProfile);
             $styleProfileList.addEventListener('click', event => {
@@ -4246,6 +4301,7 @@
                 $styleProfileStrengthValue.textContent = `${strength}%`;
                 renderStyleList();
                 renderStyleStrategy();
+                writingSkillUI?.refreshPrompt();
             });
             $styleSourceTextInput.addEventListener('input', event => {
                 updateSelectedStyleProfile({ sourceText: event.target.value });
@@ -4253,8 +4309,10 @@
             });
             $styleSourceNotesInput.addEventListener('input', event => updateSelectedStyleProfile({ sourceNotes: event.target.value }));
             $styleAnchorInput.addEventListener('input', event => {
-                updateSelectedStyleProfile({ anchor: event.target.value });
+                updateSelectedStyleProfile({ anchor: event.target.value, anchorMode:event.target.value.trim()?'manual':'auto' });
                 $styleAnchorCounter.textContent = `${event.target.value.length} / ${StyleLab.MAX_ANCHOR_LENGTH}`;
+                renderStyleStrategy();
+                writingSkillUI?.refreshPrompt();
             });
             $stylePreviewRequestInput.addEventListener('input', event => updateSelectedStyleProfile({ previewRequest: event.target.value }));
             $btnResetStyleProfile.addEventListener('click', resetSelectedStyleProfile);
@@ -5628,6 +5686,8 @@
             }
 
             function updateToolbarButtons() {
+                const incompleteButton=document.getElementById('btnIncompleteStory');
+                if(incompleteButton)incompleteButton.hidden=appData.activeMode!=='story'||!getCurrentAgent()?.incompleteDraft;
                 if (appData.activeMode === 'room') {
                     const room = getCurrentRoom();
                     const hasConversation = !!room?.messages?.length;
@@ -6996,6 +7056,11 @@
                     (fullContent, metadata = {}) => {
                         isGenerating = false;
                         updateSendButton();
+                        if (metadata.finishReason === 'length') {
+                            agent.incompleteDraft={text:String(fullContent||''),createdAt:Date.now()};
+                            saveData();removeStreamingMessage();renderMessages({preserveScroll:true});updateToolbarButtons();
+                            showToast('输出达到上限，已保存到“未完成稿”；未进入正式历史。可调整篇幅后重新生成整篇。','info');return;
+                        }
                         if (fullContent !== null && fullContent !== undefined) {
                             if (fullContent.trim()) {
                                 agent.conversations.push({ role: 'assistant', content: fullContent, createdAt: Date.now(), bookmarked: false });
@@ -7010,9 +7075,6 @@
                             renderMessages({ preserveScroll: true });
                         }
                         updateToolbarButtons();
-                        if (metadata.finishReason === 'length') {
-                            showToast('回复已达到长度上限，可发送“继续”接着写', 'info');
-                        }
                     },
                     (error) => {
                         isGenerating = false;
@@ -7148,6 +7210,11 @@
                     (fullContent, metadata = {}) => {
                         isGenerating = false;
                         updateSendButton();
+                        if (metadata.finishReason === 'length') {
+                            agent.incompleteDraft={text:String(fullContent||''),createdAt:Date.now()};
+                            restoreOriginalResponse();saveData();removeStreamingMessage();renderMessages({preserveScroll:true});updateToolbarButtons();
+                            showToast('重写达到上限，原正文已保留，新稿保存到“未完成稿”。','info');return;
+                        }
                         if (fullContent !== null && fullContent !== undefined) {
                             agent.conversations.push({ role: 'assistant', content: fullContent || '（回复为空）', createdAt: Date.now(), bookmarked: false });
                             replacementCommitted = true;
@@ -7160,9 +7227,6 @@
                             renderMessages({ preserveScroll: true });
                         }
                         updateToolbarButtons();
-                        if (metadata.finishReason === 'length') {
-                            showToast('回复已达到长度上限，可发送“继续”接着写', 'info');
-                        }
                     },
                     (error) => {
                         isGenerating = false;
@@ -7620,6 +7684,8 @@
             });
 
             function handleInterfaceBack() {
+                const incompleteOverlay=document.getElementById('incompleteStoryOverlay');
+                if(incompleteOverlay&&Motion.isOpen(incompleteOverlay)){Motion.setVisible(incompleteOverlay,false);return true;}
                 if(roomExperienceUI&&Motion.isOpen(roomExperienceUI.overlay)){roomExperienceUI.close();return true;}
                 if (workspaceUI && Motion.isOpen(workspaceUI.overlay)) { workspaceUI.close(); return true; }
                 if (refinementUI && Motion.isOpen(refinementUI)) { closeRefinement(); return true; }

@@ -177,6 +177,30 @@ async function main() {
             }
             console.log('PASS '+label);
         };
+        const checkWritingLayout = async () => {
+            for(const [width,height] of [[320,568],[844,390],[390,844]]) {
+                await resize(width,height);await settle();
+                await evaluate('document.querySelector("#styleAnalysisCard").scrollIntoView({block:"start",inline:"nearest",behavior:"instant"})');
+                const state=await evaluate(`(() => {const p=document.querySelector('#styleLab'),r=p.getBoundingClientRect(),w=document.querySelector('.style-workspace');return {left:r.left,right:r.right,overflow:p.scrollWidth>p.clientWidth+1||w.scrollWidth>w.clientWidth+1,
+                    bad:[...p.querySelectorAll('textarea,button,summary')].filter(n=>n.getClientRects().length&&!n.closest('.style-profile-list')).map(n=>({n,r:n.getBoundingClientRect()})).filter(({r})=>r.left<0||r.right>innerWidth+1).slice(0,5).map(({n,r})=>({id:n.id,text:n.textContent.slice(0,40),left:r.left,right:r.right}))};})()`);
+                assert.ok(state.left>=-1&&state.right<=width+1&&!state.overflow,'Writing page horizontal overflow '+width+'x'+height+': '+JSON.stringify(state));
+                assert.equal(state.bad.length,0,'Writing editor controls outside viewport: '+JSON.stringify(state.bad));
+            }
+            console.log('PASS writing skill phone widths and landscape');
+        };
+        if(process.argv.includes('--writing-skills')) {
+            await resize(390,844);
+            await click('#homeStoryList [data-work-id="ui-story"]');
+            await evaluate(`window.__qaReadState=async()=>{const db=await StarlightPersistence.openDatabase({name:'starlight_chat_database'});try{return await StarlightPersistence.readState(db);}finally{db.close();}};`);
+            const result=await evaluate(`(${require('../tests/writing-skill-browser.js').toString()})()`);
+            console.log('PASS focused writing skills: '+result.checks+' checks');
+            await click('#btnStyleLab');await click(`[data-style-profile-id="${result.profileId}"]`);
+            await checkWritingLayout();
+            await evaluate('document.querySelector("#styleAnalysisCard").scrollIntoView({block:"start"})');
+            await screenshot('writing-skill-v260');
+            assert.equal(exceptions.length,0,'Runtime errors: '+JSON.stringify(exceptions));
+            return;
+        }
         for (const [width,height] of [[320,568],[390,844],[844,390]]) {
             await resize(width,height);
             await checkNavigation(`all navigation tabs ${width}x${height}`);
@@ -535,6 +559,22 @@ async function main() {
             if(width===390){await evaluate('document.querySelector(".room-experience-scroll").scrollTop=0');await screenshot('room-experience-relations-v240');}
             await click('#roomExperienceClose');
         }
+        const writingChecks=await evaluate(`(${require('../tests/writing-skill-browser.js').toString()})()`);
+        console.log('PASS one-click writing skills / author overrides / isolated snapshots / import-export / full article / incomplete draft: '+writingChecks.checks+' checks');
+        await click('#btnStyleLab');
+        await click(`[data-style-profile-id="${writingChecks.profileId}"]`);
+        await checkWritingLayout();
+        await evaluate('document.querySelector("#styleAnalysisCard").scrollIntoView({block:"start"})');
+        await screenshot('writing-skill-v260');
+        await click('#btnStyleLabClose');
+        await send('Page.reload');
+        await delay(600);
+        for(let i=0;i<60;i++){if(await evaluate('Boolean(document.querySelector("#homeStoryList .v2-work-card") && window.StarlightBack)'))break;await delay(100);}
+        await click('#homeStoryList [data-work-id="ui-story"]');
+        await click('#btnStyleLab');
+        await click(`[data-style-profile-id="${writingChecks.profileId}"]`);
+        assert.equal(await evaluate('Boolean(document.querySelector("#writingSkillUser")?.value.includes("对白使用「」"))'),true,'Writing skill lost on full page reload');
+        await click('#btnStyleLabClose');
         assert.equal(exceptions.length,0,'Runtime errors: ' + JSON.stringify(exceptions));
         console.log('All real-browser layout and motion checks passed; no external API calls were made.');
     } finally {

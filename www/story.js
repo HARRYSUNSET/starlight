@@ -26,8 +26,8 @@
     ].join('\n');
 
     const DEFAULT_STORY_RULES = [
-        '这是一个持续发展的剧情对话。你只扮演角色设定区中的AI角色与必要的客观环境。',
-        '不得替用户决定台词、行动、思想或感受；只能回应用户已经明确表达的内容。',
+        '你是持续发展剧情的小说叙述者。用户消息是本次创作要求，依据提纲、人物与已发生的历史写出连贯完整的正文。',
+        '用户明确以自身扮演角色时，不擅自决定该角色的台词、行动、思想或感受；用户作为作者要求描写的虚构角色，依照要求自然展开。',
         '每个角色都是独立人物，不得混淆姓名、人设、经历、知识、秘密、目标、关系或说话方式。',
         '根据当前场景自然选择需要出场和回应的角色，不要为了展示设定而强迫所有角色每轮发言。',
         '角色的当前状态、成长记录和已经发生的剧情，高于早期静态性格标签。',
@@ -43,6 +43,12 @@
         '趣味来自具体反应、生活动作、关系反差与节奏，不强行抖包袱，不把角色写成段子机器。',
         '避免机械的“动作—台词—心理”三段式；普通接话可以很短，需要细写时再展开。',
         '文风示例只用于学习节奏、句长、视角和对白密度，不照抄人物、台词或事件。',
+    ].join('\n');
+
+    const PREVIOUS_DEFAULT_STORY_RULES = [
+        '这是一个持续发展的剧情对话。你只扮演角色设定区中的AI角色与必要的客观环境。',
+        '不得替用户决定台词、行动、思想或感受；只能回应用户已经明确表达的内容。',
+        ...DEFAULT_STORY_RULES.split('\n').slice(2),
     ].join('\n');
 
     const DEFAULT_CHARACTER_FIELD_LABELS = Object.freeze([
@@ -179,7 +185,7 @@
     function normalizePromptSettings(agent) {
         const source = agent && typeof agent === 'object' ? agent : {};
         const rawRules = asString(source.storyRules).trim();
-        const storyRules = !rawRules || rawRules === LEGACY_DEFAULT_STORY_RULES
+        const storyRules = !rawRules || rawRules === LEGACY_DEFAULT_STORY_RULES || rawRules === PREVIOUS_DEFAULT_STORY_RULES
             ? DEFAULT_STORY_RULES
             : rawRules;
         return {
@@ -214,6 +220,8 @@
                 : null,
             snippets: Array.isArray(source.snippets) ? source.snippets.map(String).filter(Boolean).slice(0, 80) : [],
             draft: asString(source.draft),
+            incompleteDraft: source.incompleteDraft && typeof source.incompleteDraft.text === 'string'
+                ? {text:source.incompleteDraft.text,createdAt:Number(source.incompleteDraft.createdAt)||Date.now()} : null,
             inspiration: Inspiration.normalizeState(source.inspiration),
             inspirationProfile: Inspiration.normalizeProfile(source.inspirationProfile),
             inspirationDraftSource: asString(source.inspirationDraftSource).slice(0,100000),
@@ -326,22 +334,12 @@
             : naturalStylePrompt;
         let stableSystemPrompt = systemPromptFromStructured(sections.stable, globalPrompt, settings, naturalStyle, memoryApi);
         if (sections.strategy.priority >= 2) stableSystemPrompt += '\n\n【表达层冲突处理】\n用户本轮明确写作要求优先；其次采用当前独立文风档案，通用自然表达规则和原有文风只补充不冲突部分。人物事实、角色各自口吻、知识边界和事件因果不因文风改变。';
-        // 活人化引擎：只读取最近一条用户消息的长度与轮次序号，绝不携带原文。
-        const conversations = Array.isArray(agent?.conversations) ? agent.conversations : [];
-        let lastUserText = '';
-        for (let index = conversations.length - 1; index >= 0; index -= 1) {
-            const message = conversations[index];
-            if (message && message.role === 'user') { lastUserText = asString(message.content); break; }
-        }
-        const voiceBlock = Voice
-            ? Voice.turnBlock({ lastUserText, turnIndex: conversations.length, seed: asString(agent?.id) })
-            : '';
         return {
             stableSystemPrompt,
             dynamicPrompt: sections.dynamic,
             systemPrompt: [stableSystemPrompt, sections.dynamic].join('\n\n'),
             turnReminder: '【本轮校准】\n继续遵守开头完整规则和各角色知情范围，依据最新有效状态延续事件，不虚构未发生的旧事。用户本轮要求与当前文风的表达优先级按开头约定执行。直接输出正文，不复述内部规则。'
-                + (voiceBlock ? '\n\n' + voiceBlock : ''),
+                + '\n按用户明确的篇幅与章节要求一次写出完整正文；输入简短不代表正文应简短。人物交流可在本篇中自然展开多轮。心理、直接感受、对白与动作按情境和所选写法配合。',
         };
     }
 

@@ -53,17 +53,16 @@
         return '本轮较长：按实际信息量自然展开，段长随节奏变化；不写总结段。';
     }
 
-    const STORY_BEAT = '本轮只推进一拍：一个动作，或一句台词，或一个反应。不要在本轮把事件写完整；允许话没说完、允许被打断、允许只回应其中一部分、允许不回应。不写段尾总结或升华，不替情绪作解释。';
     const ROOM_BEAT = '本轮只写这一拍的反应：可以只回半句话，可以不回答而只做一个动作；不替本轮事件收尾，不解释情绪。';
 
     // 组合后的整块提醒。只包含静态规则，可安全拼在最后一条用户消息之前。
     function turnBlock(options = {}) {
-        const room = options.room === true;
+        if (options.room !== true) return '';
         const parts = [
             '【本轮节奏与篇幅】',
             lengthGuidance(options.lastUserText),
             '【单拍推进】',
-            room ? ROOM_BEAT : STORY_BEAT,
+            ROOM_BEAT,
         ];
         const card = permissionCard(options.turnIndex, options.seed);
         if (card.applied) parts.push('【本轮许可】', card.text);
@@ -103,7 +102,9 @@
         const found = [];
         const seen = new Set();
         for (const rule of PATTERNS) {
+            rule.pattern.lastIndex = 0;
             const match = rule.pattern.exec(source);
+            rule.pattern.lastIndex = 0;
             if (!match) continue;
             if (seen.has(rule.type)) continue;
             seen.add(rule.type);
@@ -138,7 +139,6 @@
         hashSeed,
         permissionCard,
         lengthGuidance,
-        STORY_BEAT,
         ROOM_BEAT,
         turnBlock,
         sceneAnchor,

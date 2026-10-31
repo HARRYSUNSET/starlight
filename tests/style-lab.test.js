@@ -99,7 +99,7 @@ test('沙盒预览明确不是正式剧情，并只使用只读设定快照', ()
 test('文风旧档案迁移保持原规律，0、50、75、100具有不同表达策略', () => {
     const legacy = { name: '旧文风', strength: 100, analysis: analysisResult() };
     const profile = StyleLab.normalizeProfile(legacy);
-    assert.equal(profile.version, 2);
+    assert.equal(profile.version, 3);
     assert.deepEqual(profile.analysis.examples, []);
     assert.deepEqual(profile.feedback, []);
     assert.equal(profile.analysis.factors[0].instruction, legacy.analysis.factors[0].instruction);

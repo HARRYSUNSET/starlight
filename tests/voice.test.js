@@ -26,7 +26,8 @@ test('篇幅指引按可见字数分档，不携带用户原文', () => {
 });
 
 test('整块提醒包含节奏、单拍与许可卡，且是纯静态规则', () => {
-    const block = Voice.turnBlock({ lastUserText: '你听见了吗？', turnIndex: 0, seed: 'story_a' });
+    assert.equal(Voice.turnBlock({lastUserText:'请写整章'}),'');
+    const block = Voice.turnBlock({ lastUserText: '你听见了吗？', turnIndex: 0, seed: 'room_a', room:true });
     assert.match(block, /本轮节奏与篇幅/);
     assert.match(block, /单拍推进/);
     assert.match(block, /本轮许可/);
@@ -66,8 +67,8 @@ test('当前场景每轮自动带入并优先于开场场景，提醒不含用�
     assert.match(request.dynamicPrompt, /当前场景｜每轮自动带入/);
     assert.match(request.dynamicPrompt, /夜晚的教室/);
     assert.doesNotMatch(request.dynamicPrompt, /开场的老街/);
-    assert.match(request.turnReminder, /本轮节奏与篇幅/);
-    assert.match(request.turnReminder, /单拍推进/);
+    assert.match(request.turnReminder, /一次写出完整正文/);
+    assert.doesNotMatch(request.turnReminder, /本轮节奏与篇幅|单拍推进|本轮许可/);
     assert.doesNotMatch(request.turnReminder, /这句绝不能进入提醒/);
     // 未填当前场景时回退开场场景
     const fallback = Story.createAgent({ openingScene: '开场的老街。', currentScene: '' }, Memory);
@@ -96,10 +97,11 @@ test('房间每轮注入确定性的单拍与许可块，不携带用户原文',
 test('语感锚自动派生、随快照复制并在预算内注入，无锚时不注入', () => {
     const short = StyleLab.deriveAnchor('这一小段就是完整的参照。');
     assert.equal(short, '这一小段就是完整的参照。');
-    const longText = 'A开头内容'.repeat(100) + 'Z中间核心语感'.repeat(100);
+    const longText = '“你来了？”\n\n“嗯，刚到。”\n\n' + '这是有完整句子的参考段落。'.repeat(100);
     const middle = StyleLab.deriveAnchor(longText);
     assert.ok(middle.length <= 400);
-    assert.match(middle, /Z中间核心语感/);
+    assert.match(middle, /\n\n/);
+    assert.ok(longText.includes(middle));
 
     const profile = StyleLab.createProfile({ anchor: '她收伞的动作很慢，像在等一句话。', analysis: {
         summary: '日常松弛感', factors: [{ name: '回应先行', instruction: '先回应当前事件。' }],
