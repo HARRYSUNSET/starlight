@@ -39,3 +39,9 @@ test('摘要最小阈值不会把超软限的同条消息重复计费',()=>{
  const messages=[{role:'user',content:'开篇'},{role:'assistant',content:'章'.repeat(6000)},{role:'user',content:'作'.repeat(40000)},{role:'assistant',content:'短回复'},...Array.from({length:4},(_,i)=>({role:i%2?'assistant':'user',content:i%2?'文'.repeat(6000):'继续'}))];
  assert.equal(M.findSummaryChunk(messages,M.createEmptyMemory(),{minChunkTokens:80000,maxChunkTokens:12000,recentTokenBudget:20000}),null);
 });
+test('自动章校准紧贴任务，重写同步自动标题但保留用户自定义目录名',()=>{
+ const w=work(),task=A.createTask(w),messages=A.messages(w,[{role:'system',content:'【本轮校准】完整写章'},{role:'assistant',content:'上章正文'}],task);
+ assert.equal(messages.at(-2).content,'【本轮校准】完整写章');assert.equal(messages.at(-1).role,'user');
+ w.chapters=[{id:'c1',automatic:true,chapterNumber:1,title:'旧标题'},{id:'c2',automatic:false,title:'用户标题'}];
+ assert.equal(A.retitle(w,'c1','第1章 新标题\n正文')[0].title,'第1章 新标题');assert.equal(A.retitle(w,'c2','第2章 模型标题')[1].title,'用户标题');
+});

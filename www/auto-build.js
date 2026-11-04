@@ -46,8 +46,11 @@
         return [task.settings.notes,task.settings.nextNote,latest?.content?.slice(-2400),'第'+task.number+'章，承接当前场景与未完成事件'].filter(Boolean).join('\n');
     }
     function messages(work,base,task){
-        return [...base,{role:'user',content:instructions(task)}];
+        const reminder=m=>m.role==='system'&&m.content.startsWith('【本轮校准】');
+        return [...base.filter(m=>!reminder(m)),...base.filter(reminder),{role:'user',content:instructions(task)}];
     }
+    function chapterTitle(body,number){const first=String(body||'').split('\n')[0].replace(/^#+\s*/, '').trim();return /^第.{1,16}章|^chapter\s+\d+/i.test(first)?first.slice(0,120):'第 '+number+' 章';}
+    function retitle(work,chapterId,body){return (work.chapters||[]).map(chapter=>chapterId&&chapter.id===chapterId&&chapter.automatic?{...chapter,title:chapterTitle(body,chapter.chapterNumber)}:chapter);}
     function result(work,task,content){
         const state=normalize(work.autoBuild),body=String(content||'').trim();
         if(!body)throw new Error('本章未返回有效正文，章号未推进');
@@ -57,8 +60,7 @@
         const chapterMessage={id:id('message'),role:'assistant',content:body,chapterId:task.chapterId,
             chapterNumber:task.number,source:'auto',createdAt:Date.now(),bookmarked:false};
         list.push(taskMessage,chapterMessage);
-        const first=body.split('\n')[0].replace(/^#+\s*/, '').trim();
-        const title=/^第.{1,16}章|^chapter\s+\d+/i.test(first)?first.slice(0,120):'第 '+task.number+' 章';
+        const title=chapterTitle(body,task.number);
         state.mode='awaiting';state.lastChapterId=task.chapterId;state.nextNumber=task.number+1;state.lastError='';
         if(state.settings.nextNote===task.settings.nextNote)state.settings.nextNote='';
         return {...work,incompleteDraft:work.incompleteDraft?.autoTask?.id===task.id?null:work.incompleteDraft,conversations:list,chapters:[...(work.chapters||[]),{id:task.chapterId,index:index+1,title,automatic:true,chapterNumber:task.number}],autoBuild:state};
@@ -69,5 +71,5 @@
         return state;
     }
     function outputTokens(task){return Math.ceil(task.settings.targetMax*1.3)+800;}
-    return {normalize,ensure,createTask,instructions,query,messages,result,undo,count,inferNext,outputTokens};
+    return {normalize,ensure,createTask,instructions,query,messages,result,undo,count,inferNext,outputTokens,retitle};
 });

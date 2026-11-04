@@ -9,7 +9,7 @@
         let active=null,settingsOwner=null,lastRendered='';
         const get=id=>settings.querySelector('#'+id);
         const budgetHint=doc.createElement('p');budgetHint.className='hint';budgetHint.id='autoBudgetHint';get('autoStyleSource').before(budgetHint);
-        function updateBudget(){const limit=o.outputLimit?.()||16000,estimate=Math.ceil((Number(get('autoTargetMax').value)||3000)*1.3)+800;budgetHint.textContent=estimate>limit?'当前目标可能超过已设置的输出上限。可在“我的”中提高输出上限，或降低本页目标字数；超限稿会保留为未完成稿。':'当前目标已预留输出余量；实际字数仍由模型生成结果决定。';}
+        function updateBudget(){const limit=o.outputLimit?.()||16000,estimate=Math.ceil((Number(get('autoTargetMax').value)||3000)*1.3)+800;budgetHint.textContent=estimate>limit?'当前目标超过保守估算的输出预算。请在“我的”中提高输出上限，或降低本页目标字数后再保存。':'当前目标已预留输出余量；实际字数仍由模型生成结果决定。';}
         get('autoTargetMax').addEventListener('input',updateBudget);
         function render(){
             const work=o.work(),state=work?A.ensure(work):null;
@@ -52,6 +52,7 @@
             const work=o.work();if(!work||work.id!==settingsOwner||active)return;
             const min=Number(get('autoTargetMin').value),max=Number(get('autoTargetMax').value),number=Number(get('autoNextNumber').value);
             if(!Number.isInteger(min)||!Number.isInteger(max)||min<200||max<min||max>60000||!Number.isInteger(number)||number<1||number>1000000)return o.notify('请填写有效章号和 200—60000 字范围，上限不得小于下限','error');
+            if(Math.ceil(max*1.3)+800>(o.outputLimit?.()||16000))return o.notify('目标篇幅超过当前输出预算，请降低目标字数，或在“我的”中提高输出上限','error');
             const used=(work.conversations||[]).some(m=>m.chapterNumber===number);
             if(used)return o.notify('该章节编号已使用，请选择未使用的下一章编号','error');
             const state=A.ensure(work);state.nextNumber=number;state.initialized=true;state.settings={targetMin:min,targetMax:max,styleNote:get('autoStyleNote').value,notes:get('autoNotes').value,nextNote:get('autoNextNote').value,titles:get('autoTitles').checked};
@@ -61,13 +62,14 @@
             if(active||o.busy())return;
             const work=o.work();if(!work||!o.canStart())return;
             const task=A.createTask(work),state=work.autoBuild,owner=work.id;
-            if(A.outputTokens(task)>(o.outputLimit?.()||16000))o.notify('本章目标可能超过当前输出上限，可在构筑设置中调整','info');
+            if(A.outputTokens(task)>(o.outputLimit?.()||16000))return o.notify('目标篇幅超过当前输出预算，请先调整构筑设置或提高输出上限','error');
             active={cancelled:false,owner};const current=active;
             state.mode='generating';state.lastError='';o.save();o.setBusy(true);doc.activeElement?.blur();render();
-            let content='',savedAt=0;
+            let content='',savedAt=0,savedChars=0;
             try{
                 const result=await o.generate(work,task,text=>{content=text;const status=bar.querySelector('#autoBuildStatus');if(status)status.textContent='第 '+task.number+' 章 · 已生成 '+A.count(text).toLocaleString()+' 字';
-                    if(Date.now()-savedAt>1500){savedAt=Date.now();work.incompleteDraft={text,createdAt:Date.now(),reason:'生成中的恢复片段',autoTask:task};o.save();}
+                    work.incompleteDraft={text,createdAt:Date.now(),reason:'生成中的恢复片段',autoTask:task};
+                    if(!savedAt||(Date.now()-savedAt>=5000&&text.length-savedChars>=2000)){savedAt=Date.now();savedChars=text.length;o.save();}
                 },()=>current.cancelled);
                 content=result.content||result.metadata?.partialContent||content;
                 if(current.cancelled||result.metadata?.aborted||result.metadata?.finishReason!=='stop'){

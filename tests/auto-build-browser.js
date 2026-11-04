@@ -25,6 +25,7 @@ module.exports=async function autoBuildBrowser(){
         input('#messageInput','这是要保留的手动输入草稿');
         await click('#btnAutoBuildSettings');
         assert(!document.activeElement?.matches('input,textarea'),'打开构筑设置不自动弹键盘');
+        input('#autoTargetMax','60000');await click('#autoSaveSettings');assert(StarlightMotion.isOpen(node('#autoBuildSettings'))&&requests.length===0,'超预算目标在保存前阻止，不发送失败请求');
         input('#autoNextNumber','200');input('#autoTargetMin','800');input('#autoTargetMax','1200');input('#autoNotes','保持自然日常，不揭晓秘密');input('#autoNextNote','本章先归还钥匙');
         await click('#autoSaveSettings');assert(requests.length===0,'保存设置不调用API');
         node('#btnAutoBuild').click();node('#btnAutoBuild').click();await settle();

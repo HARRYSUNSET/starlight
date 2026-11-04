@@ -3578,6 +3578,7 @@
                     if(!overlay){overlay=document.createElement('div');overlay.id='incompleteStoryOverlay';overlay.className='modal-overlay workspace-overlay';document.body.appendChild(overlay);}
                     overlay.innerHTML='<div class="workspace-page"><div class="full-page-header"><h3>未完成正文</h3><button type="button" class="btn" data-draft-close>关闭</button></div><p class="hint">模型达到输出上限，本稿未进入正式消息与记忆。可复制保留，或调整篇幅后重新生成整篇。</p><div class="workspace-inline"><button type="button" class="btn" data-draft-copy>复制正文</button><button type="button" class="btn" data-draft-delete>删除草稿</button></div><pre class="writing-skill-preview"></pre></div>';
                     overlay.querySelector('pre').textContent=owner.incompleteDraft.text;
+                    overlay.querySelector('.hint').textContent=(owner.incompleteDraft.reason||'本次正文未正常完成')+'。本稿独立保存，未进入正式剧情与记忆。';
                     overlay.querySelector('[data-draft-close]').onclick=()=>Motion.setVisible(overlay,false);
                     overlay.querySelector('[data-draft-copy]').onclick=async()=>{try{try{await navigator.clipboard.writeText(owner.incompleteDraft.text);}catch(error){UI.copyTextFallback(owner.incompleteDraft.text,document);}showToast('已复制未完成正文','success');}catch(error){showToast('复制失败，可手动选择正文','error');}};
                     overlay.querySelector('[data-draft-delete]').onclick=()=>{if(!confirm('删除这份未完成正文？'))return;owner.incompleteDraft=null;saveData();updateToolbarButtons();Motion.setVisible(overlay,false);};
@@ -7282,7 +7283,7 @@
                         }
                         if (fullContent !== null && fullContent !== undefined) {
                             if(!fullContent.trim())throw new Error('重写返回空正文，原稿保持不变');
-                            const next={...agent,conversations:agent.conversations.map((message,index)=>index===originalIndex?{...lastMsg,content:fullContent,createdAt:Date.now(),previousVersions:[...(lastMsg.previousVersions||[]),{content:lastMsg.content,createdAt:Date.now()}].slice(-5)}:message),memory:Memory.invalidateMemoryFromIndex(agent.memory,originalIndex)};
+                            const next={...agent,chapters:StarlightAutoBuild.retitle(agent,lastMsg.chapterId,fullContent),conversations:agent.conversations.map((message,index)=>index===originalIndex?{...lastMsg,content:fullContent,createdAt:Date.now(),previousVersions:[...(lastMsg.previousVersions||[]),{content:lastMsg.content,createdAt:Date.now()}].slice(-5)}:message),memory:Memory.invalidateMemoryFromIndex(agent.memory,originalIndex)};
                             await commitWorkspaceWork(next);
                             replacementCommitted = true;
                             finalizeStreamingMessage(fullContent);
@@ -7677,7 +7678,7 @@
                     RoomEngine.ensure(next).notice='正文已调整，受影响的旧关系判定已撤销；可在作者视图按来源核对。';
                     next.sharedMemory=Memory.invalidateMemoryFromIndex(next.sharedMemory,index);
                     next.characterMemories=Object.fromEntries(Object.entries(next.characterMemories||{}).map(([id,memory])=>[id,Memory.invalidateMemoryFromIndex(memory,index)]));
-                }else next.memory=Memory.invalidateMemoryFromIndex(next.memory,index);
+                }else {next.memory=Memory.invalidateMemoryFromIndex(next.memory,index);next.chapters=StarlightAutoBuild.retitle(next,next.conversations[index]?.chapterId,text);}
                 await commitWorkspaceWork(next);
             }
 
