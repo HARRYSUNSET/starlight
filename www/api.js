@@ -27,7 +27,10 @@
             signal: controller.signal,
             touch,
             error(cause) {
-                return timedOut ? new Error('接口长时间没有响应，请检查网络后重试；本次未自动重复请求。') : cause;
+                if (!timedOut) return cause;
+                const error = new Error('接口长时间没有响应，请检查网络后重试；本次未自动重复请求。');
+                error.partialContent = cause?.partialContent || '';
+                return error;
             },
             dispose() {
                 clearTimeout(timer);
@@ -126,7 +129,7 @@
                 if (fullContent.length !== previousLength) options.onChunk?.(fullContent);
                 if (done) break;
             }
-            if (!completed && !finishReason) {
+            if (!finishReason) {
                 throw new Error('连接在回复完成前中断，本次片段未作为完整剧情保存');
             }
             return { content: fullContent, finishReason, usage };

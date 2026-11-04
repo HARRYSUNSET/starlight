@@ -45,7 +45,7 @@ test('SSE 在任意 UTF-8 字节/CRLF 边界拆包仍完整保留中文、emoji 
 
 test('同网络片段的多个 token 只触发一次绘制，DONE 立即结束而不等服务器关连接', async () => {
     let calls = 0, cancelled = 0;
-    const response = responseFrom([encode(delta('一') + delta('二') + delta('三') + 'data: [DONE]\n\n')], true, () => cancelled++);
+    const response = responseFrom([encode(delta('一') + delta('二') + delta('三') + event({choices:[{delta:{},finish_reason:'stop'}]}) + 'data: [DONE]\n\n')], true, () => cancelled++);
     const result = await API.readCompletionStream(response, { onChunk: () => calls++ });
     assert.equal(result.content, '一二三');
     assert.equal(calls, 1);
@@ -87,7 +87,7 @@ test('收到心跳会延后空闲截止时间，不限制持续有数据的长�
     const scope = API.createRequestScope({ timeoutMs: 1000 });
     // A real stream calls touch for every read, including comments/reasoning-only frames.
     let activity = 0;
-    const result = await API.readCompletionStream(responseFrom([encode(': ping\n\n'), encode(delta('好') + 'data: [DONE]\n\n')]), {
+    const result = await API.readCompletionStream(responseFrom([encode(': ping\n\n'), encode(delta('好') + event({choices:[{delta:{},finish_reason:'stop'}]}) + 'data: [DONE]\n\n')]), {
         signal: scope.signal, onActivity: () => { activity++; scope.touch(); },
     });
     assert.equal(activity, 2);

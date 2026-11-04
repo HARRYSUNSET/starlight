@@ -8,12 +8,13 @@
         function update(skill){o.update({skill:W.normalize(skill)});refreshPrompt();}
         function refreshPrompt(){
             const profile=o.profile();if(!profile)return;
-            const prompt=S.buildInfluencePrompt(S.createAppliedStyle(profile));
+            const report=S.buildInfluenceReport?S.buildInfluenceReport(profile):null;
+            const prompt=report?report.text:S.buildInfluencePrompt(S.createAppliedStyle(profile));
             const preview=mount.querySelector('#writingSkillPrompt');if(preview)preview.textContent=prompt||'当前强度为 0，不发送写作档案。';
-            const report=mount.querySelector('#writingSkillBudget');if(report){
-                const cap=S.getStrengthStrategy(profile.strength).budget;
-                const compile=W.compile(profile.skill,{maxChars:Math.floor(Math.max(0,cap-500)*.67),anchor:profile.anchorMode==='manual'?profile.anchor:''});
-                report.textContent=`正式表达提示约 ${prompt.length} 字符 / 预算 ${cap}。${compile.shortened?'部分长说明或样例已缩短，请展开实际发送预览核对。':'核心规则与参考按预算选用。'}完整原文只在分析时发送。`;
+            const budget=mount.querySelector('#writingSkillBudget');if(budget){
+                const cap=report?report.cap:S.getStrengthStrategy(profile.strength).budget;
+                const chars=report?report.chars:prompt.length;
+                budget.textContent=`正式表达提示约 ${chars} 字符 / 预算 ${cap}。${report&&report.shortened?'部分长说明或样例已缩短，请展开实际发送预览核对。':'核心规则与参考按预算选用。'}完整原文只在分析时发送。`;
             }
         }
         function render(profile){

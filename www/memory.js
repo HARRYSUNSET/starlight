@@ -415,39 +415,44 @@
         const eligibleEnd = findLastAssistantBoundary(messages, start, recentStart);
         if (eligibleEnd <= start) return null;
 
-        let chunkEnd = start;
-        let chunkTokens = 0;
+        // Bounded chunk: stop at the first assistant boundary after the soft token
+        // limit. A single complete round-trip may exceed maxChunkTokens (one 30k
+        // character reply cannot be split), but the chunk must never swallow several
+        // chapters just because the first reply is oversized.
+        let tokens = 0;
         let eligibleTokens = 0;
         let boundaryEnd = start;
         let boundaryTokens = 0;
-        let chunkFull = false;
-        for (let index = start; index < eligibleEnd; index += 1) {
-            const nextTokens = estimateTokens(messages[index] && messages[index].content) + 6;
-            eligibleTokens += nextTokens;
-            if (!chunkFull) {
-                if (chunkTokens + nextTokens > settings.maxChunkTokens && chunkEnd > start) {
-                    chunkFull = true;
-                } else {
-                    chunkTokens += nextTokens;
-                    chunkEnd = index + 1;
-                    if (messages[index] && messages[index].role === 'assistant') {
-                        boundaryEnd = chunkEnd;
-                        boundaryTokens = chunkTokens;
-                    }
-                }
+        let index = start;
+        for (; index < eligibleEnd; index += 1) {
+            const cost = estimateTokens(messages[index] && messages[index].content) + 6;
+            eligibleTokens += cost;
+            const nextTokens = tokens + cost;
+            if (boundaryEnd > start && nextTokens > settings.maxChunkTokens) { index += 1; break; }
+            tokens = nextTokens;
+            if (messages[index] && messages[index].role === 'assistant') {
+                boundaryEnd = index + 1;
+                boundaryTokens = tokens;
             }
-            // Only the threshold is needed, not the total cost of all old turns.
-            if (chunkFull && eligibleTokens >= settings.minChunkTokens) break;
+        }
+
+        // The chunk always ends on an assistant boundary; eligibleEnd is one too.
+        const chunkEnd = boundaryEnd > start ? boundaryEnd : eligibleEnd;
+        // The minimum threshold is judged over all eligible history, not only this
+        // chunk, so a small chunk does not block summarisation forever.
+        for (; eligibleTokens < settings.minChunkTokens && index < eligibleEnd; index += 1) {
+            eligibleTokens += estimateTokens(messages[index] && messages[index].content) + 6;
         }
         if (eligibleTokens < settings.minChunkTokens) return null;
-        chunkEnd = boundaryEnd > start ? boundaryEnd : eligibleEnd;
         const chunkMessages = messages.slice(start, chunkEnd);
 
         return {
             startIndex: start,
             endIndex: chunkEnd,
             messages: chunkMessages,
-            estimatedTokens: boundaryEnd > start ? boundaryTokens : estimateMessagesTokens(chunkMessages),
+            estimatedTokens: chunkEnd === boundaryEnd && boundaryEnd > start
+                ? boundaryTokens
+                : estimateMessagesTokens(chunkMessages),
         };
     }
 
@@ -577,6 +582,117 @@
         return selected.sort(function (a, b) { return a.startIndex - b.startIndex; });
     }
 
+    function cutHeadByTokens(input, tokenBudget) {
+        const text = String(input || '');
+        const budget = Math.max(1, Math.floor(Number(tokenBudget) || 1));
+        if (estimateTokens(text) <= budget) return text;
+        let low = 0;
+        let high = text.length;
+        while (low < high) {
+            const middle = Math.ceil((low + high) / 2);
+            if (estimateTokens(text.slice(0, middle)) <= budget) low = middle;
+            else high = middle - 1;
+        }
+        return text.slice(0, low);
+    }
+
+    function cutTailByTokens(input, tokenBudget) {
+        const text = String(input || '');
+        const budget = Math.max(1, Math.floor(Number(tokenBudget) || 1));
+        if (estimateTokens(text) <= budget) return text;
+        let low = 0;
+        let high = text.length;
+        while (low < high) {
+            const middle = Math.ceil((low + high) / 2);
+            if (estimateTokens(text.slice(text.length - middle)) <= budget) low = middle;
+            else high = middle - 1;
+        }
+        return text.slice(text.length - low);
+    }
+
+    // Keep both the opening identification and the trailing promises: a single long
+    // core row must not lose "承诺/未解决线索" just because they sit at its end.
+    function clipMiddleToTokenBudget(input, tokenBudget) {
+        const text = String(input || '');
+        const budget = Math.max(1, Math.floor(Number(tokenBudget) || 1));
+        if (estimateTokens(text) <= budget) return { text, clipped: false };
+        const marker = '\n……（中段省略）……\n';
+        const usable = budget - estimateTokens(marker) - 12;
+        if (usable < 32) return { text: clipTextToTokenBudget(text, budget), clipped: true };
+        const head = cutHeadByTokens(text, Math.floor(usable * 0.55));
+        const tail = cutTailByTokens(text, Math.floor(usable * 0.45));
+        const merged = head.trimEnd() + marker + tail.trimStart();
+        if (estimateTokens(merged) > budget) return { text: clipTextToTokenBudget(text, budget), clipped: true };
+        return { text: merged, clipped: true };
+    }
+
+    function coreItems(core) {
+        const text = String(core || '').trim();
+        if (!text) return [];
+        const items = [];
+        for (const block of text.split(/\n+/)) {
+            const line = block.trim();
+            if (!line) continue;
+            if (estimateTokens(line) <= 320) { items.push(line); continue; }
+            // Overlong paragraphs are split on sentence boundaries so each item can
+            // be packed, ranked and clipped independently.
+            let buffer = '';
+            for (const sentence of line.split(/(?<=[。！？!?；;])\s*/)) {
+                const piece = sentence.trim();
+                if (!piece) continue;
+                if (buffer && estimateTokens(buffer + piece) > 320) { items.push(buffer); buffer = ''; }
+                buffer = buffer ? buffer + piece : piece;
+            }
+            if (buffer) items.push(buffer);
+        }
+        return items;
+    }
+
+    // Rank core items by promise/unresolved markers, query overlap and recency, but
+    // always keep the trailing item so newer promises survive compression.
+    function selectCoreItems(core, queryTokens, tokenBudget) {
+        const items = coreItems(core);
+        if (items.length <= 1) return items;
+        const cap = Math.max(240, Math.floor(Number(tokenBudget) || 4000));
+        const total = items.length;
+        const rows = items.map(function (text, index) {
+            let score = index === total - 1 ? 12 : 0;
+            if (/(?:承诺|约定|未完成|未解决|待办|更正|失效|接下来)/.test(text)) score += 5;
+            if (queryTokens && [...queryTokens].some(function (token) { return token && text.includes(token); })) score += 2;
+            return { text, index, score: score + index / total, cost: estimateTokens(text) + 2 };
+        });
+        const chosen = new Set();
+        let used = 0;
+        for (const row of rows.slice().sort(function (a, b) { return b.score - a.score; })) {
+            if (used + row.cost > cap && chosen.size) continue;
+            chosen.add(row.index);
+            used += row.cost;
+            if (used >= cap) break;
+        }
+        chosen.add(total - 1);
+        return [...chosen].sort(function (a, b) { return a - b; }).map(function (index) { return items[index]; });
+    }
+
+    function packMemorySection(section, budget) {
+        let packed = section.heading;
+        let count = 0;
+        let truncated = false;
+        for (const row of section.rows || []) {
+            const used = count ? estimateTokens(packed) : estimateTokens(section.heading);
+            const remaining = budget - used;
+            if (remaining < 24) { truncated = true; break; }
+            const cap = Math.min(remaining - 2, Math.max(1200, Math.floor(budget * 0.4)));
+            const clipped = clipMiddleToTokenBudget(row, cap);
+            if (clipped.clipped) truncated = true;
+            if (!clipped.text) { truncated = true; continue; }
+            const next = count ? packed + '\n' + clipped.text : section.heading + '\n' + clipped.text;
+            if (estimateTokens(next) > budget) { truncated = true; continue; }
+            packed = next;
+            count += 1;
+        }
+        return { text: count ? packed : '', used: count ? estimateTokens(packed) : 0, count, truncated };
+    }
+
     function buildMemoryContext(memory, query, config, options) {
         const state = normalizeMemory(memory);
         const recallOptions = options || {};
@@ -607,7 +723,7 @@
         // Cumulative prose has no historical provenance: never put today's core
         // into a request that explicitly asks what was known in an earlier turn.
         if (!Number.isInteger(recallOptions.atMessageIndex) && state.core.trim()) {
-            sections.push({ heading: '【持续状态与关键事实】', weight: 24, rows: [state.core.trim()] });
+            sections.push({ key: 'core', heading: '【持续状态与关键事实】', weight: 24, rows: [] });
         }
         if (timeline.length) {
             sections.push({ heading: Number.isInteger(recallOptions.atMessageIndex) ? '【当时的状态变化】' : '【当前已确认状态】', weight: 18,
@@ -629,22 +745,30 @@
         }
         if (!sections.length) return '';
         const weight = sections.reduce(function (total, section) { return total + section.weight; }, 0);
-        const parts = [header];
-        sections.forEach(function (section) {
-            const budget = Math.floor(available * section.weight / weight);
-            let packed = section.heading;
-            let count = 0;
-            for (const row of section.rows) {
-                const remaining = budget - estimateTokens(packed + '\n');
-                if (remaining < 24) break;
-                const line = clipTextToTokenBudget(row, Math.min(4200, remaining));
-                const next = packed + '\n' + line;
-                if (!line || estimateTokens(next) > budget) continue;
-                packed = next;
-                count += 1;
+        // Core is packed as itemised rows instead of one clipped blob: the old single
+        // row was capped at 4200 tokens even when its section budget was larger, and
+        // its tail (promises, unresolved threads) was the first thing lost.
+        for (const section of sections) {
+            if (section.key === 'core') {
+                section.rows = selectCoreItems(state.core, queryTokens, Math.floor(available * section.weight / weight));
             }
-            if (count) parts.push(packed);
+        }
+        const parts = [header];
+        const packed = sections.map(function (section) {
+            return packMemorySection(section, Math.floor(available * section.weight / weight));
         });
+        // Return budget clipped sections did not consume instead of dropping it.
+        let leftover = available - packed.reduce(function (total, item) { return total + item.used; }, 0);
+        for (let index = 0; index < sections.length && leftover > 24; index += 1) {
+            if (!packed[index].truncated) continue;
+            const base = Math.floor(available * sections[index].weight / weight);
+            const expanded = packMemorySection(sections[index], base + Math.min(leftover, Math.floor(available * 0.35)));
+            const gained = expanded.used - packed[index].used;
+            if (gained <= 0) continue;
+            packed[index] = expanded;
+            leftover -= gained;
+        }
+        packed.forEach(function (item) { if (item.text) parts.push(item.text); });
         const result = parts.join('\n\n');
         return parts.length > 1 ? clipTextToTokenBudget(result, totalBudget) : '';
     }

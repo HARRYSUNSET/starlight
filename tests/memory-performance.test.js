@@ -88,13 +88,15 @@ test('摘要最小阈值高于切块预算时仍检查足够的待归档内容',
     assert.equal(Memory.findSummaryChunk(summaryMessages(40), Memory.createEmptyMemory(), config), null);
 });
 
-test('摘要只有用户开头超大消息时保留原有完整助手边界行为', () => {
+test('摘要只有用户开头超大消息时只取一个完整往返，不吞掉后续章节', () => {
     const messages = summaryMessages(100);
     messages[0].content = '长'.repeat(14000);
     const chunk = Memory.findSummaryChunk(messages, Memory.createEmptyMemory(), {
         recentTokenBudget: 20000, minChunkTokens: 6000, maxChunkTokens: 12000,
     });
-    assert.ok(chunk.endIndex > 2);
+    // The first round-trip alone exceeds the soft limit, so it is kept whole and the
+    // chunk stops there instead of falling back to all eligible history.
+    assert.equal(chunk.endIndex, 2);
     assert.equal(chunk.messages.at(-1).role, 'assistant');
     assert.equal(chunk.estimatedTokens, Memory.estimateMessagesTokens(chunk.messages));
     assert.ok(chunk.endIndex <= messages.length - 4);
@@ -129,4 +131,26 @@ test('使用相同摘要文本的不同会话不会相互召回角色或私有�
     assert.match(context, /乙方秘密/);
     assert.match(context, /只有乙知道的密码/);
     assert.doesNotMatch(context, /甲方|只有甲/);
+});
+
+test('core 按语义条目打包并保留结尾承诺，不再固定截在 4200', () => {
+    const memory = Memory.createEmptyMemory();
+    memory.core = ('稳定身份与设定。'.repeat(700)) + '||结尾承诺：会在第七码头的旧仓库等对方到午夜||';
+    const context = Memory.buildMemoryContext(memory, '承诺', Memory.normalizeConfig({ memoryContextTokenBudget: 36000 }));
+    assert.match(context, /第七码头的旧仓库/);
+    assert.ok(Memory.estimateTokens(context) > 4500, 'core 分节预算未被使用');
+    assert.ok(Memory.estimateTokens(context) <= 36000);
+});
+
+test('未用满的分节预算会回收给被截断的段落', () => {
+    const memory = Memory.createEmptyMemory();
+    memory.core = '短核心。';
+    memory.facts = Array.from({ length: 60 }, (_, index) => ({
+        category: '重要事件', importance: 3, text: `事实${index}：` + '细节'.repeat(40),
+    }));
+    const context = Memory.buildMemoryContext(memory, '事实', Memory.normalizeConfig(), { tokenBudget: 4000 });
+    const tokens = Memory.estimateTokens(context);
+    assert.ok(tokens <= 4000, `超出总预算：${tokens}`);
+    assert.ok(tokens > 3400, `未回收未用预算，实际仅 ${tokens}`);
+    assert.ok((context.match(/事实\d+：/g) || []).length >= 20, '事实条目过少');
 });

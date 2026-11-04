@@ -2233,6 +2233,7 @@
     <link rel="stylesheet" href="motion.css">
     <link rel="stylesheet" href="inspiration.css">
     <link rel="stylesheet" href="writing-skill.css">
+    <link rel="stylesheet" href="auto-build.css">
 </head>
 <body>
     <div class="home-shell" id="homeShell">
@@ -2254,7 +2255,7 @@
                 <div class="library-page-heading"><h2>我的</h2><p>管理全局 API、模型、外观与存储设置。</p></div>
                 <div id="mySettingsMount"></div>
                 <div class="my-section-title">应用信息</div>
-                <div class="my-version-card"><strong>星陽之语 2.6.0</strong><br>整篇剧情 · 一键写作技能 · 可干预分析 · 独立快照</div>
+                <div class="my-version-card"><strong>星陽之语 2.7.0</strong><br>自动构筑 · 逐章确认 · 正文恢复 · 长篇记忆</div>
             </section>
         </main>
         <nav class="bottom-nav" aria-label="主导航">
@@ -2433,6 +2434,8 @@
                     <button type="button" id="btnLastInput">上次输入</button>
                     <button type="button" id="btnInspiration">灵感推荐</button>
                     <button type="button" id="btnSnippets">常用语段</button>
+                    <button type="button" id="btnAutoBuild" class="story-only-control">自动构筑</button>
+                    <button type="button" id="btnAutoBuildSettings" class="story-only-control" aria-label="自动构筑设置" title="自动构筑设置">⚙</button>
                 </div>
                 <div class="message-entry-row">
                     <textarea id="messageInput" placeholder="输入消息... (Enter发送，Shift+Enter换行)" rows="1" disabled></textarea>
@@ -2775,7 +2778,7 @@
                             <div class="style-card-heading"><div><h4>② 写作技能档案</h4><p class="style-card-copy">展开查看和编辑具体方法、原文依据与用户指定写法；总体强度统一控制，应用后每次创作自动使用。</p></div></div>
                             <div class="style-analysis-summary" id="styleAnalysisSummary">分析完成后会在这里展示文风概述。</div>
                             <div id="writingSkillMount"></div>
-                            <details><summary>综合因子与旧版规律</summary><div class="style-factor-list" id="styleFactorList"></div></details>
+                            <details><summary>综合因子与旧版规律</summary><p class="hint">有写作技能时，以你编辑的写作方法为准；旧分析规律仅用于兼容旧档案。</p><div class="style-factor-list" id="styleFactorList"></div></details>
                             <p class="hint" id="styleStrategyStatus"></p>
                             <details><summary>可选写法示例（确认后才进入正式提示词）</summary><div id="styleExamplesList"></div></details>
                             <details><summary>表达偏好反馈</summary><div id="styleFeedbackList"></div><button type="button" class="style-action" id="btnStyleFeedback">添加表达偏好</button></details>
@@ -2892,6 +2895,8 @@
     <script src="writing-skill.js"></script>
     <script src="style-lab.js"></script>
     <script src="writing-skill-ui.js"></script>
+    <script src="auto-build.js"></script>
+    <script src="auto-build-ui.js"></script>
     <script src="voice.js"></script>
     <script src="story.js"></script>
     <script src="room-engine.js"></script>
@@ -3236,6 +3241,8 @@
             let activeMessageActionIndex = null;
             let selectedExpression = '';
             let inspirationUI = null;
+            let autoBuildUI = null;
+            const memoryFailures = new Map();
             let roomExperienceUI = null;
             let activeBalanceRequest = null;
             
@@ -4152,14 +4159,14 @@
                 ].join('\n\n');
             }
 
-            function callStylePreview(messages, output = $stylePreviewOutput, purpose = '文风预览') {
+            function callStylePreview(messages, output = $stylePreviewOutput, purpose = '文风预览', maxTokens = 4000) {
                 return new Promise((resolve, reject) => {
                     callDeepSeekAPI(
                         messages,
                         content => { output.textContent = content || '正在生成……'; },
                         (content, metadata) => resolve({ content, metadata }),
                         reject,
-                        { temperature: 0.72, maxTokens: 4000, thinkingMode: 'disabled', purpose }
+                        { temperature: 0.72, maxTokens, thinkingMode: 'disabled', purpose }
                     );
                 });
             }
@@ -4327,9 +4334,39 @@
 
             function canChangeConversationTarget() {
                 if (storageReadFailed) { showToast('数据尚未安全载入，请重新打开应用', 'error'); return false; }
+                if (autoBuildUI?.busy) { showToast('请先停止当前章节生成','info'); return false; }
+                if (appData.activeMode==='story' && getCurrentAgent()?.autoBuild?.mode==='awaiting') autoBuildUI?.pause();
                 if (!isGenerating && !styleLabBusy && !maintenanceBusy && !refinementBusy && !inspirationUI?.busy && !roomExperienceUI?.isLocked() && !roomExperienceUI?.isActive()) return true;
                 showToast('请先停止当前生成，再切换或修改对话', 'info');
                 return false;
+            }
+
+            function getAutoBuildUI() {
+                if(!autoBuildUI) autoBuildUI=StarlightAutoBuildUI.create({
+                    document,core:StarlightAutoBuild,motion:Motion,
+                    outputLimit:()=>Memory.normalizeConfig(appData.storyMemorySettings).maxOutputTokens,
+                    work:()=>appData.activeMode==='story'?getCurrentAgent():null,
+                    busy:()=>isGenerating||styleLabBusy||maintenanceBusy||refinementBusy||inspirationUI?.busy,
+                    canStart:()=>{if(storageReadFailed)return false;if(!appData.apiKey){showToast('请先在“我的”中设置 API Key','error');return false;}return true;},
+                    save:saveData,notify:showToast,confirm:text=>window.confirm(text),stop:stopGeneration,
+                    setBusy:value=>{isGenerating=value;updateSendButton();updateToolbarButtons();},
+                    commit:commitWorkspaceWork,
+                    finish:()=>{removeStreamingMessage();renderMessages({preserveScroll:true});updateToolbarButtons();},
+                    generate:async(work,task,onChunk,cancelled)=>{
+                        storyRenderedMessageRange=null;
+                        resetScrollIntent();renderMessages();
+                        try{await ensureLongTermMemory(work);}catch(error){if(error.name==='AbortError'||cancelled())throw error;showToast('本轮记忆整理未完成，使用现有上下文继续','info');}
+                        if(cancelled())throw new DOMException('生成已停止','AbortError');
+                        const bubble=createStreamingMessage();
+                        const messages=buildMessagesForAPI(undefined,{autoTask:task});
+                        const settings=Memory.normalizeConfig(appData.storyMemorySettings);
+                        return await new Promise((resolve,reject)=>callDeepSeekAPI(messages,
+                            content=>{updateStreamingBubble(bubble,content);onChunk(content);},
+                            (content,metadata)=>resolve({content,metadata}),reject,
+                            {purpose:'自动构筑正文',maxTokens:settings.thinkingMode==='enabled'?settings.maxOutputTokens:Math.min(StarlightAutoBuild.outputTokens(task),settings.maxOutputTokens)}));
+                    }
+                });
+                return autoBuildUI;
             }
 
             function resetScrollIntent() {
@@ -5686,6 +5723,7 @@
             }
 
             function updateToolbarButtons() {
+                getAutoBuildUI().render();
                 const incompleteButton=document.getElementById('btnIncompleteStory');
                 if(incompleteButton)incompleteButton.hidden=appData.activeMode!=='story'||!getCurrentAgent()?.incompleteDraft;
                 if (appData.activeMode === 'room') {
@@ -5846,6 +5884,9 @@
                     const range = getMessageRenderRange(agent.conversations.length, 'story');
                     agent.conversations.slice(range.start, range.end).forEach((msg, relativeIndex) => {
                         const index = range.start + relativeIndex;
+                        if(msg.kind==='autoTask'){
+                            items.push({key:`message:${index}`,index,className:'auto-task-row',signature:msg.content,html:()=>`<details><summary>自动构筑 · 第 ${Number(msg.autoTask?.number)||1} 章 · 查看本章要求</summary><pre>${escapeHtml(msg.content)}</pre></details>`});return;
+                        }
                         items.push({ key:`message:${index}`, index, className:`message-wrapper ${msg.role}`,
                             signature:[msg.role,msg.content,msg.bookmarked,agent.name], html:() => `
                         <div class="message-bubble">
@@ -6222,6 +6263,7 @@
             }
 
             function saveMemoryEdits() {
+                memoryFailures.clear();
                 const target = memoryEditorMode === 'room' ? getCurrentRoom() : getCurrentAgent();
                 if (!target) return;
                 target.revisionHistory=Archive.captureRevision(target,{mode:memoryEditorMode,label:'手工修改记忆前'}).revisionHistory;
@@ -6247,6 +6289,7 @@
             $btnResetStoryMemory.addEventListener('click', () => {
                 const target = memoryEditorMode === 'room' ? getCurrentRoom() : getCurrentAgent();
                 if (!target || !confirm('确定清空当前整理结果吗？完整聊天原文不会删除；后续会从原文重新建立记忆。')) return;
+                memoryFailures.clear();
                 target.revisionHistory=Archive.captureRevision(target,{mode:memoryEditorMode,label:'重建长期记忆前'}).revisionHistory;
                 if (memoryEditorMode === 'room') {
                     target.sharedMemory = Memory.createEmptyMemory();
@@ -6401,11 +6444,13 @@
                 const bubble=createRoomStreamingMessage(member,queueIndex,queueTotal);
                 try{
                     const response=await callDeepSeekStreamPromise([...messages,{role:'system',content:RoomEngine.DIALOGUE_FORMAT}],bubble,{structured:true,purpose:'房间对白'});
+                    if(response.metadata?.partialContent)return {...response,content:'',invalidDraft:response.metadata.partialContent,invalidReason:'生成被停止，片段未作为完整回复采纳。'};
                     if(response.content===null||response.content===undefined||!isGenerating)return response;
                     if(response.metadata?.finishReason==='length')return {...response,content:'',invalidDraft:response.content,invalidReason:'输出达到上限，新稿暂未采纳；可在待修正稿中编辑。'};
                     try{const parsed=RoomEngine.parseDialogue(response.content);const dialogue=RoomEngine.parseDialogue({...parsed,speech:Rooms.cleanCharacterOutput(parsed.speech,member.name)});return {...response,content:dialogue.content,dialogue};}
                     catch(error){return {...response,content:'',invalidDraft:response.content,invalidReason:error.message};}
-                }finally{removeRoomStreamingMessage();}
+                }catch(error){if(error.partialContent)return {content:'',metadata:{},invalidDraft:error.partialContent,invalidReason:error.message};throw error;}
+                finally{removeRoomStreamingMessage();}
             }
 
             // ==================== API调用与长期记忆整理 ====================
@@ -6452,6 +6497,12 @@
                 return options;
             }
 
+            function fitRequestBudget(options,messages) {
+                const available=1000000-Memory.estimateMessagesTokens(messages)-4096;
+                if(available<1000)throw new Error('本次设定与上下文预计超过模型窗口，请减少本轮输入或上下文预算；原文保持不变');
+                return {...options,max_tokens:Math.min(options.max_tokens,available)};
+            }
+
             async function callDeepSeekAPI(messages, onChunk, onDone, onError, overrides = {}) {
                 if (!appData.apiKey) {
                     onError(new Error('请先设置API Key'));
@@ -6464,6 +6515,7 @@
                 const metricStart=performance.now();let metricUsage=null,metricStatus='failed';
 
                 try {
+                    Object.assign(requestOptions,fitRequestBudget(requestOptions,messages));
                     const response = await fetch(apiUrl, {
                         method: 'POST',
                         headers: getApiRequestHeaders(),
@@ -6492,16 +6544,21 @@
                         onChunk,
                     });
                     recordApiUsage(result.usage);
-                    metricUsage=result.usage;metricStatus='success';
-                    onDone(result.content, { finishReason: result.finishReason, usage: result.usage });
+                    metricUsage=result.usage;
+                    if(result.finishReason!=='stop'&&result.finishReason!=='length'){
+                        const incomplete=new Error('服务端中断了本次生成，片段已保留为未完成稿');incomplete.partialContent=result.content;throw incomplete;
+                    }
+                    if(!result.content.trim())throw new Error('模型返回了空正文，原有内容保持不变');
+                    metricStatus='success';
+                    await onDone(result.content, { finishReason: result.finishReason, usage: result.usage });
                 } catch (error) {
                     error = request.error(error);
                     if (error.name === 'AbortError') {
                         metricStatus='cancelled';
-                        onDone(null, { aborted: true });
+                        await onDone(null, { aborted: true, partialContent:error.partialContent||'' });
                         return;
                     }
-                    onError(error);
+                    await onError(error);
                 } finally {
                     recordTaskMetric(overrides.purpose || (appData.activeMode==='room'?'房间正文':'剧情正文'),metricStart,metricUsage,metricStatus);
                     request.dispose();
@@ -6543,6 +6600,7 @@
                     if (provider.supportsJsonMode) {
                         requestBody.response_format = { type: 'json_object' };
                     }
+                    Object.assign(requestBody,fitRequestBudget(requestBody,messages));
                     const response = await fetch(provider.apiUrl, {
                         method: 'POST',
                         headers: getApiRequestHeaders(),
@@ -6562,8 +6620,8 @@
                     recordApiUsage(result.usage);
                     metricUsage=result.usage;
                     const content = result.choices?.[0]?.message?.content;
-                    if (!content) throw new Error('结构化AI请求返回了空内容');
-                    if(result.choices?.[0]?.finish_reason==='length')throw new Error('结构化结果超出长度上限，未覆盖原有数据');
+                    if (typeof content!=='string'||!content.trim()) throw new Error('模型未返回有效 JSON，原有数据未被覆盖');
+                    if(result.choices?.[0]?.finish_reason!=='stop')throw new Error('结构化结果未正常完成，原有数据未被覆盖');
                     const parsed=parseJsonResponse(content);metricStatus='success';
                     if(cacheKey)auxiliaryCache.set(cacheKey,parsed);
                     return parsed;
@@ -6593,12 +6651,12 @@
                 const summaryUserPrompt = [
                     '请把下面内容整理为 json 长期记忆。',
                     '\n【旧核心记忆】\n' + (memory.core || '（尚无）'),
-                    '\n【本次新增原始记录】\n' + Memory.formatMessagesForSummary(chunk.messages, chunk.startIndex),
+                    '\n【本次新增原始记录】\n' + Memory.formatMessagesForSummary(chunk.messages.map(m=>m.kind==='autoTask'?{role:'user',content:'（自动构筑任务，仅为作者要求，不是已发生的剧情事实。）'}:m), chunk.startIndex),
                 ].join('\n');
                 const result = await callDeepSeekJSON([
                     { role: 'system', content: summarySystemPrompt },
                     { role: 'user', content: summaryUserPrompt },
-                ]);
+                ], {maxTokens:16000,purpose:'剧情记忆整理'});
 
                 const core = typeof result.core_memory === 'string' ? result.core_memory.trim() : '';
                 const episode = typeof result.episode_summary === 'string' ? result.episode_summary.trim() : '';
@@ -6634,7 +6692,10 @@
                     while (chunk && rounds < 2) {
                         rounds += 1;
                         updateMemoryStatus(`正在整理长期记忆：旧消息 #${chunk.startIndex + 1}—#${chunk.endIndex}…`, true);
-                        await summarizeMemoryChunk(agent, chunk);
+                        const key='story:'+agent.id+':'+chunk.startIndex+':'+chunk.endIndex;
+                        const failed=memoryFailures.get(key);if(failed?.retryAt>Date.now())break;
+                        try{await summarizeMemoryChunk(agent, chunk);memoryFailures.delete(key);}
+                        catch(error){if(error.name!=='AbortError'){const attempts=(failed?.attempts||0)+1;memoryFailures.set(key,{attempts,retryAt:Date.now()+Math.min(600000,60000*2**(attempts-1))});}throw error;}
                         chunk = Memory.findSummaryChunk(agent.conversations, agent.memory, settings);
                     }
                     if (chunk) updateMemoryStatus('仍有较早内容等待分批整理；本轮会继续使用安全的最近上下文', false);
@@ -6680,7 +6741,7 @@
                             '【本次新增原始记录】\n' + Memory.formatMessagesForSummary(chunk.messages, chunk.startIndex),
                         ].join('\n\n'),
                     },
-                ]);
+                ], {maxTokens:Math.min(32000,12000+room.participants.length*2000),purpose:'房间记忆整理'});
                 const sharedCore = typeof result.shared_core === 'string' ? result.shared_core.trim() : '';
                 const episode = typeof result.episode_summary === 'string' ? result.episode_summary.trim() : '';
                 if (!sharedCore || !episode) throw new Error('房间记忆整理结果缺少必要字段');
@@ -6738,7 +6799,10 @@
                     while (chunk && rounds < 2) {
                         rounds += 1;
                         updateMemoryStatus(`正在整理房间长期记忆：消息 #${chunk.startIndex + 1}—#${chunk.endIndex}…`, true);
-                        await summarizeRoomMemoryChunk(room, chunk);
+                        const key='room:'+room.id+':'+chunk.startIndex+':'+chunk.endIndex;
+                        const failed=memoryFailures.get(key);if(failed?.retryAt>Date.now())break;
+                        try{await summarizeRoomMemoryChunk(room, chunk);memoryFailures.delete(key);}
+                        catch(error){if(error.name!=='AbortError'){const attempts=(failed?.attempts||0)+1;memoryFailures.set(key,{attempts,retryAt:Date.now()+Math.min(600000,60000*2**(attempts-1))});}throw error;}
                         chunk = Memory.findSummaryChunk(conversation, room.sharedMemory, settings);
                     }
                     if (chunk) updateMemoryStatus('仍有较早房间内容等待分批整理；原文保持完整', false);
@@ -6774,16 +6838,17 @@
                 );
             }
 
-            function buildMessagesForAPI(styleOverride) {
-                const agent = getCurrentAgent();
+            function buildMessagesForAPI(styleOverride, requestContext = {}) {
+                const currentAgent = getCurrentAgent();
+                const agent = requestContext.regenerate && currentAgent ? {...currentAgent,conversations:currentAgent.conversations.slice(0,-1),memory:Memory.invalidateMemoryFromIndex(currentAgent.memory,currentAgent.conversations.length-1)} : currentAgent;
                 const settings = Memory.normalizeConfig(appData.storyMemorySettings);
                 const style = styleOverride === undefined ? agent?.styleInfluence : styleOverride;
-                const latestQuery = agent?.conversations?.findLast(message=>message.role==='user')?.content || '';
+                const latestQuery = requestContext.autoTask ? StarlightAutoBuild.query(agent,requestContext.autoTask) : agent?.conversations?.findLast(message=>message.role==='user')?.content || '';
                 const prompts = Story.buildRequestPrompts(agent, appData.storyGlobalPrompt, settings,
-                    appData.storyNaturalStylePrompt, Memory, StyleLab.buildInfluencePrompt(style,{query:latestQuery}));
+                    appData.storyNaturalStylePrompt, Memory, StyleLab.buildInfluencePrompt(style,{query:latestQuery}),latestQuery);
                 const messages = [{ role: 'system', content: prompts.stableSystemPrompt || prompts.systemPrompt }];
                 if(prompts.dynamicPrompt) messages.push({role:'system',content:prompts.dynamicPrompt});
-                if (!agent || agent.conversations.length === 0) return messages;
+                if (!agent || agent.conversations.length === 0) return requestContext.autoTask ? StarlightAutoBuild.messages(agent,messages,requestContext.autoTask) : messages;
 
                 const memory = Memory.normalizeMemory(agent.memory, agent.conversations.length);
                 let latestUserMessage = null;
@@ -6791,7 +6856,7 @@
                     if (agent.conversations[index].role === 'user') { latestUserMessage = agent.conversations[index]; break; }
                 }
                 const memoryContext = settings.enabled
-                    ? Memory.buildMemoryContext(memory, latestUserMessage?.content || '', settings)
+                    ? Memory.buildMemoryContext(memory, latestQuery || latestUserMessage?.content || '', settings)
                     : '';
                 if (memoryContext) {
                     messages.push({ role: 'system', content: memoryContext });
@@ -6813,6 +6878,7 @@
                     content: prompts.turnReminder,
                 });
                 if (latestMessage) messages.push(latestMessage);
+                if(requestContext.autoTask)return StarlightAutoBuild.messages(agent,messages,requestContext.autoTask);
                 return messages;
             }
 
@@ -7056,6 +7122,7 @@
                     (fullContent, metadata = {}) => {
                         isGenerating = false;
                         updateSendButton();
+                        if(metadata.partialContent){agent.incompleteDraft={text:metadata.partialContent,createdAt:Date.now(),reason:'生成已停止'};saveData();}
                         if (metadata.finishReason === 'length') {
                             agent.incompleteDraft={text:String(fullContent||''),createdAt:Date.now()};
                             saveData();removeStreamingMessage();renderMessages({preserveScroll:true});updateToolbarButtons();
@@ -7079,6 +7146,7 @@
                     (error) => {
                         isGenerating = false;
                         updateSendButton();
+                        if(error.partialContent){agent.incompleteDraft={text:error.partialContent,createdAt:Date.now(),reason:error.message};saveData();}
                         removeStreamingMessage();
                         renderMessages({ preserveScroll: true });
                         updateToolbarButtons();
@@ -7166,10 +7234,7 @@
                 if (!agent || agent.conversations.length === 0) return;
                 const lastMsg = agent.conversations[agent.conversations.length - 1];
                 if (lastMsg.role !== 'assistant') return;
-                const memoryBefore=agent.memory;
-                agent.memory=Memory.invalidateMemoryFromIndex(agent.memory,agent.conversations.length-1);
-                agent.conversations.pop();
-                saveData();
+                const originalIndex=agent.conversations.length-1;
                 renderMessages({ preserveScroll: true });
                 updateToolbarButtons();
 
@@ -7181,8 +7246,7 @@
                 let originalRestored = false;
                 const restoreOriginalResponse = () => {
                     if (replacementCommitted || originalRestored) return;
-                    agent.conversations.push(lastMsg);
-                    agent.memory=memoryBefore;
+                    // The original response remains in storage until a successful replacement.
                     originalRestored = true;
                     saveData();
                 };
@@ -7202,23 +7266,25 @@
                     showToast('长期记忆本轮未整理完成，已使用受控最近上下文继续重新生成', 'info');
                 }
                 bubble = createStreamingMessage();
-                const messagesForAPI = buildMessagesForAPI();
+                const messagesForAPI = buildMessagesForAPI(undefined,{regenerate:true});
 
                 await callDeepSeekAPI(
                     messagesForAPI,
                     (chunkContent) => { updateStreamingBubble(bubble, chunkContent); },
-                    (fullContent, metadata = {}) => {
+                    async (fullContent, metadata = {}) => {
                         isGenerating = false;
                         updateSendButton();
+                        if(metadata.partialContent){agent.incompleteDraft={text:metadata.partialContent,createdAt:Date.now(),reason:'重写已停止'};saveData();}
                         if (metadata.finishReason === 'length') {
                             agent.incompleteDraft={text:String(fullContent||''),createdAt:Date.now()};
                             restoreOriginalResponse();saveData();removeStreamingMessage();renderMessages({preserveScroll:true});updateToolbarButtons();
                             showToast('重写达到上限，原正文已保留，新稿保存到“未完成稿”。','info');return;
                         }
                         if (fullContent !== null && fullContent !== undefined) {
-                            agent.conversations.push({ role: 'assistant', content: fullContent || '（回复为空）', createdAt: Date.now(), bookmarked: false });
+                            if(!fullContent.trim())throw new Error('重写返回空正文，原稿保持不变');
+                            const next={...agent,conversations:agent.conversations.map((message,index)=>index===originalIndex?{...lastMsg,content:fullContent,createdAt:Date.now(),previousVersions:[...(lastMsg.previousVersions||[]),{content:lastMsg.content,createdAt:Date.now()}].slice(-5)}:message),memory:Memory.invalidateMemoryFromIndex(agent.memory,originalIndex)};
+                            await commitWorkspaceWork(next);
                             replacementCommitted = true;
-                            saveData();
                             finalizeStreamingMessage(fullContent);
                             renderMessages({ preserveScroll: true });
                         } else {
@@ -7232,6 +7298,7 @@
                         isGenerating = false;
                         updateSendButton();
                         restoreOriginalResponse();
+                        if(error.partialContent){agent.incompleteDraft={text:error.partialContent,createdAt:Date.now(),reason:error.message};saveData();}
                         removeStreamingMessage();
                         renderMessages({ preserveScroll: true });
                         updateToolbarButtons();
@@ -7287,6 +7354,7 @@
                 if (!agent || agent.conversations.length === 0) return;
 
                 const lastMsg = agent.conversations[agent.conversations.length - 1];
+                agent.autoBuild=StarlightAutoBuild.undo(agent);
                 if (lastMsg.role === 'assistant') {
                     agent.conversations.pop(); 
                     if (agent.conversations.length > 0 && agent.conversations[agent.conversations.length - 1].role === 'user') {
@@ -7348,6 +7416,8 @@
                 }
                 if (!confirm('确定清空当前剧情的全部对话和长期记忆吗？人物设定会保留，但聊天原文无法恢复。')) return;
                 agent.conversations = [];
+                agent.incompleteDraft=null;
+                agent.autoBuild={...StarlightAutoBuild.normalize(agent.autoBuild),mode:'off',nextNumber:1,initialized:true,lastChapterId:'',lastError:''};
                 agent.chapters=[];agent.readingPosition=null;
                 if(agent.styleInfluence)agent.styleInfluence.appliedMessageIndex=0;
                 agent.memory = Memory.createEmptyMemory();
@@ -7642,7 +7712,7 @@
                     try{
                         const context=getActiveMessages().slice(Math.max(0,index-3),index).map(item=>`${item.role}: ${item.content}`).join('\n');
                         const messages=StyleLab.buildRefinementMessages(original,get('refineRequest').value,context,target.styleInfluence);
-                        const result=await callStylePreview(messages,get('refineCandidate'),'手动文风精修');
+                        const result=await callStylePreview(messages,get('refineCandidate'),'手动文风精修',Math.min(384000,Math.max(4000,Math.ceil(Memory.estimateTokens(original)*1.35)+800)));
                         if(result.content!==null&&result.metadata?.finishReason!=='length')candidate=String(result.content||'').trim();
                         else if(result.metadata?.finishReason==='length')showToast('候选稿被截断，不能替换完整正文，请缩短请求后重试','info');
                     }catch(error){showToast(error.message,'error');}
@@ -7684,6 +7754,7 @@
             });
 
             function handleInterfaceBack() {
+                if(autoBuildUI && Motion.isOpen(autoBuildUI.settings)){autoBuildUI.back();return true;}
                 const incompleteOverlay=document.getElementById('incompleteStoryOverlay');
                 if(incompleteOverlay&&Motion.isOpen(incompleteOverlay)){Motion.setVisible(incompleteOverlay,false);return true;}
                 if(roomExperienceUI&&Motion.isOpen(roomExperienceUI.overlay)){roomExperienceUI.close();return true;}
@@ -7709,6 +7780,7 @@
                 const menus = document.querySelectorAll('.v2-card-menu.show');
                 if (menus.length) { closeHomeMenus(); return true; }
                 if (document.body.classList.contains('keyboard-open')) { document.activeElement?.blur(); return true; }
+                if(autoBuildUI?.back())return true;
                 if (!$chatShell.classList.contains('is-hidden')) { showHome(); return true; }
                 if (homeTab !== 'story') { setHomeTab('story'); return true; }
                 return false;
@@ -7754,6 +7826,8 @@
             $btnInspirationBalance.addEventListener('click', refreshApiBalance);
             $btnRefreshApiBalance.addEventListener('click', refreshApiBalance);
             $btnSnippets.addEventListener('click', openSnippets);
+            document.getElementById('btnAutoBuild').addEventListener('click',()=>getAutoBuildUI().run());
+            document.getElementById('btnAutoBuildSettings').addEventListener('click',()=>getAutoBuildUI().openSettings());
             $btnCloseSnippets.addEventListener('click', () => Motion.setVisible($snippetsOverlay, false));
             $btnAddSnippet.addEventListener('click', () => { snippetsDraft.push({ scope:'current', text:'' }); renderSnippets(); });
             $btnSaveSnippets.addEventListener('click', saveSnippets);

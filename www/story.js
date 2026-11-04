@@ -90,6 +90,9 @@
             content: asString(source.content),
             createdAt: Number(source.createdAt) || 0,
             bookmarked: source.bookmarked === true,
+            ...(typeof source.id === 'string' ? { id:source.id } : {}),
+            ...(source.kind === 'autoTask' ? {kind:'autoTask',source:'auto',userAuthored:false,inspirationExcluded:true,autoTask:source.autoTask} : {}),
+            ...(source.source === 'auto' && source.role === 'assistant' ? {source:'auto',chapterId:asString(source.chapterId),chapterNumber:Number(source.chapterNumber)||1} : {}),
             ...(source.inspirationGenerated === true ? { inspirationGenerated:true } : {}),
             ...(source.inspirationExample === true ? { inspirationExample:true } : {}),
             ...(source.inspirationExcluded === true ? { inspirationExcluded:true } : {}),
@@ -221,7 +224,8 @@
             snippets: Array.isArray(source.snippets) ? source.snippets.map(String).filter(Boolean).slice(0, 80) : [],
             draft: asString(source.draft),
             incompleteDraft: source.incompleteDraft && typeof source.incompleteDraft.text === 'string'
-                ? {text:source.incompleteDraft.text,createdAt:Number(source.incompleteDraft.createdAt)||Date.now()} : null,
+                ? {...source.incompleteDraft,text:source.incompleteDraft.text,createdAt:Number(source.incompleteDraft.createdAt)||Date.now()} : null,
+            autoBuild: source.autoBuild && typeof source.autoBuild === 'object' ? JSON.parse(JSON.stringify(source.autoBuild)) : null,
             inspiration: Inspiration.normalizeState(source.inspiration),
             inspirationProfile: Inspiration.normalizeProfile(source.inspirationProfile),
             inspirationDraftSource: asString(source.inspirationDraftSource).slice(0,100000),
@@ -255,7 +259,7 @@
         return normalizeAgent(source, memoryApi);
     }
 
-    function buildPromptSections(agent, styleInfluencePrompt) {
+    function buildPromptSections(agent, styleInfluencePrompt, queryOverride) {
         const story = normalizePromptSettings(agent);
         const history = Array.isArray(agent?.conversations) ? agent.conversations : [];
         let latestQuery = '';
@@ -265,6 +269,7 @@
             latestQuery = asString(history[index].content);
             break;
         }
+        if (queryOverride !== undefined) latestQuery = asString(queryOverride);
         const characterBlocks = story.characters.map(buildCharacterBlock).join('\n\n');
         const worldBookPrompt = WorldBook
             ? WorldBook.buildWorldBookPrompt(story.worldBook, latestQuery)
@@ -327,8 +332,8 @@
         return buildRequestPrompts(agent, globalPrompt, settings, naturalStylePrompt, memoryApi, styleInfluencePrompt).turnReminder;
     }
 
-    function buildRequestPrompts(agent, globalPrompt, settings, naturalStylePrompt, memoryApi, styleInfluencePrompt) {
-        const sections = buildPromptSections(agent, styleInfluencePrompt);
+    function buildRequestPrompts(agent, globalPrompt, settings, naturalStylePrompt, memoryApi, styleInfluencePrompt, queryOverride) {
+        const sections = buildPromptSections(agent, styleInfluencePrompt, queryOverride);
         const naturalStyle = sections.strategy.priority >= 2 && asString(naturalStylePrompt).trim()
             ? '【原有通用表达补充｜不得覆盖当前独立文风档案】\n' + naturalStylePrompt
             : naturalStylePrompt;

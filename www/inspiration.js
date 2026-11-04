@@ -239,7 +239,7 @@
         const seen=new Set();
         for(let index=source.length-1;index>=0;index--){
             const message=source[index];
-            if(message?.role!=='user'||message.inspirationExcluded)continue;
+            if(message?.role!=='user'||message.inspirationExcluded||message.kind==='autoTask'||message.source==='auto')continue;
             const content=String(message.content||'').trim();
             const explicit=message.inspirationExample===true;
             if(!content||(!explicit&&(message.inspirationGenerated||content.length<120)))continue;

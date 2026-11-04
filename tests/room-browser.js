@@ -26,7 +26,7 @@ module.exports=async function roomBrowserChecks(){
             return new Response(new ReadableStream({start(controller){
                 controller.enqueue(encoder.encode('data: '+JSON.stringify({choices:[{delta:{content:raw}}]})+'\n\n'));
                 if(dialogueMode==='hold')options.signal.addEventListener('abort',()=>controller.error(new DOMException('cancel','AbortError')),{once:true});
-                else{controller.enqueue(encoder.encode('data: [DONE]\n\n'));controller.close();}
+                else{controller.enqueue(encoder.encode('data: '+JSON.stringify({choices:[{delta:{},finish_reason:'stop'}]})+'\n\ndata: [DONE]\n\n'));controller.close();}
             }}),{headers:{'Content-Type':'text/event-stream'}});
         }
         if(all.includes('手动情景预览协议')){

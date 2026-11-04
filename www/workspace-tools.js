@@ -3,7 +3,7 @@
     function normalizeChapters(entries, length) {
         const seen=new Set();
         return (Array.isArray(entries)?entries:[]).filter(item=>item&&Number.isInteger(item.index)&&item.index>=0&&item.index<length)
-            .map(item=>({id:String(item.id||'chapter_'+item.index),index:item.index,title:String(item.title||'未命名章节').trim().slice(0,120),automatic:item.automatic===true}))
+            .map(item=>({id:String(item.id||'chapter_'+item.index),index:item.index,title:String(item.title||'未命名章节').trim().slice(0,120),automatic:item.automatic===true,...(Number.isInteger(item.chapterNumber)?{chapterNumber:item.chapterNumber}:{})}))
             .filter(item=>{if(seen.has(item.index))return false;seen.add(item.index);return true;}).sort((a,b)=>a.index-b.index);
     }
     function detectChapter(content) {

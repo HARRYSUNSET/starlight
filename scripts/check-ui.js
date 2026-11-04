@@ -96,7 +96,7 @@ async function main() {
         const fixture = {
             activeMode:'story', currentAgentId:'ui-story', apiKey:'sk-local-test-only-not-a-real-key',
             storyMemorySettings:{enabled:false},roomMemorySettings:{enabled:false},
-            agents:[{ id:'ui-story', name:'图书馆的午后', subtitle:'日常轻小说 · 本地测试剧情', characterPrompt:'角色A', conversations }],
+            agents:[{ id:'ui-story', name:'图书馆的午后', subtitle:'日常轻小说 · 本地测试剧情', characterPrompt:'角色A', conversations,autoBuild:{version:1,mode:'generating',initialized:true,nextNumber:119} }],
             rooms:[{ id:'ui-room', name:'放学后的教室', subtitle:'多人互动 · 本地测试房间', roomType:'group',
                 participants:[{ id:'member-a', name:'小夏', personaPrompt:'同班同学', relationshipPolicy:{enabled:false} },{ id:'member-b', name:'小秋', personaPrompt:'图书委员', relationshipPolicy:{enabled:false} }],
                 messages:conversations.map((message,index) => ({ ...message, id:`room-msg-${index}`, speakerId:message.role === 'assistant' ? 'member-a' : null })) }],
@@ -109,6 +109,9 @@ async function main() {
             if (i === 59) throw new Error('Application did not initialize: ' + JSON.stringify(exceptions));
         }
         const settle = () => evaluate('(async () => { await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))); await window.StarlightMotion.whenIdle(); await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))); })()');
+        await delay(250);
+        const startupAuto=await evaluate('(async()=>{const db=await StarlightPersistence.openDatabase({name:"starlight_chat_database"});try{return (await StarlightPersistence.readState(db)).agents.find(w=>w.id==="ui-story").autoBuild.mode;}finally{db.close();}})()');
+        assert.equal(startupAuto,'paused','Interrupted automatic generation must recover paused without starting a request');
         const click = async selector => { await evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`); await settle(); };
         const resize = async (width,height) => {
             await send('Emulation.setDeviceMetricsOverride', { width,height,deviceScaleFactor:1,mobile:true });
@@ -188,6 +191,23 @@ async function main() {
             }
             console.log('PASS writing skill phone widths and landscape');
         };
+        if(process.argv.includes('--auto-build')) {
+            await resize(390,844);await click('#homeStoryList [data-work-id="ui-story"]');
+            await evaluate(`window.__qaReadState=async()=>{const db=await StarlightPersistence.openDatabase({name:'starlight_chat_database'});try{return await StarlightPersistence.readState(db);}finally{db.close();}};`);
+            const result=await evaluate(`(${require('../tests/auto-build-browser.js').toString()})()`);
+            console.log('PASS focused auto build: '+result.checks+' checks');
+            for(const [width,height] of [[320,568],[844,390],[390,844]]){
+                await resize(width,height);await settle();
+                const bar=await evaluate('(() => {const r=document.querySelector("#autoBuildBar").getBoundingClientRect();return {top:r.top,bottom:r.bottom,bad:[...document.querySelectorAll("#autoBuildBar button")].some(b=>{const x=b.getBoundingClientRect();return x.left<0||x.right>innerWidth||x.top<0||x.bottom>innerHeight;})};})()');
+                assert.ok(bar.top>=0&&bar.bottom<=height+1&&!bar.bad,'Confirmation bar controls outside viewport');
+                assert.equal(await evaluate('(() => {const b=document.querySelector("#autoBuildBar").getBoundingClientRect(),m=document.querySelector("#messagesContainer").getBoundingClientRect();return b.width>=innerWidth-2&&b.bottom>=innerHeight-2&&m.width>=innerWidth-2&&m.bottom<=b.top+1;})()'),true,'Confirmation card must occupy the full bottom input row');await screenshot('auto-build-confirm-'+width);
+                await resize(width,height);await click('#autoBuildGear');
+                assert.equal(await evaluate('document.querySelector(".auto-build-page").scrollWidth<=document.querySelector(".auto-build-page").clientWidth+1'),true,'Auto build settings overflow');
+                assert.equal(await evaluate('(() => {const h=document.querySelector(".auto-build-page .full-page-header").getBoundingClientRect(),f=document.querySelector(".auto-build-page .full-page-actions").getBoundingClientRect();return h.top>=0&&f.bottom<=innerHeight+1;})()'),true,'Auto settings header/footer clipped');
+                await screenshot('auto-build-settings-'+width);await click('[data-auto-close]');
+            }
+            return;
+        }
         if(process.argv.includes('--writing-skills')) {
             await resize(390,844);
             await click('#homeStoryList [data-work-id="ui-story"]');
@@ -567,6 +587,16 @@ async function main() {
         await evaluate('document.querySelector("#styleAnalysisCard").scrollIntoView({block:"start"})');
         await screenshot('writing-skill-v260');
         await click('#btnStyleLabClose');
+        const autoChecks=await evaluate(`(${require('../tests/auto-build-browser.js').toString()})()`);
+        console.log('PASS automatic chapters / confirmation / recovery / source isolation: '+autoChecks.checks+' checks');
+        await screenshot('auto-build-confirm-v270');
+        for(const [width,height] of [[320,568],[844,390],[390,844]]){
+            await resize(width,height);await settle();
+            assert.equal(await evaluate('(() => {const b=document.querySelector("#autoBuildBar").getBoundingClientRect(),m=document.querySelector("#messagesContainer").getBoundingClientRect();return b.width>=innerWidth-2&&b.bottom>=innerHeight-2&&m.width>=innerWidth-2&&m.bottom<=b.top+1;})()'),true,'Automatic confirmation must occupy bottom row, not a new grid column');
+            await click('#autoBuildGear');
+            assert.equal(await evaluate('(() => {const p=document.querySelector(".auto-build-page"),h=p.querySelector(".full-page-header").getBoundingClientRect(),f=p.querySelector(".full-page-actions").getBoundingClientRect();return p.scrollWidth<=p.clientWidth+1&&h.top>=0&&f.bottom<=innerHeight+1;})()'),true,'Automatic settings clipping on '+width+'x'+height);
+            await click('[data-auto-close]');
+        }
         await send('Page.reload');
         await delay(600);
         for(let i=0;i<60;i++){if(await evaluate('Boolean(document.querySelector("#homeStoryList .v2-work-card") && window.StarlightBack)'))break;await delay(100);}

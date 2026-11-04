@@ -180,3 +180,75 @@ test('精修只处理指定原文范围，角色事实不受风格覆盖', () =>
     assert.match(messages[1].content, /她没有读过信/);
     assert.throws(() => StyleLab.buildRefinementMessages('  '), /先选择/);
 });
+
+function skillProfile() {
+    return StyleLab.createProfile({
+        name: '直角引号档案',
+        strength: 70,
+        anchorMode: 'auto',
+        skill: {
+            rules: [
+                { id: 'punctuation', name: '标点与语气', method: '对白一律使用直角引号「」', whenNot: '引用他人原话时保留原文引号', scenes: ['日常对白'], evidenceIds: ['source_0'] },
+                { id: 'paragraphs', name: '分段与留白', method: '按照交流切换段落', whenNot: '', scenes: [], evidenceIds: [] },
+            ],
+            samples: [{ id: 'source_0', text: '「你来了吗？」她在门口找钥匙。', scene: '日常对白', start: 0, end: 20 }],
+            userInstructions: '迟疑可以用……表达。',
+            manual: '',
+        },
+        analysis: {
+            summary: '旧的文风概述不应再注入',
+            factors: [{ name: '旧因子', instruction: '对白使用双引号“”' }],
+            avoidances: ['旧的避免项'],
+            naturalnessChecks: ['旧的检查项'],
+        },
+    });
+}
+
+test('skill 存在时以规则为唯一表达来源，旧分析快照不重复注入', () => {
+    const profile = skillProfile();
+    const prompt = StyleLab.buildInfluencePrompt(StyleLab.createAppliedStyle(profile));
+    assert.match(prompt, /标点与语气/);
+    assert.match(prompt, /直角引号/);
+    assert.doesNotMatch(prompt, /双引号/);
+    assert.doesNotMatch(prompt, /旧的文风概述|旧的避免项|旧的检查项/);
+    const withFeedback = StyleLab.normalizeProfile({ ...profile, feedback: [{ note: '不要解释情绪', replacement: '把动作写短' }] });
+    const withPrompt = StyleLab.buildInfluencePrompt(StyleLab.createAppliedStyle(withFeedback));
+    assert.match(withPrompt, /用户表达偏好/);
+    assert.match(withPrompt, /把动作写短/);
+});
+
+test('无 skill 的旧档案保持原有关键段落注入', () => {
+    const profile = StyleLab.createProfile({
+        strength: 70,
+        analysis: { summary: '旧概述', factors: [{ name: '节奏', instruction: '自然停顿' }], avoidances: ['避免套语'], naturalnessChecks: ['读一遍再发'] },
+    });
+    const prompt = StyleLab.buildInfluencePrompt(StyleLab.createAppliedStyle(profile));
+    assert.match(prompt, /文风概述/);
+    assert.match(prompt, /表达规律/);
+    assert.match(prompt, /避免的AI化表达/);
+    assert.match(prompt, /输出前静默检查/);
+});
+
+test('预算报告与实际发送文本一致，截断可被界面感知', () => {
+    const profile = skillProfile();
+    const report = StyleLab.buildInfluenceReport(profile);
+    const sent = StyleLab.buildInfluencePrompt(StyleLab.createAppliedStyle(profile));
+    assert.equal(report.text, sent);
+    assert.equal(report.chars, sent.length);
+    assert.equal(report.cap, StyleLab.getStrengthStrategy(profile.strength).budget);
+    assert.equal(report.usedSkill, true);
+    const long = StyleLab.normalizeProfile({ ...profile, skill: { ...profile.skill, manual: '人工写作要求。'.repeat(200) } });
+    const tight = StyleLab.buildInfluenceReport(long, { maxChars: 1200 });
+    assert.ok(tight.text.length <= 1200);
+    assert.equal(tight.shortened, true);
+    assert.equal(StyleLab.buildInfluenceReport(null).chars, 0);
+});
+
+test('缺少因子时由 skill 生成的回退 id 稳定，不会每次读取都变化', () => {
+    const raw = { name: '导入档案', strength: 70, skill: { rules: [{ id: 'punctuation', name: '标点与语气', method: '使用「」' }] }, analysis: { factors: [] } };
+    const first = StyleLab.normalizeProfile(raw);
+    const second = StyleLab.normalizeProfile(first);
+    assert.deepEqual(first.analysis.factors, second.analysis.factors);
+    assert.equal(first.analysis.factors[0].id, 'skill_punctuation');
+    assert.equal(StyleLab.getApplicationState(first, StyleLab.createAppliedStyle(first)).stale, false);
+});
