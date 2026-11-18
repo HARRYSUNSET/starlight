@@ -185,7 +185,7 @@
 
     // Prompt generation only needs settings. Never copy a potentially years-long
     // conversation, memory archive, image, or style source just to render them.
-    function normalizePromptSettings(agent) {
+    function normalizePromptSettings(agent, { normalizeBook = true } = {}) {
         const source = agent && typeof agent === 'object' ? agent : {};
         const rawRules = asString(source.storyRules).trim();
         const storyRules = !rawRules || rawRules === LEGACY_DEFAULT_STORY_RULES || rawRules === PREVIOUS_DEFAULT_STORY_RULES
@@ -194,7 +194,7 @@
         return {
             storyRules,
             worldPrompt: asString(source.worldPrompt).trim(),
-            worldBook: WorldBook
+            worldBook: normalizeBook && WorldBook
                 ? WorldBook.normalizeWorldBook(source.worldBook, source.worldPrompt)
                 : source.worldBook,
             openingScene: asString(source.openingScene).trim(),
@@ -260,7 +260,7 @@
     }
 
     function buildPromptSections(agent, styleInfluencePrompt, queryOverride) {
-        const story = normalizePromptSettings(agent);
+        const story = normalizePromptSettings(agent, { normalizeBook:false });
         const history = Array.isArray(agent?.conversations) ? agent.conversations : [];
         let latestQuery = '';
         // Preserve legacy filtering of null entries without walking all history.
@@ -272,7 +272,7 @@
         if (queryOverride !== undefined) latestQuery = asString(queryOverride);
         const characterBlocks = story.characters.map(buildCharacterBlock).join('\n\n');
         const worldBookPrompt = WorldBook
-            ? WorldBook.buildWorldBookPrompt(story.worldBook, latestQuery)
+            ? WorldBook.buildWorldBookPrompt(story.worldBook, latestQuery, {legacyPrompt:story.worldPrompt})
             : story.worldPrompt;
         const strategy = StyleLab?.getPromptStrategy(styleInfluencePrompt) || { priority: 0 };
         const sections = [
@@ -354,14 +354,14 @@
     }
 
     function composePersonaForRoom(agent, characterIdOrIndex) {
-        const story = normalizePromptSettings(agent);
+        const story = normalizePromptSettings(agent, { normalizeBook:false });
         const character = findCharacter(story, characterIdOrIndex);
         const index = Math.max(0, story.characters.findIndex(item => item.id === character.id));
         return buildCharacterBlock(character, index);
     }
 
     function characterToRoomMember(agent, characterIdOrIndex) {
-        const story = normalizePromptSettings(agent);
+        const story = normalizePromptSettings(agent, { normalizeBook:false });
         const character = findCharacter(story, characterIdOrIndex);
         const index = Math.max(0, story.characters.findIndex(item => item.id === character.id));
         return {

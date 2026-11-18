@@ -79,10 +79,28 @@
             sourceEndIndex: Number.isInteger(source.sourceEndIndex) ? Math.max(0, source.sourceEndIndex) : null,
             createdAt: Number(source.createdAt) || Date.now(),
             updatedAt: Number(source.updatedAt) || Number(source.createdAt) || Date.now(),
+            ...(source.origin && typeof source.origin.sourceKey === 'string' && source.origin.sourceKey
+                ? { origin: {
+                    sourceKey: source.origin.sourceKey,
+                    sourceLabel: asString(source.origin.sourceLabel),
+                    evidence: asString(source.origin.evidence),
+                    signature: asString(source.origin.signature),
+                } } : {}),
         };
     }
 
-    function normalizeWorldBook(worldBook, legacyPrompt = '') {
+    function normalizeAutomation(input) {
+        const source = input || {};
+        const records = new Map();
+        for (const item of Array.isArray(source.sources) ? source.sources : []) {
+            if (!asString(item?.key) || !asString(item.stamp) ||
+                !['pending', 'done', 'failed'].includes(item.status)) continue;
+            records.set(item.key, { key: item.key, stamp: item.stamp, status: item.status });
+        }
+        return { enabled: source.enabled === true, sources: [...records.values()] };
+    }
+
+    function normalizeSections(worldBook, legacyPrompt) {
         const source = worldBook && typeof worldBook === 'object' ? worldBook : {};
         let initialEntries = Array.isArray(source.initialEntries)
             ? source.initialEntries.filter(Boolean).map(entry => normalizeEntry(entry, 'initial'))
@@ -101,10 +119,17 @@
         }
 
         return {
-            version: 1,
             initialEntries,
             progressEntries,
-            updatedAt: Number(source.updatedAt) || 0,
+        };
+    }
+
+    function normalizeWorldBook(worldBook, legacyPrompt = '') {
+        return {
+            version: 2,
+            ...normalizeSections(worldBook, legacyPrompt),
+            automation: normalizeAutomation(worldBook?.automation),
+            updatedAt: Number(worldBook?.updatedAt) || 0,
         };
     }
 
@@ -141,23 +166,40 @@
     }
 
     function buildWorldBookPrompt(worldBook, query = '', options = {}) {
-        const book = normalizeWorldBook(worldBook);
+        const book = normalizeSections(worldBook, options.legacyPrompt);
         const characterId = asString(options.characterId);
         const maxCharacters = Math.max(1000, Number(options.maxCharacters) || 24000);
-        const select = entries => entries
+        const select = (entries, newestFirst = false) => entries
             .filter(entry => entry.enabled && entry.status === 'active')
             .filter(entry => matchesQuery(entry, query))
             .filter(entry => isVisibleTo(entry, characterId))
-            .sort((a, b) => b.priority - a.priority || a.createdAt - b.createdAt);
-        const initial = select(book.initialEntries).map(promptEntryText).filter(Boolean);
-        const progress = select(book.progressEntries).map(promptEntryText).filter(Boolean);
+            .sort((a, b) => b.priority - a.priority || (newestFirst
+                ? (b.sourceEndIndex ?? -1) - (a.sourceEndIndex ?? -1) || b.createdAt - a.createdAt
+                : a.createdAt - b.createdAt));
         const sections = [];
-        if (initial.length) {
-            sections.push('【世界书｜初始世界设定】\n' + initial.map((text, index) => `〔设定${index + 1}〕\n${text}`).join('\n\n'));
+        function addSection(entries, title, label, guide = '') {
+            let section = '';
+            let count = 0;
+            for (const entry of entries) {
+                const body = promptEntryText(entry);
+                if (!body) continue;
+                const position = entry.kind === 'progress' && entry.origin && entry.sourceEndIndex !== null
+                    ? `｜来源序号 ${entry.sourceEndIndex + 1}` : '';
+                section += (count ? '\n\n' : title + '\n' + guide) + `〔${label}${++count}${position}〕\n` + body;
+                // No section can receive more than the whole round's budget.
+                // Keep one extra character so final allocation can detect truncation.
+                if (section.length > maxCharacters) {
+                    section = section.slice(0, maxCharacters + 1);
+                    break;
+                }
+            }
+            if (section) sections.push(section);
         }
-        if (progress.length) {
-            sections.push('【世界书｜已经确认的后续进展】\n' + progress.map((text, index) => `〔进展${index + 1}〕\n${text}`).join('\n\n'));
-        }
+        addSection(select(book.initialEntries), '【世界书｜初始世界设定】', '设定');
+        const progress = select(book.progressEntries, true);
+        const guide = progress.some(entry => entry.origin && entry.sourceEndIndex !== null)
+            ? '同一人物或事物的相同状态以来源序号较大的明确变化为准，先前状态属于当时的历史。\n' : '';
+        addSection(progress, '【世界书｜已经确认的后续进展】', '进展', guide);
         const output = sections.join('\n\n');
         if (output.length <= maxCharacters) return output;
         // Include truncation notices in the budget and retain confirmed progress
@@ -169,7 +211,9 @@
             : Math.min(sections[0].length, Math.max(Math.floor(available / 2), available - sections[1].length));
         return sections.map((section, index) => {
             const budget = index === 0 ? firstBudget : available - firstBudget;
-            return section.length <= budget ? section : section.slice(0, budget).trimEnd() + notice;
+            if (section.length <= budget) return section;
+            const end = /[\uD800-\uDBFF]/.test(section[budget - 1]) ? budget - 1 : budget;
+            return section.slice(0, end).trimEnd() + notice;
         }).join('\n\n');
     }
 
@@ -186,6 +230,12 @@
             ? source.sourceEndIndex
             : (Number.isInteger(source.endIndex) ? source.endIndex : null);
         entry.priority = Math.max(1, Math.min(5, Math.round(Number(source.importance) || 3)));
+        if (source.knowledgeScope === 'private' || source.visibility === 'private') {
+            entry.knowledgeScope = 'private';
+            const recipients = source.observedBy ?? source.characterIds;
+            entry.characterIds = Array.isArray(recipients)
+                ? [...new Set(recipients.filter(id => typeof id === 'string' && id.trim()))] : [];
+        }
         return entry;
     }
 

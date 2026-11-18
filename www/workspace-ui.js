@@ -69,7 +69,7 @@
                 if(action==='snapshot'){await o.commitWork(A.captureRevision(work(),{mode:o.mode(),label:'手动保存'}));render();return;}
                 if(action==='restore-revision'){
                     const revision=(work().revisionHistory||[]).find(r=>r.id===buttonEl.dataset.id);if(!revision)return;
-                    body.innerHTML=`<p class="hint">将恢复下列设定，保留当前消息原文。仅当原消息来源未被撤回或改写时恢复快照记忆，否则保留当前记忆，避免复活已删剧情。当前版本也会存入修改历史。</p><pre class="workspace-preview">${esc(JSON.stringify(revision.snapshot||revision.data||revision,null,2))}</pre>${button('confirm-restore','确认恢复',`data-id="${esc(revision.id)}"`)}${button('cancel-event','返回')}`;return;
+                    body.innerHTML=`<p class="hint">将恢复下列设定。当前消息与自动整理的世界书进展会保留；快照中的记忆仅在来源仍然有效时恢复。当前版本也会存入修改历史。</p><pre class="workspace-preview">${esc(JSON.stringify(revision.snapshot||revision.data||revision,null,2))}</pre>${button('confirm-restore','确认恢复',`data-id="${esc(revision.id)}"`)}${button('cancel-event','返回')}`;return;
                 }
                 if(action==='confirm-restore'){await o.commitWork(A.restoreRevision(work(),buttonEl.dataset.id));render();o.notify('已恢复设定版本','success');return;}
                 if(action==='export-all'||action==='export-work'){busy=true;await exportData(action==='export-work');return;}

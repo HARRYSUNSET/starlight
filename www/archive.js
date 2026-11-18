@@ -103,7 +103,7 @@
         data.agents ||= [];
         data.rooms ||= [];
         data.styleProfiles ||= [];
-        const backup = validateBackup({ format: FORMAT, version: 1, scope, createdAt: new Date().toISOString(), appVersion: options.appVersion || '2.7.1', state: data });
+        const backup = validateBackup({ format: FORMAT, version: 1, scope, createdAt: new Date().toISOString(), appVersion: options.appVersion || '3.0.0', state: data });
         if (byteLength(JSON.stringify(backup)) > (options.maxBytes || MAX_BACKUP_BYTES)) throw new Error('备份超过 256 MB，请按作品分别导出');
         return backup;
     }
@@ -267,6 +267,30 @@
             }
             if (revision.snapshot[field] === undefined) delete restored[field];
             else restored[field] = keepImages(clone(revision.snapshot[field]), work[field]);
+        }
+        // Restoring settings leaves the messages in place. Derived progress and
+        // its extraction ledger must continue to describe those same messages.
+        if (work.worldBook?.automation) {
+            const book = restored.worldBook || {};
+            const completed = automation => new Map((automation?.sources || [])
+                .filter(row => row.status === 'done').map(row => [row.key, row.stamp]));
+            const before = completed(book.automation);
+            const now = completed(work.worldBook.automation);
+            const sameSource = key => now.has(key) && before.get(key) === now.get(key);
+            const entries = book.progressEntries || [];
+            const oldSources = new Map(entries.filter(entry => entry.origin?.sourceKey)
+                .map(entry => [entry.id, entry.origin.sourceKey]));
+            const progress = entries.filter(entry => !entry.origin?.sourceKey || sameSource(entry.origin.sourceKey));
+            for (const entry of work.worldBook.progressEntries || []) {
+                // Retain newer or rewritten sources. A manual correction detached
+                // by undo still belongs to the author, even after its source is gone.
+                const key = entry.origin?.sourceKey || oldSources.get(entry.id);
+                if (key && !sameSource(key)) progress.push(clone(entry));
+            }
+            restored.worldBook = { ...book,
+                progressEntries: progress,
+                automation: { ...clone(work.worldBook.automation), enabled: book.automation?.enabled === true },
+            };
         }
         if(revision.mode==='room' && restored.intimacy && work.intimacy){
             for(const key of ['value','recentDeltas','lastReason']) if(work.intimacy[key]!==undefined)restored.intimacy[key]=clone(work.intimacy[key]);

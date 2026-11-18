@@ -239,6 +239,7 @@
             content: asString(source.content),
             turnId: asString(source.turnId) || null,
             kind: asString(source.kind, 'message'),
+            ...(Array.isArray(source.worldWitnessIds) ? {worldWitnessIds:[...new Set(source.worldWitnessIds.filter(id => typeof id === 'string'))]} : {}),
             ...(source.dialogue && typeof source.dialogue==='object' ? {dialogue:{speech:asString(source.dialogue.speech),expression:asString(source.dialogue.expression)}} : {}),
             bookmarked: source.bookmarked === true,
             previousVersions: (Array.isArray(source.previousVersions)?source.previousVersions:[]).filter(item=>typeof item?.content==='string').slice(-5).map(item=>({content:item.content,createdAt:Number(item.createdAt)||0})),
@@ -315,7 +316,7 @@
             nodes: normalizeNodes(source.nodes),
             rules: source.rules && typeof source.rules === 'object' ? source.rules : null,
             rulesReady: source.rulesReady === true && !!source.rules,
-            rulesSignature: asString(source.rulesSignature),
+            rulesSignature: Experience ? Experience.upgradeBookStamp(asString(source.rulesSignature), 0) : asString(source.rulesSignature),
             recentDeltas: (Array.isArray(source.recentDeltas) ? source.recentDeltas : [])
                 .map(value => finiteInt(value, 0, -3, 2)).slice(-20),
             lastReason: asString(source.lastReason),

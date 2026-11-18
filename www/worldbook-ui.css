@@ -1,0 +1,37 @@
+.wb-tools {
+    margin: 14px 0;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: var(--card-bg, var(--bg));
+    overflow-wrap: anywhere;
+    min-width: 0;
+}
+.wb-tools [hidden] { display: none !important; }
+.wb-tools summary { cursor: pointer; padding: 12px 14px; }
+.wb-import > summary { color: var(--accent); font-weight: 600; min-height: 44px; }
+.wb-import-body { padding: 0 14px 14px; min-width: 0; }
+.wb-tools .wb-source-label { display: grid; gap: 6px; }
+.wb-tools .wb-source { width: 100%; min-width: 0; font-size: 16px; box-sizing: border-box; }
+.wb-hint, .wb-status, .wb-tools small { color: var(--text-secondary); font-size: .82rem; line-height: 1.55; }
+.wb-actions, .wb-retry-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.wb-tools button { min-height: 44px; max-width: 100%; white-space: normal; }
+.wb-tools .wb-status:empty { display: none; }
+.wb-tools .wb-auto-label, .wb-tools .wb-select-entry, .wb-tools .wb-recipients label {
+    display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; margin: 0;
+}
+.wb-tools .wb-auto-label { border-top: 1px solid var(--border); padding: 12px 14px; }
+.wb-tools .wb-auto-label span, .wb-tools small { display: block; min-width: 0; }
+.wb-tools input[type=checkbox] { flex: none; width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.wb-retry-row { padding: 0 14px 12px; font-size: .85rem; }
+.wb-candidate { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; margin: 8px 0; }
+.wb-candidate summary { padding: 8px 0; font-size: .88rem; }
+.wb-candidate dl { margin: 4px 0; }
+.wb-candidate dt { font-size: .78rem; color: var(--text-secondary); }
+.wb-candidate dd { margin: 2px 0 8px; white-space: pre-wrap; }
+.wb-candidate blockquote, .worldbook-origin blockquote { margin: 6px 0; padding: 4px 10px; border-inline-start: 2px solid var(--accent-light); color: var(--text-secondary); }
+.wb-tools .wb-visibility { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0; }
+.wb-tools .wb-visibility select { width: auto; max-width: 100%; }
+.wb-recipients { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.wb-recipients small { flex-basis: 100%; }
+.worldbook-origin { color: var(--text-secondary); font-size: .82rem; margin-bottom: 8px; overflow-wrap: anywhere; }
+.worldbook-origin summary { cursor: pointer; }

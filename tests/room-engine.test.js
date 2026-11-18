@@ -29,6 +29,29 @@ test('来源变更或未知角色会拒绝旧预览，旧正式场景不变',()=
     value.messages.push({id:'new',role:'user',content:'等等。'});assert.throws(()=>E.acceptScene(value,draft),/变化/);assert.equal(E.ensure(value).sceneHistory.length,0);
     assert.throws(()=>E.sceneCandidate(value,{narration:'新场景',state:{presentIds:['unknown']}},'',E.stamp(value)),/不存在/);
 });
+
+test('升级兼容旧房间的预览和关系规则，后台整理不会让预览过期', () => {
+    const value = room();
+    const parts = JSON.parse(E.stamp(value));
+    const legacyBook = JSON.parse(JSON.stringify(value.worldBook));
+    delete legacyBook.automation;
+    parts[7] = legacyBook;
+    const oldStamp = JSON.stringify(parts);
+    const preview = E.sceneCandidate(value, {narration:'电灯亮了。',state:{}}, '', oldStamp);
+    E.ensure(value).sceneDraft = preview;
+    const oldRuleKey = JSON.stringify([legacyBook, '原有人设']);
+    value.intimacy.rulesSignature = oldRuleKey;
+    const upgraded = Rooms.normalizeRoom(JSON.parse(JSON.stringify(value)), Memory);
+    assert.equal(upgraded.intimacy.rulesSignature, JSON.stringify([E.bookStamp(upgraded.worldBook), '原有人设']));
+    const candidate = E.ensure(upgraded).sceneDraft;
+    assert.equal(candidate.stamp, E.stamp(upgraded));
+    upgraded.worldBook.automation = {enabled:true, sources:[{key:'turn-1', stamp:'a', status:'done'}]};
+    upgraded.worldBook.progressEntries.push({...upgraded.worldBook.initialEntries[0],kind:'progress',origin:{sourceKey:'turn-1'}});
+    upgraded.worldBook.updatedAt++;
+    assert.equal(candidate.stamp, E.stamp(upgraded));
+    upgraded.worldBook.initialEntries[0].fields[0].value = '作者刚更改的设定';
+    assert.throws(() => E.acceptScene(upgraded,candidate), /变化/);
+});
 test('撤回情景恢复上一场景并保留未采纳草稿供检查',()=>{
     const value=room(),before=E.currentScenePrompt(value),draft=E.sceneCandidate(value,{narration:'到了傍晚。',state:{time:'傍晚'}},'',E.stamp(value));
     E.acceptScene(value,draft);const t=value.messages.at(-1).turnId;E.ensure(value).sceneDraft={content:'新的未采纳预览'};E.revertTurn(value,t);value.messages=[];

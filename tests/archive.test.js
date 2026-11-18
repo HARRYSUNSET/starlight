@@ -151,3 +151,28 @@ test('正文同位置被改写后恢复设定不复活旧记忆；新增后续�
     assert.equal(restored.memory.core,'当前有效记忆');
     assert.equal(restored.conversations[0].content,'已改写的事件');
 });
+
+test('两种作品的设定修订跟随当前正文，完整备份保留自动进展来源', () => {
+    for (const [mode, collection] of [['story','agents'],['room','rooms']]) {
+        const data = state();
+        const work = data[collection][0];
+        const oldEntry = {id:'old',origin:{sourceKey:'revoked'}};
+        work.worldBook = {initialEntries:[], progressEntries:[oldEntry],
+            automation:{enabled:true,sources:[{key:'revoked',stamp:'before',status:'done'}]}};
+        const captured = Archive.captureRevision(work,{mode});
+        const rev = captured.revisionHistory[0];
+        assert.deepEqual(rev.snapshot.worldBook.progressEntries,[oldEntry]);
+        const currentBook = {initialEntries:[],progressEntries:[{id:'valid',origin:{sourceKey:'current'}}],
+            automation:{enabled:false,sources:[{key:'current',stamp:'after',status:'done'}]}};
+        captured.worldBook = currentBook;
+        const restored = Archive.restoreRevision(captured, rev.id);
+        assert.deepEqual(restored.worldBook.progressEntries,currentBook.progressEntries);
+        assert.deepEqual(restored.worldBook.automation,{...currentBook.automation,enabled:true});
+        data[collection][0] = restored;
+        const imported = Archive.planImport(state(),Archive.createBackup(data,{mode,id:restored.id}));
+        assert.deepEqual(imported.state[collection].at(-1).worldBook, restored.worldBook);
+        // A manual edit or deletion can be undone while its canon still matches.
+        captured.worldBook = {...work.worldBook, progressEntries:[]};
+        assert.deepEqual(Archive.restoreRevision(captured, rev.id).worldBook.progressEntries,[oldEntry]);
+    }
+});

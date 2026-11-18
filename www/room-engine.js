@@ -37,13 +37,34 @@
             relationHistory:Array.isArray(s.relationHistory)?s.relationHistory.map(v=>({...v})):[],
             legacyNodes:first?(room.intimacy?.nodes||[]).filter(n=>n.value<=room.intimacy.value).map(n=>n.id):(Array.isArray(s.legacyNodes)?s.legacyNodes.map(String):[]),
             authorView:s.authorView===true,notice:text(s.notice,500)};
+        if (value.sceneDraft) value.sceneDraft.stamp = upgradeBookStamp(value.sceneDraft.stamp, 7);
+        for (const candidate of value.candidates) candidate.stamp = upgradeBookStamp(candidate.stamp, 7);
         room.experience=value;normalized.add(value);return value;
+    }
+    // Background extraction describes facts already in the room history. It must
+    // not invalidate an open scene preview or replace a double room's custom rules.
+    function bookStamp(book) {
+        if (!book) return null;
+        const describe = entry => [entry.id, entry.fields, entry.enabled, entry.activationMode,
+            entry.keywords, entry.priority, entry.knowledgeScope, entry.characterIds, entry.status];
+        return [(book.initialEntries || []).map(describe),
+            (book.progressEntries || []).filter(entry => !entry.origin?.sourceKey).map(describe)];
+    }
+    function upgradeBookStamp(saved, index) {
+        if (!saved || saved[0] !== '[') return saved;
+        try {
+            const parts = JSON.parse(saved);
+            const book = parts[index];
+            if (!book || !Array.isArray(book.initialEntries)) return saved;
+            parts[index] = bookStamp(book);
+            return JSON.stringify(parts);
+        } catch { return saved; }
     }
     function stamp(room){
         // No full-history copy: the work timestamp, count and recent source identities cover edits.
         const e=ensure(room);
         return JSON.stringify([room.id,room.updatedAt,room.messages.length,room.messages.slice(-24).map(m=>[m.id,m.content]),room.scenePrompt,e.scene,
-            room.basePrompt,room.worldBook,room.userPersona,room.participants.map(m=>[m.id,m.enabled,m.personaPrompt,m.currentState,m.relationships,m.growthNotes,m.relationshipPolicy]),room.styleInfluence,room.stylePrompt,
+            room.basePrompt,bookStamp(room.worldBook),room.userPersona,room.participants.map(m=>[m.id,m.enabled,m.personaPrompt,m.currentState,m.relationships,m.growthNotes,m.relationshipPolicy]),room.styleInfluence,room.stylePrompt,
             room.sharedMemory?.updatedAt,Object.values(room.characterMemories||{}).map(m=>m.updatedAt)]);
     }
     function composerValue(room){return ensure(room).mode==='scene'?ensure(room).instruction:room.draft||'';}
@@ -220,5 +241,5 @@
         e.relationHistory.push({id:id('calibration'),memberId,kind:'author',before,after:clone(e.relations[memberId]),reason:'作者手动校准关系状态与规则',sourceIds:[],sources:[],createdAt:Date.now()});
         room.updatedAt=Date.now();
     }
-    return {DIALOGUE_FORMAT,ensure,stamp,scene,policy,composerValue,setComposerValue,currentScenePrompt,presentMembers,sceneCandidate,acceptScene,parseDialogue,partialDialogue,addCandidate,relationPrompt,availableNodes,buildJudgeMessages,applyJudgements,revertRelations,revertTurn,reset,calibrate,clone};
+    return {DIALOGUE_FORMAT,ensure,stamp,bookStamp,upgradeBookStamp,scene,policy,composerValue,setComposerValue,currentScenePrompt,presentMembers,sceneCandidate,acceptScene,parseDialogue,partialDialogue,addCandidate,relationPrompt,availableNodes,buildJudgeMessages,applyJudgements,revertRelations,revertTurn,reset,calibrate,clone};
 });

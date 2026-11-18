@@ -191,6 +191,33 @@ async function main() {
             }
             console.log('PASS writing skill phone widths and landscape');
         };
+        async function checkWorldBook() {
+            await evaluate(`window.__qaReadState=async()=>{const db=await StarlightPersistence.openDatabase({name:'starlight_chat_database'});try{return await StarlightPersistence.readState(db);}finally{db.close();}};`);
+            let editorChecks = 0;
+            for (const [width, height] of [[320,568],[844,390]]) {
+                await resize(width,height);
+                const result = await evaluate(`(${require('../tests/worldbook-editor-browser.js').toString()})()`);
+                editorChecks += result.checks;
+            }
+            await resize(390,844);
+            const result = await evaluate(`(${require('../tests/worldbook-flow-browser.js').toString()})()`);
+            await send('Page.reload');
+            await delay(500);
+            await evaluate(`window.__qaReadState=async()=>{const db=await StarlightPersistence.openDatabase({name:'starlight_chat_database'});try{return await StarlightPersistence.readState(db);}finally{db.close();}};`);
+            const restored = await evaluate(`(async () => {
+                const data = await window.__qaReadState();
+                return [data.agents.find(w=>w.id===${JSON.stringify(result.storyId)}),data.rooms.find(w=>w.id===${JSON.stringify(result.roomId)})]
+                    .every(w=>w?.worldBook.automation.enabled && w.worldBook.progressEntries.length===1 && w.worldBook.automation.sources.every(s=>s.status==='done'));
+            })()`);
+            assert.equal(restored,true,'Both worldbooks must survive reload with completed extraction records');
+            assert.equal(exceptions.length,0,'Worldbook runtime errors: '+JSON.stringify(exceptions));
+            console.log('PASS worldbook import/editor/viewport: '+editorChecks+' checks; story/room generation, undo, retry and reload: '+(result.checks+1)+' checks');
+        }
+        if(process.argv.includes('--worldbook')) {
+            await click('#homeStoryList [data-work-id="ui-story"]');
+            await checkWorldBook();
+            return;
+        }
         if(process.argv.includes('--rooms')) {
             await resize(390,844);await click('#homeStoryList [data-work-id="ui-story"]');
             await evaluate(`window.__qaReadState=async()=>{const db=await StarlightPersistence.openDatabase({name:'starlight_chat_database'});try{return await StarlightPersistence.readState(db);}finally{db.close();}};`);
@@ -613,6 +640,7 @@ async function main() {
         await click(`[data-style-profile-id="${writingChecks.profileId}"]`);
         assert.equal(await evaluate('Boolean(document.querySelector("#writingSkillUser")?.value.includes("对白使用「」"))'),true,'Writing skill lost on full page reload');
         await click('#btnStyleLabClose');
+        await checkWorldBook();
         assert.equal(exceptions.length,0,'Runtime errors: ' + JSON.stringify(exceptions));
         console.log('All real-browser layout and motion checks passed; no external API calls were made.');
     } finally {

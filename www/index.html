@@ -2210,6 +2210,7 @@
         .worldbook-field textarea { min-height:80px; }
         .worldbook-advanced { margin-top:12px; padding-top:10px; border-top:1px dashed var(--border); }
         .worldbook-advanced-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; padding-top:10px; }
+        .worldbook-keyword-setting { grid-column:span 2; }
         .worldbook-character-scope { grid-column:1/-1; display:flex; flex-wrap:wrap; gap:8px; }
         .worldbook-character-scope label { display:flex; align-items:center; gap:5px; padding:6px 9px; border:1px solid var(--border); border-radius:999px; }
         .my-panel .settings-group-body { max-height:none !important; overflow:visible; }
@@ -2219,10 +2220,11 @@
         @keyframes v2Pop { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
         @keyframes v2Sheet { from { opacity:0; transform:translateY(22px); } to { opacity:1; transform:translateY(0); } }
         @media (max-width:700px) {
-            .worldbook-field { grid-template-columns:1fr 38px; }
-            .worldbook-field textarea { grid-column:1/-1; grid-row:2; }
+            .worldbook-field { grid-template-columns:minmax(0,1fr) 42px; }
+            .worldbook-field textarea { grid-column:1; grid-row:2; min-width:0; }
             .worldbook-field .field-order-actions { grid-column:2; grid-row:1 / span 2; }
             .worldbook-advanced-grid { grid-template-columns:1fr; }
+            .worldbook-keyword-setting { grid-column:auto; }
             .composer-tools { overflow-x:auto; scrollbar-width:none; }
             .home-header { padding-left:18px; padding-right:18px; }
         }
@@ -2233,6 +2235,7 @@
     <link rel="stylesheet" href="motion.css">
     <link rel="stylesheet" href="inspiration.css">
     <link rel="stylesheet" href="writing-skill.css">
+    <link rel="stylesheet" href="worldbook-ui.css">
     <link rel="stylesheet" href="auto-build.css">
 </head>
 <body>
@@ -2255,7 +2258,7 @@
                 <div class="library-page-heading"><h2>我的</h2><p>管理全局 API、模型、外观与存储设置。</p></div>
                 <div id="mySettingsMount"></div>
                 <div class="my-section-title">应用信息</div>
-                <div class="my-version-card"><strong>星陽之语 2.7.1</strong><br>房间回复修复 · 情景协议统一 · 空回复诊断</div>
+                <div class="my-version-card"><strong>星陽之语 3.0.0</strong><br>从原文构建世界书 · 随剧情与房间对话整理进展</div>
             </section>
         </main>
         <nav class="bottom-nav" aria-label="主导航">
@@ -2467,7 +2470,8 @@
 
             <section class="story-editor-section">
                 <h4>世界与开场</h4>
-                <div class="section-description">世界书分为初始设定与后续进展；后续进展是经你确认的正史，不会被自动记忆擅自覆盖。</div>
+                <div class="section-description">初始设定记录开场前的世界与人物，后续进展记录故事中发生的变化。</div>
+                <div id="storyWorldBookTools"></div>
                 <div class="worldbook-editor" id="storyWorldBookEditor"></div>
                 <div class="story-form-grid">
                     <div><label for="storyOpeningInput">开场场景</label><textarea id="storyOpeningInput" style="min-height:180px" placeholder="时间、地点、正在发生的事件和人物位置"></textarea></div>
@@ -2568,6 +2572,7 @@
             <div class="room-form-section">
                 <h4>🌍 世界书</h4>
                 <div class="room-form-hint">初始世界与后续进展分开管理；房间条目还可以限制为指定角色私下知晓。</div>
+                <div id="roomWorldBookTools"></div>
                 <div class="worldbook-editor" id="roomWorldBookEditor"></div>
             </div>
 
@@ -2879,6 +2884,9 @@
     <div id="toastContainer"></div>
 
     <script src="worldbook.js"></script>
+    <script src="worldbook-progress.js"></script>
+    <script src="worldbook-ai.js"></script>
+    <script src="worldbook-ui.js"></script>
     <script src="timeline.js"></script>
     <script src="memory.js"></script>
     <script src="api.js"></script>
@@ -3194,6 +3202,7 @@
             let editingAgentId = null;
             let storyDraftCharacters = [];
             let storyDraftWorldBook = WorldBook.normalizeWorldBook();
+            const worldBookEditors = { story: null, room: null };
             let editingRoomId = null;
             let roomDraftType = 'double';
             let roomDraftParticipants = [];
@@ -3209,6 +3218,26 @@
             let storageDb = null;
             let storageReadFailed = false;
             let maintenanceBusy = false;
+            const worldProgress = StarlightWorldProgress.create({
+                ai:window.StarlightWorldBookAI,
+                works:() => [...appData.agents.map(work => ({mode:'story',work})), ...appData.rooms.map(work => ({mode:'room',work}))],
+                getWork:(mode,id) => (mode === 'room' ? appData.rooms : appData.agents).find(work => work.id === id),
+                // Hold finished extractions while an editor has a separate draft.
+                blocked:() => maintenanceBusy || isGenerating || refinementBusy || Motion.isOpen($modalOverlay) || Motion.isOpen($roomModalOverlay),
+                ready:() => !storageReadFailed && !!appData.apiKey,
+                request:(messages,mode) => callDeepSeekJSON(messages,{mode,maxTokens:6000,purpose:'世界书进展整理',independent:true}),
+                flush:persistFullState,
+                save:saveData,
+                onFailure:work => showToast('「'+work.name+'」的世界书整理未完成，可在设定中重试。','info'),
+            });
+            window.retryWorldProgress = worldProgress.retry;
+            function updateWorldSources(mode, work, keys, verify = false) {
+                StarlightWorldProgress.reconcile(window.StarlightWorldBookAI, mode, work, keys, verify);
+            }
+            function trackWorldMessage(mode, work, message, index) {
+                updateWorldSources(mode, work, [StarlightWorldProgress.sourceKey(mode, message, index)]);
+                worldProgress.wake();
+            }
             let refinementBusy = false;
             let refinementUI = null;
             let workspaceUI = null;
@@ -3743,7 +3772,20 @@
                     commit:async(room,action)=>{
                         const next={...room,messages:room.messages.slice(),participants:room.participants.map(m=>({...m,relationshipPolicy:{...m.relationshipPolicy}})),
                             experience:RoomEngine.clone(RoomEngine.ensure(room)),turnEffects:RoomEngine.clone(room.turnEffects||{}),intimacy:room.intimacy?RoomEngine.clone(room.intimacy):null};
-                        action(next);await commitWorkspaceWork(next);
+                        action(next);
+                        if(next.worldBook?.automation?.enabled){
+                            const priorIds = new Set(room.messages.map(message => message.id));
+                            for(const message of next.messages) if(!priorIds.has(message.id) && (message.role === 'assistant' || message.kind === 'narration')){
+                                // Corrected dialogue can belong to an earlier turn. Use
+                                // that turn's recorded witnesses if the scene moved on.
+                                const peers = room.messages.filter(item => item.turnId === message.turnId);
+                                const prior = peers.find(item => Array.isArray(item.worldWitnessIds));
+                                const historical = peers.length && room.messages.at(-1)?.turnId !== message.turnId;
+                                message.worldWitnessIds = prior ? [...prior.worldWitnessIds] : historical ?
+                                    [message.speakerId].filter(Boolean) : RoomEngine.presentMembers(next).map(member => member.id);
+                            }
+                        }
+                        await commitWorkspaceWork(next);
                     },
                     adoptDialogue:(room,candidate,parsed)=>{
                         if(candidate.stamp!==RoomEngine.stamp(room))throw new Error('来源已变化，请删除旧稿并重新生成；不会把旧回复接入新的剧情');
@@ -3809,7 +3851,13 @@
             async function commitWorkspaceWork(work) {
                 const field = appData.activeMode === 'room' ? 'rooms' : 'agents';
                 const normalized = field === 'rooms' ? Rooms.normalizeRoom(work,Memory,Memory.NATURAL_STYLE_GUIDE) : Story.normalizeAgent(work,Memory);
+                const previous = appData[field].find(item => item.id === work.id);
+                if (normalized.worldBook.automation?.enabled || normalized.worldBook.automation?.sources.length) {
+                    const changes = StarlightWorldProgress.changedKeys(appData.activeMode, previous, normalized);
+                    updateWorldSources(appData.activeMode, normalized, changes, previous?.worldBook !== work.worldBook);
+                }
                 await commitCandidate({...appData, [field]:appData[field].map(item=>item.id === work.id ? normalized : item)});
+                worldProgress.wake();
             }
 
             async function importWorkspaceBackup(backup, options) {
@@ -3817,7 +3865,10 @@
                 planned.state.agents = planned.state.agents.map(work=>Story.normalizeAgent(work,Memory));
                 planned.state.rooms = planned.state.rooms.map(work=>Rooms.normalizeRoom(work,Memory,Memory.NATURAL_STYLE_GUIDE));
                 planned.state.styleProfiles = StyleLab.normalizeProfiles(planned.state.styleProfiles);
+                for (const work of planned.state.agents) updateWorldSources('story', work, [], true);
+                for (const work of planned.state.rooms) updateWorldSources('room', work, [], true);
                 await commitCandidate(planned.state);
+                worldProgress.wake();
                 $messageInput.value = (appData.activeMode==='room'?getCurrentRoom():getCurrentAgent())?.draft || '';
                 UI.resizeComposer($messageInput);
             }
@@ -4406,7 +4457,7 @@
             function getIntimacyRulesSignature(room) {
                 const member = room?.participants?.[0];
                 return JSON.stringify([
-                    room?.worldBook || null,
+                    RoomEngine.bookStamp(room?.worldBook),
                     room?.scenePrompt || '',
                     room?.userPersona || '',
                     room?.otherInfo || '',
@@ -4695,6 +4746,7 @@
                 $roomNarrationToggle.value = room?.narrationEnabled ? 'on' : 'off';
                 $roomBasePromptInput.value = room?.basePrompt || Rooms.DEFAULT_ROOM_PROMPT;
                 roomDraftWorldBook = WorldBook.normalizeWorldBook(room?.worldBook, room?.worldPrompt);
+                openWorldBookTools('room', roomDraftWorldBook);
                 renderWorldBookEditor($roomWorldBookEditor, roomDraftWorldBook, true);
                 $roomScenePromptInput.value = room?.scenePrompt || '';
                 $roomUserPersonaInput.value = room?.userPersona || '';
@@ -4727,6 +4779,7 @@
 
             function closeRoomModal(force = false) {
                 if (!$roomModalLoading.hidden && !force) return;
+                closeWorldBookTools('room');
                 Motion.setVisible($roomModalOverlay, false);
                 roomDraftSessionId += 1;
                 roomDraftBackgroundRevision += 1;
@@ -4948,7 +5001,7 @@
                     subtitle: $roomSubtitleInput.value.trim(),
                     basePrompt: $roomBasePromptInput.value.trim(),
                     worldPrompt: '',
-                    worldBook: collectWorldBook(roomDraftWorldBook),
+                    worldBook: collectWorldBook(roomDraftWorldBook, 'room', existingRoom),
                     scenePrompt: $roomScenePromptInput.value.trim(),
                     userPersona: $roomUserPersonaInput.value.trim(),
                     otherInfo: $roomOtherInfoInput.value.trim(),
@@ -5050,7 +5103,10 @@
                     appData.activeMode = 'room';
                     saveData();
                     await persistFullState();
+                    const retryWorldBook = worldBookEditors.room?.tools.shouldRetry();
                     closeRoomModal(true);
+                    worldProgress.wake();
+                    if (retryWorldBook) window.retryWorldProgress('room', room.id);
                     renderHomeLibraries();
                     updateModeUI();
                     renderMessages();
@@ -5298,12 +5354,38 @@
             });
 
             // ==================== 世界书编辑器 ====================
+            function closeWorldBookTools(mode) {
+                worldBookEditors[mode]?.tools.dispose();
+                worldBookEditors[mode] = null;
+            }
+
+            function openWorldBookTools(mode, initial) {
+                closeWorldBookTools(mode);
+                const room = mode === 'room';
+                const container = document.getElementById(mode + 'WorldBookTools');
+                const tools = window.StarlightWorldBookUI.mount(container, {
+                    mode, ai: window.StarlightWorldBookAI,
+                    getBook: () => room ? roomDraftWorldBook : storyDraftWorldBook,
+                    getParticipants: () => room ? roomDraftParticipants.map(({ id, name }) => ({ id, name })) : [],
+                    makeKey: () => WorldBook.createId('import-' + mode),
+                    request: (messages, signal) => callDeepSeekJSON(messages, {
+                        independent: true, purpose: '世界书建档', mode, signal,
+                    }),
+                    replaceBook(book) {
+                        if (room) roomDraftWorldBook = book;
+                        else storyDraftWorldBook = book;
+                        renderWorldBookEditor(room ? $roomWorldBookEditor : $storyWorldBookEditor, book, room);
+                    },
+                });
+                worldBookEditors[mode] = { base: JSON.parse(JSON.stringify(initial)), tools };
+            }
+
             function worldBookSectionMarkup(kind, entries, roomMode) {
                 const initial = kind === 'initial';
                 const title = initial ? '初始世界设定' : '后续世界进展';
                 const copy = initial
                     ? '故事开始前已经成立的世界事实。至少保留一个条目。'
-                    : '剧情发展后由你确认的装备、技能、关系、组织与规则变化。';
+                    : '已发生的装备、技能、关系、组织与规则变化。';
                 const cards = entries.length ? entries.map((entry, entryIndex) => {
                     const fields = entry.fields.map((field, fieldIndex) => `
                         <div class="worldbook-field" data-field-index="${fieldIndex}">
@@ -5316,6 +5398,7 @@
                         : '';
                     return `<article class="worldbook-entry" data-entry-index="${entryIndex}">
                         <div class="worldbook-entry-head"><strong>${initial ? '设定' : '进展'} ${entryIndex + 1}</strong><button type="button" class="mini-action-btn danger worldbook-remove-entry" ${initial && entries.length <= 1 ? 'disabled' : ''}>− 删除条目</button></div>
+                        ${entry.origin ? `<details class="worldbook-origin"><summary>来源 · ${escapeHtml(entry.origin.sourceLabel || '世界书整理')}</summary><blockquote>${escapeHtml(entry.origin.evidence || '')}</blockquote></details>` : ''}
                         <div class="worldbook-fields">${fields}</div>
                         <button type="button" class="mini-action-btn worldbook-add-field">＋ 添加栏位</button>
                         <details class="worldbook-advanced"><summary>生效与知识范围</summary>
@@ -5324,7 +5407,7 @@
                                 <label>触发方式<select class="worldbook-activation"><option value="always" ${entry.activationMode === 'always' ? 'selected' : ''}>始终生效</option><option value="keywords" ${entry.activationMode === 'keywords' ? 'selected' : ''}>关键词触发</option></select></label>
                                 <label>状态<select class="worldbook-status"><option value="active" ${entry.status === 'active' ? 'selected' : ''}>当前有效</option><option value="expired" ${entry.status === 'expired' ? 'selected' : ''}>已失效</option><option value="replaced" ${entry.status === 'replaced' ? 'selected' : ''}>已被替代</option></select></label>
                                 <label>优先级<select class="worldbook-priority">${[1,2,3,4,5].map(value => `<option value="${value}" ${entry.priority === value ? 'selected' : ''}>${value}</option>`).join('')}</select></label>
-                                <label style="grid-column:span 2">关键词<input class="worldbook-keywords" value="${escapeHtml(entry.keywords.join('，'))}" placeholder="用逗号分隔"></label>
+                                <label class="worldbook-keyword-setting">关键词<input class="worldbook-keywords" value="${escapeHtml(entry.keywords.join('，'))}" placeholder="用逗号分隔"></label>
                                 ${roomMode ? `<label>知识范围<select class="worldbook-scope"><option value="public" ${entry.knowledgeScope === 'public' ? 'selected' : ''}>房间公开</option><option value="private" ${entry.knowledgeScope === 'private' ? 'selected' : ''}>仅指定角色知道</option></select></label>${characterScope}` : ''}
                             </div>
                         </details>
@@ -5396,8 +5479,9 @@
                 });
             }
 
-            function collectWorldBook(draft) {
-                const book = WorldBook.normalizeWorldBook(draft);
+            function collectWorldBook(draft, mode, existing) {
+                const merged = window.StarlightWorldBookUI.mergeDraft(worldBookEditors[mode]?.base, draft, existing?.worldBook);
+                const book = WorldBook.normalizeWorldBook(merged);
                 book.initialEntries.forEach((entry, entryIndex) => entry.fields.forEach((field, fieldIndex) => {
                     field.label = String(field.label || '').trim();
                     field.value = String(field.value || '').trim();
@@ -5528,6 +5612,7 @@
                 $storySubtitleInput.value = story.subtitle;
                 $storyRulesInput.value = story.storyRules;
                 storyDraftWorldBook = WorldBook.normalizeWorldBook(story.worldBook, story.worldPrompt);
+                openWorldBookTools('story', storyDraftWorldBook);
                 renderWorldBookEditor($storyWorldBookEditor, storyDraftWorldBook, false);
                 $storyOpeningInput.value = story.openingScene;
                 $storyCurrentSceneInput.value = story.currentScene;
@@ -5563,6 +5648,7 @@
             }
 
             function closeCreateModal() {
+                closeWorldBookTools('story');
                 Motion.setVisible($modalOverlay, false);
                 editingAgentId = null;
                 storyDraftCharacters = [];
@@ -5581,7 +5667,7 @@
                 let worldBook;
                 try {
                     characters = collectStoryCharacters();
-                    worldBook = collectWorldBook(storyDraftWorldBook);
+                    worldBook = collectWorldBook(storyDraftWorldBook, 'story', appData.agents.find(item => item.id === editingAgentId));
                 } catch (error) {
                     showToast(error.message, 'error');
                     return;
@@ -5626,7 +5712,11 @@
                 updateModeUI();
                 renderMessages(); 
                 updateToolbarButtons();
+                const retryWorldBook = worldBookEditors.story?.tools.shouldRetry();
+                const savedId = editingAgentId || appData.currentAgentId;
                 closeCreateModal();
+                worldProgress.wake();
+                if (retryWorldBook) window.retryWorldProgress('story', savedId);
                 showChatScreen();
             }
 
@@ -6493,11 +6583,13 @@
             }
 
             function getRequestOptions(overrides = {}) {
-                const settings = Memory.normalizeConfig(getActiveMemorySettings());
+                const settings = Memory.normalizeConfig(overrides.mode === 'story' ? appData.storyMemorySettings :
+                    overrides.mode === 'room' ? appData.roomMemorySettings : getActiveMemorySettings());
                 const provider = getApiProviderConfig();
                 const requestedMaxTokens = overrides.maxTokens ?? settings.maxOutputTokens;
                 const options = {
-                    model: getActiveModel(),
+                    model: overrides.mode === 'room' ? normalizeDeepSeekModel(appData.roomModel) :
+                        overrides.mode === 'story' ? normalizeDeepSeekModel(appData.storyModel) : getActiveModel(),
                     temperature: overrides.temperature ?? 0.72,
                     max_tokens: provider.maxOutputTokens
                         ? Math.min(requestedMaxTokens, provider.maxOutputTokens)
@@ -6605,6 +6697,7 @@
                     const provider = getApiProviderConfig();
                     const requestBody = {
                         ...getRequestOptions({
+                            mode: overrides.mode,
                             temperature: overrides.temperature ?? 0.1,
                             maxTokens: overrides.maxTokens ?? 8000,
                             thinkingMode: 'disabled',
@@ -6861,6 +6954,10 @@
             function buildMessagesForAPI(styleOverride, requestContext = {}) {
                 const currentAgent = getCurrentAgent();
                 const agent = requestContext.regenerate && currentAgent ? {...currentAgent,conversations:currentAgent.conversations.slice(0,-1),memory:Memory.invalidateMemoryFromIndex(currentAgent.memory,currentAgent.conversations.length-1)} : currentAgent;
+                if (requestContext.regenerate && agent) {
+                    const index = currentAgent.conversations.length-1;
+                    updateWorldSources('story', agent, [StarlightWorldProgress.sourceKey('story', currentAgent.conversations[index], index)]);
+                }
                 const settings = Memory.normalizeConfig(appData.storyMemorySettings);
                 const style = styleOverride === undefined ? agent?.styleInfluence : styleOverride;
                 const latestQuery = requestContext.autoTask ? StarlightAutoBuild.query(agent,requestContext.autoTask) : agent?.conversations?.findLast(message=>message.role==='user')?.content || '';
@@ -7051,11 +7148,13 @@
                             speakerId: memberId,
                             content: responseText,
                             dialogue:response.dialogue,
+                            ...(room.worldBook?.automation?.enabled ? {worldWitnessIds:RoomEngine.presentMembers(room).map(item => item.id)} : {}),
                             turnId,
                             kind: 'message',
                             createdAt: Date.now(),
                         });
                         generatedCount += 1;
+                        trackWorldMessage('room', room, room.messages.at(-1), room.messages.length - 1);
                         room.updatedAt = Date.now();
                         saveData();
                         renderRoomMessages({ preserveScroll: true });
@@ -7150,7 +7249,8 @@
                         }
                         if (fullContent !== null && fullContent !== undefined) {
                             if (fullContent.trim()) {
-                                agent.conversations.push({ role: 'assistant', content: fullContent, createdAt: Date.now(), bookmarked: false });
+                                agent.conversations.push({ id:Story.createId('message'), role: 'assistant', content: fullContent, createdAt: Date.now(), bookmarked: false });
+                                trackWorldMessage('story', agent, agent.conversations.at(-1), agent.conversations.length - 1);
                             } else {
                                 agent.conversations.push({ role: 'assistant', content: '（回复为空）', createdAt: Date.now(), bookmarked: false });
                             }
@@ -7200,6 +7300,7 @@
                     sharedMemory:Memory.invalidateMemoryFromIndex(room.sharedMemory,messageIndex),
                     characterMemories:Object.fromEntries(Object.entries(room.characterMemories||{}).map(([id,memory])=>[id,Memory.invalidateMemoryFromIndex(memory,messageIndex)]))};
                 RoomEngine.revertRelations(requestRoom,oldMessage.turnId);
+                updateWorldSources('room', requestRoom, [StarlightWorldProgress.sourceKey('room', oldMessage, messageIndex)]);
                 isGenerating = true;
                 updateSendButton();
                 updateToolbarButtons();
@@ -7223,6 +7324,7 @@
                             RoomEngine.revertRelations(room,oldMessage.turnId);
                             room.sharedMemory=requestRoom.sharedMemory;room.characterMemories=requestRoom.characterMemories;
                             room.messages[messageIndex]={ ...oldMessage, id: Rooms.createId('roommsg'), content: cleaned, dialogue:response.dialogue, createdAt: Date.now() };
+                            trackWorldMessage('room', room, room.messages[messageIndex], messageIndex);
                             room.updatedAt=Date.now();
                             replacementSaved = true;
                             saveData();
@@ -7337,6 +7439,7 @@
                 if (appData.activeMode === 'room') {
                     const room = getCurrentRoom();
                     if (!room?.messages?.length) return;
+                    const removed = room.messages.at(-1);
                     const turnId = [...room.messages].reverse().find(message => message.turnId)?.turnId;
                     if (!turnId) {
                         room.messages.pop();
@@ -7363,6 +7466,7 @@
                     });
                     roomRenderedMessageRange = null;
                     room.updatedAt=Date.now();RoomEngine.ensure(room).candidates=RoomEngine.ensure(room).candidates.filter(d=>d.turnId!==turnId);
+                    updateWorldSources('room', room, [turnId ? 'room:' + turnId : StarlightWorldProgress.sourceKey('room', removed, room.messages.length)]);
                     saveData();
                     renderRoomContext();
                     renderRoomMessages();
@@ -7375,6 +7479,7 @@
 
                 const lastMsg = agent.conversations[agent.conversations.length - 1];
                 agent.autoBuild=StarlightAutoBuild.undo(agent);
+                const removedSource = StarlightWorldProgress.sourceKey('story', lastMsg, agent.conversations.length-1);
                 if (lastMsg.role === 'assistant') {
                     agent.conversations.pop(); 
                     if (agent.conversations.length > 0 && agent.conversations[agent.conversations.length - 1].role === 'user') {
@@ -7384,6 +7489,7 @@
                     agent.conversations.pop();
                 }
                 agent.memory = normalizeMemoryAfterUndo(agent.memory, agent.conversations.length);
+                updateWorldSources('story', agent, [removedSource]);
                 agent.chapters=Workspace.normalizeChapters(agent.chapters,agent.conversations.length);
                 agent.readingPosition=Workspace.normalizeReading(agent.readingPosition,agent.conversations.length);
                 storyRenderedMessageRange = null;
@@ -7406,6 +7512,7 @@
                     const intimacyText = room.roomType === 'double' ? '亲密度将回到房间设定的初始值；' : '';
                     if (!confirm(`确定清空当前房间的全部对话和记忆吗？${intimacyText}角色与场景设定会保留。`)) return;
                     room.messages = [];
+                    updateWorldSources('room', room, [], true);
                     room.chapters=[];room.readingPosition=null;
                     if(room.styleInfluence)room.styleInfluence.appliedMessageIndex=0;
                     room.sharedMemory = Memory.createEmptyMemory();
@@ -7436,6 +7543,7 @@
                 }
                 if (!confirm('确定清空当前剧情的全部对话和长期记忆吗？人物设定会保留，但聊天原文无法恢复。')) return;
                 agent.conversations = [];
+                updateWorldSources('story', agent, [], true);
                 agent.incompleteDraft=null;
                 agent.autoBuild={...StarlightAutoBuild.normalize(agent.autoBuild),mode:'off',nextNumber:1,initialized:true,lastChapterId:'',lastError:''};
                 agent.chapters=[];agent.readingPosition=null;
@@ -7476,7 +7584,7 @@
             function inspirationContextStamp(work) {
                 if (!work) return '';
                 const source = JSON.stringify([work.id, getActiveModel(), appData.storyGlobalPrompt,
-                    Story.normalizePromptSettings(work), work.styleInfluence, work.memory,
+                    Story.buildStructuredPrompt(work, StyleLab.buildInfluencePrompt(work.styleInfluence)), work.memory,
                     Archive.messageSource(work, 'story')]);
                 let hash = 2166136261, second = 5381;
                 for (let i=0;i<source.length;i++) { const code=source.charCodeAt(i); hash=Math.imul(hash^code,16777619); second=Math.imul(second,33)^code; }
@@ -7937,6 +8045,7 @@
                 $apiBalanceStatus.textContent = $inspirationBalanceStatus.textContent = '密钥已更新，请重新查询余额';
                 appData.apiKey = $apiKeyInput.value.trim();
                 appData.apiKeys.deepseek = appData.apiKey;
+                worldProgress.wake();
                 saveData();
                 updateSendButton();
             });
@@ -8002,6 +8111,10 @@
                     showToast('⚠️ 浏览器无存储权限，配置与对话将无法在关闭网页后留存。', 'error');
                 }
                 await loadData();
+                for (const work of appData.agents) updateWorldSources('story', work, [], true);
+                for (const work of appData.rooms) updateWorldSources('room', work, [], true);
+                if (!storageReadFailed && [...appData.agents,...appData.rooms].some(work => work.worldBook?.automation?.sources.length)) saveData();
+                worldProgress.wake();
                 applyTheme(); 
 
                 refreshModelSettingsUI();
