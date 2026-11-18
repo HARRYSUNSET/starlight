@@ -262,3 +262,66 @@ test('房间高强度文风保留角色口吻与自定义原文，读档元数�
     assert.equal(room.chapters.length, 1);
     assert.equal(room.revisionHistory.length, 1);
 });
+
+test('角色对白协议进入稳定系统前缀，提醒不再要求不要 JSON', () => {
+    const room = createGroupRoom();
+    room.messages = [{ role: 'user', content: '你好' }];
+    const first = Rooms.buildCharacterMessages(room, 'alice', {}, 100, Memory);
+    const next = Rooms.buildCharacterMessages(room, 'alice', {}, 100, Memory);
+    assert.match(first[0].content, /房间对白输出协议/);
+    assert.match(first[0].content, /只输出 JSON 对象/);
+    assert.match(first[0].content, /输出结构｜高于人物、历史与文风/);
+    assert.match(first[0].content, /历史中未带结构的旧正文只是内容记录/);
+    assert.doesNotMatch(first[0].content, /不要输出[^。]*或JSON/);
+    // 稳定前缀必须可复用（文风试写、重生成走同一入口）。
+    assert.equal(first[0].content, next[0].content);
+    assert.equal(JSON.stringify(first[0].content), JSON.stringify(next[0].content));
+});
+
+test('本角色历史带 dialogue 时按 JSON 序列化，旧纯文本记录原样保留不改存档', () => {
+    const room = createGroupRoom();
+    room.messages = [
+        { role: 'user', content: '你好' },
+        { role: 'assistant', speakerId: 'alice', content: '（抬眼）你来了。', dialogue: { speech: '你来了。', expression: '抬眼' } },
+        { role: 'assistant', speakerId: 'alice', content: '旧版纯文本回复。' },
+        { role: 'assistant', speakerId: 'alice', content: '（点头）', dialogue: { speech: '', expression: '点头' } },
+    ];
+    const before = structuredClone(room.messages);
+    const messages = Rooms.buildCharacterMessages(room, 'alice', {}, 100, Memory);
+    const history = messages.slice(2);
+    assert.deepEqual(history[1], { role: 'assistant', content: JSON.stringify({ expression: '抬眼', speech: '你来了。' }) });
+    assert.deepEqual(history[2], { role: 'assistant', content: '旧版纯文本回复。' });
+    assert.deepEqual(history[3], { role: 'assistant', content: JSON.stringify({ expression: '点头', speech: '' }) });
+    assert.deepEqual(room.messages, before, '序列化不得修改已保存的历史');
+});
+
+test('其他角色的历史仍以 user 包装，不写成当前角色的 JSON', () => {
+    const room = createGroupRoom();
+    room.messages = [
+        { role: 'user', content: '你们好' },
+        { role: 'assistant', speakerId: 'bob', content: '顾言：我先说。', dialogue: { speech: '我先说。', expression: '' } },
+    ];
+    const messages = Rooms.buildCharacterMessages(room, 'alice', {}, 100, Memory);
+    const other = messages.find(message => message.role === 'user' && /另一位角色/.test(message.content));
+    assert.ok(other);
+    assert.doesNotMatch(other.content, /^\{"expression"/);
+    assert.match(other.content, /不得替其继续发言/);
+});
+
+test('场景旁白提示要求写入 narration 字段，不再要求直接输出纯文本', () => {
+    const room = createGroupRoom();
+    const messages = Rooms.buildNarrationMessages(room, '雨停', '');
+    assert.match(messages[0].content, /narration 字段/);
+    assert.doesNotMatch(messages[0].content, /直接输出正文/);
+    assert.match(messages[0].content, /不得替用户行动、发言、思考或感受/);
+});
+
+test('角色对白与场景旁白提示彼此隔离', () => {
+    const room = createGroupRoom();
+    const character = Rooms.buildCharacterMessages(room, 'alice', {}, 100, Memory)[0].content;
+    const narration = Rooms.buildNarrationMessages(room, '', '')[0].content;
+    assert.match(character, /房间对白输出协议/);
+    assert.doesNotMatch(character, /房间场景旁白/);
+    assert.match(narration, /房间场景旁白/);
+    assert.doesNotMatch(narration, /房间对白输出协议/);
+});

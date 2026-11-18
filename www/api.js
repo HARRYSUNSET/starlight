@@ -74,6 +74,7 @@
         let buffer = '';
         let eventLines = [];
         let fullContent = '';
+        let reasoningChars = 0;
         let finishReason = null;
         let usage = null;
         let completed = false;
@@ -94,6 +95,8 @@
             if (parsed.error) throw new Error(parsed.error.message || '流式响应中断');
             const choice = parsed.choices?.[0];
             if (typeof choice?.delta?.content === 'string') fullContent += choice.delta.content;
+            // Count reasoning without retaining or displaying its private text.
+            if (typeof choice?.delta?.reasoning_content === 'string') reasoningChars += choice.delta.reasoning_content.length;
             if (choice?.finish_reason) finishReason = choice.finish_reason;
             if (parsed.usage) usage = parsed.usage;
         };
@@ -132,15 +135,66 @@
             if (!finishReason) {
                 throw new Error('连接在回复完成前中断，本次片段未作为完整剧情保存');
             }
-            return { content: fullContent, finishReason, usage };
+            return { content: fullContent, finishReason, usage, reasoningChars };
         } catch (error) {
             error.partialContent = fullContent;
+            error.responseInfo = completionInfo({content:fullContent,finishReason,usage,reasoningChars});
             throw error;
         } finally {
             options.signal?.removeEventListener('abort', cancel);
             if (!reachedEOF) cancel();
             reader.releaseLock();
         }
+    }
+
+    // Only non-content metadata may enter diagnostics. Never retain API keys,
+    // prompts, character text, or the model's chain of thought here.
+    function completionInfo(result = {}, options = {}) {
+        const count = value => typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+        return {
+            finishReason: ['stop','length','content_filter','tool_calls','insufficient_system_resource','aborted'].includes(result.finishReason) ? result.finishReason : null,
+            format: options.structured ? 'json' : 'text',
+            thinking: options.thinkingMode === 'enabled' ? 'enabled' : 'disabled',
+            outputLimit: count(options.maxTokens),
+            contentChars: typeof result.content === 'string' ? result.content.length : 0,
+            reasoningChars: count(result.reasoningChars) || 0,
+            reasoningTokens: count(result.usage?.completion_tokens_details?.reasoning_tokens),
+            outputTokens: count(result.usage?.completion_tokens),
+        };
+    }
+
+    function completionError(result = {}, options = {}) {
+        const content = typeof result.content === 'string' ? result.content : '';
+        const info = completionInfo(result, options);
+        let code, message;
+        if (info.finishReason !== 'stop' && info.finishReason !== 'length') {
+            code = 'RESPONSE_INTERRUPTED';
+            message = '服务端中断了本次生成，未采纳不完整结果，原有内容未改变。';
+        } else if (!content.trim()) {
+            if (info.finishReason === 'length') {
+                const hasReasoning = info.reasoningChars > 0 || info.reasoningTokens > 0;
+                code = hasReasoning ? 'REASONING_LIMIT' : 'OUTPUT_LIMIT_EMPTY';
+                message = hasReasoning
+                    ? '本次达到输出上限，模型已进行思考但尚未返回有效正文。可提高单次回复上限或切换为自然创作后重试；原有内容未改变。'
+                    : '本次达到输出上限，但没有返回有效正文；可调整单次回复上限后重试，原有内容未改变。';
+            } else if (options.structured) {
+                code = content.length ? 'JSON_WHITESPACE' : 'EMPTY_JSON';
+                message = content.length
+                    ? '模型只返回了空白，未提供有效 JSON；可能与输出格式不符有关，原有数据未被覆盖。'
+                    : '模型没有返回 JSON 正文，原有数据未被覆盖。';
+            } else {
+                code = 'EMPTY_CONTENT';
+                message = '模型没有返回有效正文，原有内容未改变。';
+            }
+        } else if (options.requireStop && info.finishReason === 'length') {
+            code = 'JSON_TRUNCATED';
+            message = '结构化结果达到输出上限，尚未完整生成，原有数据未被覆盖。';
+        } else return null;
+        const error = new Error(message);
+        error.code = code;
+        error.responseInfo = info;
+        error.partialContent = content.trim() ? content : '';
+        return error;
     }
 
     function createUsageTracker() {
@@ -166,7 +220,7 @@
     function createTaskMetrics() {
         const tasks = new Map();
         return {
-            record(label, elapsedMs, usage, status = 'success') {
+            record(label, elapsedMs, usage, status = 'success', responseInfo) {
                 const name=String(label||'其他请求');
                 const row=tasks.get(name)||{name,requests:0,successes:0,failures:0,cancelled:0,elapsedMs:0,reported:0,input:0,output:0,cacheHit:0};
                 row.requests++; row.elapsedMs+=Math.max(0,Number(elapsedMs)||0);
@@ -175,9 +229,14 @@
                     row.reported++;row.input+=Math.max(0,usage.prompt_tokens);row.output+=Math.max(0,usage.completion_tokens);
                     row.cacheHit+=Math.min(Math.max(0,Number(usage.prompt_cache_hit_tokens)||0),Math.max(0,usage.prompt_tokens));
                 }
+                if(responseInfo)row.lastResponse=completionInfo({
+                    finishReason:responseInfo.finishReason,content:'',reasoningChars:responseInfo.reasoningChars,
+                    usage:{completion_tokens:responseInfo.outputTokens,completion_tokens_details:{reasoning_tokens:responseInfo.reasoningTokens}},
+                },{structured:responseInfo.format==='json',thinkingMode:responseInfo.thinking,maxTokens:responseInfo.outputLimit});
+                if(responseInfo)row.lastResponse.contentChars=Number.isFinite(responseInfo.contentChars)?Math.max(0,responseInfo.contentChars):0;
                 tasks.set(name,row);
             },
-            snapshot(){return Array.from(tasks.values(),row=>({...row}));},
+            snapshot(){return Array.from(tasks.values(),row=>({...row,...(row.lastResponse?{lastResponse:{...row.lastResponse}}:{})}));},
         };
     }
 
@@ -193,5 +252,5 @@
         };
     }
 
-    return { createRequestScope, readResponseText, readCompletionStream, createUsageTracker, createTaskMetrics, createAuxiliaryCache };
+    return { createRequestScope, readResponseText, readCompletionStream, completionInfo, completionError, createUsageTracker, createTaskMetrics, createAuxiliaryCache };
 });

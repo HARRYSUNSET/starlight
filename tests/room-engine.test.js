@@ -44,6 +44,21 @@ test('逐字 JSON 流不显示原始字段或内心，正确处理中文、转�
     for(let i=0;i<raw.length;i++){const partial=E.partialDialogue(raw.slice(0,i));assert.ok(!partial.startsWith('{'));assert.ok(!partial.includes('"speech"'));}
     assert.equal(E.partialDialogue(raw),'（眨眼）“好呀。”\n明天见 😀');
 });
+
+test('角色可以只以简短动作回应，协议、流式展示和最终校验保持一致',()=>{
+    const raw=JSON.stringify({speech:'',expression:'轻轻点头'});
+    assert.equal(E.parseDialogue(raw).content,'（轻轻点头）');
+    assert.equal(E.parseDialogue({speech:'嗯？'}).content,'嗯？');
+    assert.equal(E.parseDialogue({expression:'轻轻点头'}).content,'（轻轻点头）');
+    assert.equal(E.parseDialogue({speech:'🙂'}).content,'🙂');
+    assert.throws(()=>E.parseDialogue({speech:3,expression:''}),/格式/);
+    assert.equal(E.partialDialogue(raw),'（轻轻点头）');
+    assert.equal(E.parseDialogue({speech:'',expression:'（轻轻点头）'}).content,'（轻轻点头）');
+    assert.throws(()=>E.parseDialogue({speech:' ',expression:' '}),/均为空/);
+    assert.throws(()=>E.parseDialogue({speech:'……',expression:'（）'}),/实际内容/);
+    assert.throws(()=>E.parseDialogue({speech:'',expression:'心里想着胜利'}),/心理/);
+    assert.equal(E.partialDialogue(JSON.stringify({speech:'',expression:'心里想着胜利'})),'');
+});
 test('关系非零判定必须有本轮真实用户来源，伪造及角色自我害羞不能充当证据',()=>{
     const value=room();turn(value,'（归还借来的书）','t1');const before=JSON.stringify(E.ensure(value).relations);
     assert.throws(()=>E.applyJudgements(value,'t1',judgement('t1','不在原文里'),Rooms.applyIntimacyResult),/来源/);

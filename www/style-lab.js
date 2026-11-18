@@ -492,12 +492,13 @@
         ];
     }
 
-    function buildPracticeMessages(requestMessages, request) {
+    function buildPracticeMessages(requestMessages, request, options = {}) {
         const messages = (Array.isArray(requestMessages) ? requestMessages : []).map(message => ({
             role: ['system', 'user', 'assistant'].includes(message.role) ? message.role : 'user',
             content: typeof message.content === 'string' ? message.content : JSON.parse(JSON.stringify(message.content || '')),
         }));
-        messages.unshift({ role: 'system', content: '【文风实战预览｜隔离沙盒】\n下列正式提示词与历史均为只读快照。按同一角色、人设、知识边界和历史继续假想创作，但本次输出不是任何正式剧情的一部分，不表示已经发生，不写入记忆。只输出正文。' });
+        const outputRule=options.roomDialogue?'遵守房间对白输出协议，只输出含 expression 与 speech 字段的 JSON 对象；试写的文风只作用于字段内容。':'只输出正文。';
+        messages.unshift({ role: 'system', content: '【文风实战预览｜隔离沙盒】\n下列正式提示词与历史均为只读快照。按同一角色、人设、知识边界和历史继续假想创作，但本次输出不是任何正式剧情的一部分，不表示已经发生，不写入记忆。'+outputRule });
         const instruction = asString(request).trim();
         messages.push({ role: 'user', content: instruction
             ? `【沙盒测试要求｜独立于正式时间线】\n${instruction}`

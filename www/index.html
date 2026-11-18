@@ -2255,7 +2255,7 @@
                 <div class="library-page-heading"><h2>我的</h2><p>管理全局 API、模型、外观与存储设置。</p></div>
                 <div id="mySettingsMount"></div>
                 <div class="my-section-title">应用信息</div>
-                <div class="my-version-card"><strong>星陽之语 2.7.0</strong><br>自动构筑 · 逐章确认 · 正文恢复 · 长篇记忆</div>
+                <div class="my-version-card"><strong>星陽之语 2.7.1</strong><br>房间回复修复 · 情景协议统一 · 空回复诊断</div>
             </section>
         </main>
         <nav class="bottom-nav" aria-label="主导航">
@@ -4160,14 +4160,20 @@
                 ].join('\n\n');
             }
 
-            function callStylePreview(messages, output = $stylePreviewOutput, purpose = '文风预览', maxTokens = 4000) {
+            function callStylePreview(messages, output = $stylePreviewOutput, purpose = '文风预览', maxTokens = 4000, overrides = {}) {
                 return new Promise((resolve, reject) => {
                     callDeepSeekAPI(
                         messages,
-                        content => { output.textContent = content || '正在生成……'; },
-                        (content, metadata) => resolve({ content, metadata }),
+                        content => { output.textContent = (overrides.structured?RoomEngine.partialDialogue(content):content) || '正在生成……'; },
+                        (content, metadata) => {
+                            if(content!==null&&overrides.structured){
+                                if(metadata?.finishReason!=='stop')return reject(new Error('房间试写未完整生成，原参考文本保留。'));
+                                try{content=RoomEngine.parseDialogue(content).content;}catch(error){return reject(error);}
+                            }
+                            resolve({ content, metadata });
+                        },
                         reject,
-                        { temperature: 0.72, maxTokens, thinkingMode: 'disabled', purpose }
+                        { temperature: 0.72, maxTokens, thinkingMode: 'disabled', purpose, ...overrides }
                     );
                 });
             }
@@ -4182,12 +4188,13 @@
                 try {
                     const request = $stylePreviewRequestInput.value.trim();
                     const context = $stylePreviewModeSelect.value === 'current' ? buildCurrentStylePreviewContext() : '';
+                    const roomDialogue=appData.activeMode==='room'&&$stylePreviewModeSelect.value==='practice';
                     const messages = $stylePreviewModeSelect.value==='practice'
-                        ? StyleLab.buildPracticeMessages(buildStylePracticeRequest(StyleLab.createAppliedStyle(profile,{messageIndex:getActiveMessages().length})),request)
+                        ? StyleLab.buildPracticeMessages(buildStylePracticeRequest(StyleLab.createAppliedStyle(profile,{messageIndex:getActiveMessages().length})),request,{roomDialogue})
                         : StyleLab.buildPreviewMessages(profile, request, context);
                     setStyleLabBusy(true, '文风分析已就绪');
                     $stylePreviewOutput.textContent = '正在隔离沙盒中生成参考文本……';
-                    const response = await callStylePreview(messages);
+                    const response = await callStylePreview(messages,$stylePreviewOutput,roomDialogue?'房间文风试写':'文风预览',4000,{structured:roomDialogue});
                     if (response.content === null) return;
                     const current = getSelectedStyleProfile();
                     if (current?.id === profile.id) {
@@ -4228,9 +4235,10 @@
                 if(!appData.apiKey)return showToast('请先设置 API Key','error');
                 const request=$stylePreviewRequestInput.value.trim();
                 const mode=$stylePreviewModeSelect.value;
+                const roomDialogue=appData.activeMode==='room'&&mode==='practice';
                 const context=mode==='current'?buildCurrentStylePreviewContext():'';
                 const selected=StyleLab.createAppliedStyle(profile,{messageIndex:getActiveMessages().length});
-                const build=style=>mode==='practice'?StyleLab.buildPracticeMessages(buildStylePracticeRequest(style),request):StyleLab.buildPreviewMessages(style || {...profile,strength:0},request,context);
+                const build=style=>mode==='practice'?StyleLab.buildPracticeMessages(buildStylePracticeRequest(style),request,{roomDialogue}):StyleLab.buildPreviewMessages(style || {...profile,strength:0},request,context);
                 try {
                     const a=build(mode==='practice'?undefined:null), b=build(selected);
                     setStyleLabBusy(true,'正在使用同一场景进行两次独立试写……');
@@ -4238,9 +4246,9 @@
                     document.getElementById('styleComparison').hidden=false;
                     const left=document.getElementById('styleCompareA'),right=document.getElementById('styleCompareB');
                     left.textContent='正在生成 A……';right.textContent='等待生成 B……';
-                    const resultA=await callStylePreview(a,left,'文风对比 A');
+                    const resultA=await callStylePreview(a,left,'文风对比 A',4000,{structured:roomDialogue});
                     if(resultA.content===null)throw new Error('A 试写已取消');
-                    const resultB=await callStylePreview(b,right,'文风对比 B');
+                    const resultB=await callStylePreview(b,right,'文风对比 B',4000,{structured:roomDialogue});
                     if(resultB.content===null)throw new Error('B 试写已取消');
                     styleComparison={profileId:profile.id,a:resultA.content,b:resultB.content,request};
                 }catch(error){showToast('文风对比未完成：'+error.message,'error');}
@@ -6444,7 +6452,7 @@
             async function generateValidRoomResponse(room, messages, member, queueIndex, queueTotal) {
                 const bubble=createRoomStreamingMessage(member,queueIndex,queueTotal);
                 try{
-                    const response=await callDeepSeekStreamPromise([...messages,{role:'system',content:RoomEngine.DIALOGUE_FORMAT}],bubble,{structured:true,purpose:'房间对白'});
+                    const response=await callDeepSeekStreamPromise(messages,bubble,{structured:true,reasoningEffort:'low',purpose:'房间对白'});
                     if(response.metadata?.partialContent)return {...response,content:'',invalidDraft:response.metadata.partialContent,invalidReason:'生成被停止，片段未作为完整回复采纳。'};
                     if(response.content===null||response.content===undefined||!isGenerating)return response;
                     if(response.metadata?.finishReason==='length')return {...response,content:'',invalidDraft:response.content,invalidReason:'输出达到上限，新稿暂未采纳；可在待修正稿中编辑。'};
@@ -6475,9 +6483,13 @@
                 document.getElementById('apiUsageStatus').textContent = `本次打开：${stats.requests} 次已统计请求 · 输入 ${stats.inputTokens.toLocaleString()} / 输出 ${stats.outputTokens.toLocaleString()} tokens · 缓存命中 ${cache}`;
             }
 
-            function recordTaskMetric(label,start,usage,status) {
-                taskMetrics.record(label,performance.now()-start,usage,status);
-                document.getElementById('apiTaskStatus').innerHTML=taskMetrics.snapshot().map(row=>`<p>${escapeHtml(row.name)} · ${row.requests} 次 · ${(row.elapsedMs/1000).toFixed(1)} 秒<br>已报告 ${row.reported} 次：输入 ${row.input.toLocaleString()} / 输出 ${row.output.toLocaleString()} · 失败 ${row.failures} / 取消 ${row.cancelled}</p>`).join('');
+            function recordTaskMetric(label,start,usage,status,responseInfo) {
+                taskMetrics.record(label,performance.now()-start,usage,status,responseInfo);
+                document.getElementById('apiTaskStatus').innerHTML=taskMetrics.snapshot().map(row=>{
+                    const info=row.lastResponse;
+                    const details=info?`<br>最近返回：${info.finishReason||'未收到结束原因'} · 正文 ${info.contentChars} 字符 · ${info.thinking==='enabled'?'深度思考':'自然创作'}<br>输出 ${info.outputTokens??'未报告'} / 上限 ${info.outputLimit??'未记录'} tokens · 思考 ${info.reasoningTokens??'未报告'} tokens`:'';
+                    return `<p>${escapeHtml(row.name)} · ${row.requests} 次 · ${(row.elapsedMs/1000).toFixed(1)} 秒<br>已报告 ${row.reported} 次：输入 ${row.input.toLocaleString()} / 输出 ${row.output.toLocaleString()} · 失败 ${row.failures} / 取消 ${row.cancelled}${details}</p>`;
+                }).join('');
             }
 
             function getRequestOptions(overrides = {}) {
@@ -6494,6 +6506,7 @@
                 if(overrides.structured&&provider.supportsJsonMode)options.response_format={type:'json_object'};
                 if (provider.supportsDeepSeekThinking) {
                     options.thinking = { type: overrides.thinkingMode || settings.thinkingMode };
+                    if(options.thinking.type==='enabled'&&['low','high','max'].includes(overrides.reasoningEffort))options.reasoning_effort=overrides.reasoningEffort;
                 }
                 return options;
             }
@@ -6513,7 +6526,7 @@
                 abortController = request.controller;
                 const apiUrl = getApiProviderConfig().apiUrl;
                 const requestOptions = getRequestOptions(overrides);
-                const metricStart=performance.now();let metricUsage=null,metricStatus='failed';
+                const metricStart=performance.now();let metricUsage=null,metricStatus='failed',metricInfo=null;
 
                 try {
                     Object.assign(requestOptions,fitRequestBudget(requestOptions,messages));
@@ -6546,13 +6559,14 @@
                     });
                     recordApiUsage(result.usage);
                     metricUsage=result.usage;
-                    if(result.finishReason!=='stop'&&result.finishReason!=='length'){
-                        const incomplete=new Error('服务端中断了本次生成，片段已保留为未完成稿');incomplete.partialContent=result.content;throw incomplete;
-                    }
-                    if(!result.content.trim())throw new Error('模型返回了空正文，原有内容保持不变');
+                    const validationOptions={structured:requestOptions.response_format?.type==='json_object',thinkingMode:requestOptions.thinking?.type,maxTokens:requestOptions.max_tokens};
+                    metricInfo=API.completionInfo(result,validationOptions);
+                    const completionError=API.completionError(result,validationOptions);
+                    if(completionError)throw completionError;
                     metricStatus='success';
-                    await onDone(result.content, { finishReason: result.finishReason, usage: result.usage });
+                    await onDone(result.content, { finishReason: result.finishReason, usage: result.usage, responseInfo:metricInfo });
                 } catch (error) {
+                    if(!metricInfo&&error.responseInfo)metricInfo={...error.responseInfo,thinking:requestOptions.thinking?.type,format:requestOptions.response_format?.type==='json_object'?'json':'text',outputLimit:requestOptions.max_tokens};
                     error = request.error(error);
                     if (error.name === 'AbortError') {
                         metricStatus='cancelled';
@@ -6561,7 +6575,7 @@
                     }
                     await onError(error);
                 } finally {
-                    recordTaskMetric(overrides.purpose || (appData.activeMode==='room'?'房间正文':'剧情正文'),metricStart,metricUsage,metricStatus);
+                    recordTaskMetric(overrides.purpose || (appData.activeMode==='room'?'房间正文':'剧情正文'),metricStart,metricUsage,metricStatus,metricInfo);
                     request.dispose();
                     if (abortController === request.controller) abortController = null;
                 }
@@ -6584,7 +6598,7 @@
                 const cacheKey=overrides.cache?JSON.stringify([appData.apiKey,getActiveModel(),overrides,messages]):null;
                 const cached=cacheKey?auxiliaryCache.get(cacheKey):undefined;
                 if(cached!==undefined){showToast('输入未变化，复用本次打开期间的分析结果（未新增请求）','info');return cached;}
-                const metricStart=performance.now();let metricUsage=null,metricStatus='failed';
+                const metricStart=performance.now();let metricUsage=null,metricStatus='failed',metricInfo=null;
                 const request = API.createRequestScope({signal:overrides.signal});
                 if(!overrides.independent)abortController = request.controller;
                 try {
@@ -6621,16 +6635,21 @@
                     recordApiUsage(result.usage);
                     metricUsage=result.usage;
                     const content = result.choices?.[0]?.message?.content;
-                    if (typeof content!=='string'||!content.trim()) throw new Error('模型未返回有效 JSON，原有数据未被覆盖');
-                    if(result.choices?.[0]?.finish_reason!=='stop')throw new Error('结构化结果未正常完成，原有数据未被覆盖');
-                    const parsed=parseJsonResponse(content);metricStatus='success';
+                    const completion={content,finishReason:result.choices?.[0]?.finish_reason,usage:result.usage,reasoningChars:typeof result.choices?.[0]?.message?.reasoning_content==='string'?result.choices[0].message.reasoning_content.length:0};
+                    const validationOptions={structured:true,thinkingMode:requestBody.thinking?.type,maxTokens:requestBody.max_tokens,requireStop:true};
+                    metricInfo=API.completionInfo(completion,validationOptions);
+                    const completionError=API.completionError(completion,validationOptions);
+                    if(completionError)throw completionError;
+                    let parsed;
+                    try{parsed=parseJsonResponse(content);}catch(error){throw new Error('模型返回的 JSON 格式不完整，原有数据未被覆盖。');}
+                    metricStatus='success';
                     if(cacheKey)auxiliaryCache.set(cacheKey,parsed);
                     return parsed;
                 } catch (error) {
                     if(error.name==='AbortError')metricStatus='cancelled';
                     throw request.error(error);
                 } finally {
-                    recordTaskMetric(overrides.purpose || '记忆整理',metricStart,metricUsage,metricStatus);
+                    recordTaskMetric(overrides.purpose || '记忆整理',metricStart,metricUsage,metricStatus,metricInfo);
                     request.dispose();
                     if (abortController === request.controller) abortController = null;
                 }

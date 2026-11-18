@@ -47,7 +47,8 @@
         '只生成当前指定角色本人的普通说话内容；括号内只放简短外显神态，不夹入心理独白、环境旁白或时间地点跳跃。',
         '不得替用户行动或发言；不得代写其他角色的台词、动作或内心。',
         '不得泄露当前角色不知道的秘密或后台设定。',
-        '直接输出角色内容，不要输出角色名前缀、姓名标签、空白标签、分析、规则说明或JSON。',
+        '字段内只写角色内容，不要加入角色名前缀、姓名标签、空白标签、分析或规则说明。',
+        '人设、关系、历史与文风只影响“说什么”，不改变输出结构；本轮必须按【房间对白输出协议】只输出该 JSON 对象，不要输出任何额外文本。',
         '不要先写若干空行、重复标题或只有角色名的占位行。',
         '回复长度必须服从本轮交流节奏：短问短答可以只有一句或一小段，复杂事件才自然展开。',
         '不要把每次回复固定成三段，也不要机械套用“动作—台词—心理”结构。',
@@ -373,7 +374,11 @@
             const cleaned = cleanCharacterOutput(message.content, member?.name || '');
             if (!hasSubstantiveRoomContent(room, cleaned)) return null;
             if (message.speakerId === currentMemberId) {
-                return { role: 'assistant', content: cleaned };
+                // Structured history keeps the few-shot examples in the same shape as the
+                // required output. Legacy plain-text records are sent unchanged: never
+                // rewrite saved messages or guess how they should have been split.
+                const payload = dialoguePayload(message);
+                return payload ? { role: 'assistant', content: payload } : { role: 'assistant', content: cleaned };
             }
             return {
                 role: 'user',
@@ -381,6 +386,15 @@
             };
         }
         return { role: 'system', content: `房间中的既有事件记录：${message.content}` };
+    }
+
+    function dialoguePayload(message) {
+        const dialogue = message && message.dialogue;
+        if (!dialogue || (dialogue.speech !== undefined && typeof dialogue.speech !== 'string') || (dialogue.expression !== undefined && typeof dialogue.expression !== 'string')) return '';
+        const speech = asString(dialogue.speech).trim();
+        const expression = asString(dialogue.expression).trim();
+        if (!speech && !expression) return '';
+        return JSON.stringify({ expression, speech });
     }
 
     function roomMessagesForMemory(room) {
@@ -462,6 +476,14 @@
             sections.push(asString(styleInfluencePrompt).trim());
         }
         if (strategy.priority >= 2) sections.push('【表达层优先级】\n用户本轮写作要求优先，其次由当前独立文风档案决定表达，原有通用文风仅作不冲突补充。当前角色独有口吻、私人目标、身份与知情范围始终保留，不把其他角色写成相同语气。');
+        // The JSON shape lives in the stable prefix so every caller (normal send,
+        // style practice, regeneration) gets the same contract without relying on
+        // an extra system message appended by the host page.
+        const dialogueProtocol = Experience && Experience.DIALOGUE_FORMAT
+            ? Experience.DIALOGUE_FORMAT
+            : '【房间对白输出协议】只输出 JSON 对象 {"expression":"简短可见神态或小动作，可为空","speech":"当前角色说的话，可为空"}，两个字段均为字符串且至少一个有实际内容。';
+        sections.push('【输出结构｜高于人物、历史与文风】\n' + dialogueProtocol
+            + '\n历史中未带结构的旧正文只是内容记录，不是输出格式模板；本轮必须按上面的 JSON 结构输出。');
         sections.push('【本轮强制要求】\n' + ROOM_TURN_REMINDER);
         return { stableSystemPrompt: sections.join('\n\n'), dynamicPrompt: dynamicSections.join('\n\n') };
     }
@@ -558,7 +580,7 @@
                 content: [
                     '你是房间场景旁白，只描写所有在场者可以观察到的环境变化、时间推进或必要动作衔接。',
                     '不得替用户行动、发言、思考或感受；不得替任何角色写台词或内心；不得泄露秘密。',
-                    '只有确有必要时才写一到三句简短旁白，直接输出正文，不要加标题和解释。',
+                    '只有确有必要时才写一到三句简短旁白；旁白正文写入返回 JSON 的 narration 字段，不要加标题、解释或 Markdown。',
                     asString(styleInfluencePrompt).trim(),
                 ].filter(Boolean).join('\n\n'),
             },

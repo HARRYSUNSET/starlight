@@ -10,7 +10,7 @@ module.exports=async function roomBrowserChecks(){
     const read=()=>window.__qaReadState();
     const base=await read(),originalStory=JSON.stringify(base.agents.find(a=>a.id==='ui-story').conversations),originalRoom=JSON.stringify(base.rooms.find(r=>r.id==='ui-room').messages);
     const savedFetch=window.fetch;
-    const calls=[];let sceneMode='normal',dialogueMode='normal',judgeMode='normal',heldScene=null;
+    const calls=[],requestBodies=[];let sceneMode='normal',dialogueMode='normal',judgeMode='normal',heldScene=null;
     let currentId=null;
     const work=async()=>{const state=await read();return state.rooms.find(r=>r.id===currentId);};
     const reply=(value,status=200)=>new Response(JSON.stringify(status===200?{choices:[{message:{content:JSON.stringify(value)},finish_reason:'stop'}],usage:{prompt_tokens:12,completion_tokens:6}}:{error:{message:'模拟失败，旧内容应保留'}}),{status,headers:{'Content-Type':'application/json'}});
@@ -18,22 +18,29 @@ module.exports=async function roomBrowserChecks(){
     window.fetch=async(url,options)=>{
         if(new URL(url,location.href).hostname!=='api.deepseek.com')return savedFetch(url,options);
         const body=JSON.parse(options.body),all=body.messages.map(m=>m.content).join('\n');
+        requestBodies.push(body);
         if(body.stream){
             calls.push('dialogue');
             if(dialogueMode==='fail')throw new Error('模拟重写网络失败');
-            const raw=dialogueMode==='malformed'?'旁白：她心里想着已经攻略成功。':JSON.stringify({expression:'抬眼看你',speech:'我记得你说过这件事。 回复'+calls.length});
+            const raw=dialogueMode==='malformed'?'旁白：她心里想着已经攻略成功。':dialogueMode==='whitespace'?'   \n  ':['empty','reasoning-only'].includes(dialogueMode)?'':JSON.stringify({expression:'抬眼看你',speech:dialogueMode==='action'?'':'我记得你说过这件事。 回复'+calls.length});
             const encoder=new TextEncoder();
             return new Response(new ReadableStream({start(controller){
                 controller.enqueue(encoder.encode('data: '+JSON.stringify({choices:[{delta:{content:raw}}]})+'\n\n'));
+                if(dialogueMode==='reasoning-only')controller.enqueue(encoder.encode('data: '+JSON.stringify({choices:[{delta:{reasoning_content:'PRIVATE_TEST_REASONING'}}]})+'\n\n'));
                 if(dialogueMode==='hold')options.signal.addEventListener('abort',()=>controller.error(new DOMException('cancel','AbortError')),{once:true});
-                else{controller.enqueue(encoder.encode('data: '+JSON.stringify({choices:[{delta:{},finish_reason:'stop'}]})+'\n\ndata: [DONE]\n\n'));controller.close();}
+                else{controller.enqueue(encoder.encode('data: '+JSON.stringify({choices:[{delta:{},finish_reason:dialogueMode==='reasoning-only'?'length':'stop'}],usage:{prompt_tokens:30,completion_tokens:dialogueMode==='reasoning-only'?16000:20,completion_tokens_details:{reasoning_tokens:dialogueMode==='reasoning-only'?16000:0}}})+'\n\ndata: [DONE]\n\n'));controller.close();}
             }}),{headers:{'Content-Type':'text/event-stream'}});
         }
         if(all.includes('手动情景预览协议')){
             calls.push('scene');
             if(sceneMode==='fail')return reply(null,503);
+            if(['whitespace','empty'].includes(sceneMode))return new Response(JSON.stringify({choices:[{message:{content:sceneMode==='whitespace'?'   ':''},finish_reason:'stop'}]}),{headers:{'Content-Type':'application/json'}});
             if(sceneMode==='hold')return new Promise(resolve=>{heldScene=()=>resolve(reply({...sceneResult(),narration:'旧请求晚到的内容'}));});
             return reply(sceneResult());
+        }
+        if(all.includes('writing_skill')){
+            calls.push('style-analysis');
+            return reply({suggested_name:'房间试写测试',summary:'自然接话。',factors:[{name:'对白',instruction:'先回应眼前的话。'}]});
         }
         if(all.includes('房间关系证据核对器')){
             calls.push('judge');if(judgeMode==='fail')return reply(null,503);
@@ -120,6 +127,74 @@ module.exports=async function roomBrowserChecks(){
         const scenesBefore=calls.filter(c=>c==='scene').length;await send('你们怎么看？');value=await work();assert(value.messages.every(m=>m.kind!=='narration'),'导演声称需要旁白也不会自动生成情景');assert(calls.filter(c=>c==='scene').length===scenesBefore,'对话路径不调用旁白模型');
         judgeMode='fail';const stateBefore=JSON.stringify(value.experience.relations);await send('（兑现新的约定）');value=await work();assert(JSON.stringify(value.experience.relations)===stateBefore,'关系服务失败不乱加减分');assert(value.messages.at(-1).role==='assistant','关系失败不丢正常对白');
         const final=await read();assert(JSON.stringify(final.agents.find(s=>s.id==='ui-story').conversations)===originalStory,'房间改进不污染剧情原文');assert(JSON.stringify(final.rooms.find(r=>r.id==='ui-room').messages)===originalRoom,'不同房间正式记录隔离');
+
+        await newRoom('double','房间2.7.1 · 空回复修复');
+        node('#thinkingModeSelect').value='enabled';node('#thinkingModeSelect').dispatchEvent(new Event('change'));
+        judgeMode='normal';dialogueMode='normal';await send('（按约归还借书）');
+        const normalRequest=requestBodies.findLast(b=>b.stream);
+        assert(normalRequest.thinking.type==='enabled'&&normalRequest.reasoning_effort==='low','深度思考保留，短对白使用低推理强度');
+        assert(normalRequest.max_tokens===16000,'不自动提高用户输出上限');
+        assert(normalRequest.response_format.type==='json_object','正式对白使用JSON模式');
+        assert(normalRequest.messages[0].content.includes('房间对白输出协议')&&!normalRequest.messages[0].content.includes('或JSON'),'实际请求已消除互斥协议');
+
+        let before=await work();const originalReply=JSON.stringify(before.messages.at(-1));
+        const priorRelations=JSON.stringify(before.experience.relations),beforeRegenerate=calls.length;
+        dialogueMode='whitespace';await actionLast('regenerate');
+        await wait(()=>calls.length>beforeRegenerate&&!node('#btnSend').classList.contains('stop-mode'),'空白重写恢复');await delay(220);
+        value=await work();assert(JSON.stringify(value.messages.at(-1))===originalReply,'空白重生成保留完整原回复');
+        assert(JSON.stringify(value.experience.relations)===priorRelations,'失败重写不撤销原关系');
+        assert(calls.length===beforeRegenerate+1,'失败重写不自动重试或核对关系');
+
+        for(const [mode,expected] of [['whitespace','只返回了空白'],['empty','没有返回 JSON 正文'],['reasoning-only','已进行思考']]){
+            before=await work();const count=calls.length;dialogueMode=mode;
+            input('#messageInput','继续刚才的谈话。');await click('#btnSend');
+            await wait(async()=>!node('#btnSend').classList.contains('stop-mode')&&(await work()).messages.length===before.messages.length+1,'失败仅保存本次输入');
+            value=await work();assert(calls.length===count+1,mode+'不自动重复请求');
+            assert(JSON.stringify(value.messages.slice(0,before.messages.length))===JSON.stringify(before.messages),mode+'保留原有消息');
+            assert(JSON.stringify(value.sharedMemory)===JSON.stringify(before.sharedMemory)&&JSON.stringify(value.characterMemories)===JSON.stringify(before.characterMemories),mode+'不写入记忆');
+            assert(JSON.stringify(value.experience.relations)===JSON.stringify(before.experience.relations),mode+'不结算关系');
+            assert([...document.querySelectorAll('.toast')].some(el=>el.textContent.includes(expected)),mode+'显示可区分的错误原因');
+        }
+        assert(node('#apiTaskStatus').textContent.includes('最近返回：length')&&node('#apiTaskStatus').textContent.includes('思考 16000 tokens'),'请求分类显示最近一次失败的结束原因和思考用量');
+        assert(!document.body.textContent.includes('PRIVATE_TEST_REASONING'),'思考原文不会显示在界面或诊断中');
+        assert((await read()).roomMemorySettings.thinkingMode==='enabled','失败后仍保留用户的深度思考设置');
+        dialogueMode='action';await send('（安静地等对方回应）');value=await work();
+        assert(value.messages.at(-1).dialogue.speech===''&&value.messages.at(-1).content==='（抬眼看你）','仅动作回应正常保存并展示');
+
+        await click('#btnRoomState');input('#roomSceneInstruction','延续教室内的情景，不改变地点。');sceneMode='normal';await click('#roomSceneGenerate');
+        await wait(async()=>Boolean((await work()).experience.sceneDraft),'有效情景预览');
+        const preview=JSON.stringify((await work()).experience.sceneDraft),formal=JSON.stringify((await work()).messages);
+        const sceneRequest=requestBodies.at(-1);
+        assert(sceneRequest.thinking.type==='disabled'&&sceneRequest.response_format.type==='json_object','情景独立使用非思考JSON请求');
+        assert(sceneRequest.messages.some(m=>m.content.includes('narration 字段'))&&!sceneRequest.messages.some(m=>m.content.includes('直接输出正文')),'实际情景请求消除纯文本协议冲突');
+        for(const mode of ['whitespace','empty']){
+            sceneMode=mode;const count=calls.length;await click('#roomSceneGenerate');await wait(()=>node('#roomSceneCancel').hidden,'空情景失败恢复');await delay(220);
+            value=await work();assert(JSON.stringify(value.experience.sceneDraft)===preview,'情景'+mode+'保留上一份预览');
+            assert(JSON.stringify(value.messages)===formal&&calls.length===count+1,'情景'+mode+'不修改正式记录或自动重试');
+            assert(node('#roomExperienceNotice').textContent.includes(mode==='whitespace'?'只返回了空白':'没有返回 JSON 正文'),'情景'+mode+'错误可区分');
+        }
+        await click('#roomExperienceClose');dialogueMode='normal';sceneMode='normal';
+        const roomBeforePractice=JSON.stringify(await work());
+        await click('#btnStyleLab');await click('#btnAddStyleProfile');
+        input('#styleSourceTextInput','她抬起头：“你来啦？”窗边的书还摊着，她往旁边挪了半个座位。\n\n'.repeat(12));
+        await click('#btnAnalyzeStyle');await wait(()=>!node('#btnAnalyzeStyle').disabled&&!node('#btnGenerateStylePreview').disabled,'准备试写档案');
+        node('#stylePreviewModeSelect').value='practice';node('#stylePreviewModeSelect').dispatchEvent(new Event('change'));await settle();
+        const profileId=node('#styleProfileList .style-profile-item.active').dataset.styleProfileId;
+        let previewCallCount=calls.length;await click('#btnGenerateStylePreview');
+        await wait(()=>!node('#btnGenerateStylePreview').disabled&&calls.length>previewCallCount,'房间实战试写');
+        const practiceRequest=requestBodies.findLast(b=>b.stream);
+        assert(practiceRequest.response_format.type==='json_object'&&practiceRequest.messages[0].content.includes('只输出含 expression'),'房间试写使用一致的结构化协议');
+        assert(!node('#stylePreviewOutput').textContent.includes('"speech"')&&node('#stylePreviewOutput').textContent.includes('我记得'),'房间试写展示对白而不显示JSON字段');
+        await delay(220);const savedPreview=(await read()).styleProfiles.find(p=>p.id===profileId).previewText;
+        dialogueMode='whitespace';previewCallCount=calls.length;await click('#btnGenerateStylePreview');
+        await wait(()=>!node('#btnGenerateStylePreview').disabled&&calls.length>previewCallCount,'失败试写恢复');await delay(220);
+        assert((await read()).styleProfiles.find(p=>p.id===profileId).previewText===savedPreview,'空白试写保留原参考文本');
+        dialogueMode='normal';previewCallCount=calls.length;await click('#btnCompareStyle');
+        await wait(()=>!node('#btnCompareStyle').disabled&&calls.length===previewCallCount+2,'房间A/B试写');
+        assert([node('#styleCompareA'),node('#styleCompareB')].every(el=>el.textContent.includes('我记得')&&!el.textContent.includes('"speech"')),'房间A/B两份结果均解析展示');
+        assert(requestBodies.slice(-2).every(b=>b.response_format.type==='json_object'),'房间A/B两份请求均为JSON模式');
+        await delay(220);assert(JSON.stringify(await work())===roomBeforePractice,'试写和A/B对比不改变房间、场景、关系或记忆');
+        await click('#btnStyleLabClose');
         return {checks,roomId:currentId};
     }finally{if(heldScene)heldScene();window.fetch=savedFetch;document.activeElement?.blur();}
 };

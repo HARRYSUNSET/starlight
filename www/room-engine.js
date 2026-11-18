@@ -9,7 +9,7 @@
     const own=(value,key)=>Object.prototype.hasOwnProperty.call(value||{},key);
     const dictionaries=value=>Object.assign(Object.create(null),value&&typeof value==='object'&&!Array.isArray(value)?value:{});
     const relationState=value=>({familiarity:value.familiarity,trust:value.trust,affection:value.affection,emotion:value.emotion,known:value.known,inherited:value.inherited===true,reason:value.reason,grantedNodes:[...value.grantedNodes]});
-    const DIALOGUE_FORMAT='【房间对白输出协议】只输出 JSON 对象 {"expression":"简短可见神态，可为空","speech":"当前角色说的话"}。speech 仅为人物说话，不含环境旁白、心理独白或他人台词；expression 仅为外显神态，不写心理和长动作。可以只说一句，不强制每次配神态。不得在对白里擅自跳时间、换地点或确立尚未发生的关系。此协议只约束输出格式，不改变人物、用户指令或当前文风。';
+    const DIALOGUE_FORMAT='【房间对白输出协议】只输出 JSON 对象 {"expression":"简短可见神态或小动作，可为空","speech":"当前角色说的话，可为空"}，两个字段均为字符串，至少一个有实际内容。speech 仅为人物说话，不含环境旁白、心理独白或他人台词；expression 仅为外显神态或简短小动作，不写心理和长动作。可以只说一句，也可以不说话、只以可见神态或小动作回应，不强制凑出台词。历史对白是已经渲染的记录，不是本轮输出格式模板；文风与用户创作要求作用于字段内容，输出结构始终遵守本协议。不得在对白里擅自跳时间、换地点或确立尚未发生的关系。';
 
     function policy(member){
         const p=member?.relationshipPolicy||{};
@@ -73,9 +73,10 @@
             try{data=JSON.parse(data.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,''));}
             catch(error){throw new Error('回复未按对白格式返回，已留作待修正稿，不进入记忆');}
         }
-        if(!data||typeof data.speech!=='string'||typeof data.expression!=='string')throw new Error('回复缺少对白或神态字段，已留作待修正稿');
-        const speech=data.speech.trim(),expression=text(data.expression,400);
-        if(!speech)throw new Error('对白为空，未保存空消息');
+        if(!data||typeof data!=='object'||Array.isArray(data)||(data.speech!==undefined&&typeof data.speech!=='string')||(data.expression!==undefined&&typeof data.expression!=='string'))throw new Error('回复的对白或神态字段格式错误，已留作待修正稿');
+        const speech=typeof data.speech==='string'?data.speech.trim():'',expression=text(data.expression,400);
+        if(!speech&&!expression)throw new Error('对白与神态均为空，未保存空消息');
+        if(!/[\p{L}\p{N}\p{S}]/u.test(speech+expression))throw new Error('对白与神态没有实际内容，未保存空消息');
         if(expression.length>120||/[\r\n]/.test(expression)||/内心|心想|心里|暗自|心理活动|心中暗|意识到/.test(expression))throw new Error('神态里混入长描述或心理内容，请在待修正稿中调整');
         return {speech,expression,content:expression?`（${expression.replace(/^[（(]|[）)]$/g,'')}）${speech}`:speech};
     }
@@ -92,7 +93,8 @@
     }
     function partialDialogue(raw){
         const speech=partialString(String(raw||''),'speech'),expression=partialString(String(raw||''),'expression');
-        return speech?(expression&&expression.length<=120&&!/内心|心想|心里|暗自/.test(expression)?`（${expression}）${speech}`:speech):'';
+        const visibleExpression=expression&&expression.length<=120&&!/[\r\n]|内心|心想|心里|暗自|心理活动|心中暗|意识到/.test(expression);
+        return visibleExpression?`（${expression.replace(/^[（(]|[）)]$/g,'')}）${speech}`:speech;
     }
     function addCandidate(room,memberId,raw,reason,replaceId,turnId){
         const e=ensure(room);const value={id:id('dialogue_draft'),memberId,raw:String(raw||''),reason:text(reason,500),replaceId:replaceId||null,turnId:turnId||null,stamp:stamp(room),createdAt:Date.now()};

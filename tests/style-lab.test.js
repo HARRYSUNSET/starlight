@@ -252,3 +252,12 @@ test('缺少因子时由 skill 生成的回退 id 稳定，不会每次读取都
     assert.equal(first.analysis.factors[0].id, 'skill_punctuation');
     assert.equal(StyleLab.getApplicationState(first, StyleLab.createAppliedStyle(first)).stale, false);
 });
+
+test('房间实战试写沿用结构化对白，剧情试写仍输出整篇正文且来源不变',()=>{
+    const source=[{role:'system',content:'【房间对白输出协议】只输出 JSON 对象。'},{role:'user',content:'你好。'}];
+    const before=JSON.stringify(source);
+    const room=StyleLab.buildPracticeMessages(source,'换一种轻松语气',{roomDialogue:true});
+    assert.match(room[0].content,/expression.*speech.*JSON/);assert.doesNotMatch(room[0].content,/只输出正文/);
+    assert.match(StyleLab.buildPracticeMessages(source,'试写')[0].content,/只输出正文/);
+    assert.equal(JSON.stringify(source),before);
+});

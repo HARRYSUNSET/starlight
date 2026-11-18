@@ -191,6 +191,14 @@ async function main() {
             }
             console.log('PASS writing skill phone widths and landscape');
         };
+        if(process.argv.includes('--rooms')) {
+            await resize(390,844);await click('#homeStoryList [data-work-id="ui-story"]');
+            await evaluate(`window.__qaReadState=async()=>{const db=await StarlightPersistence.openDatabase({name:'starlight_chat_database'});try{return await StarlightPersistence.readState(db);}finally{db.close();}};`);
+            const result=await evaluate(`(${require('../tests/room-browser.js').toString()})()`);
+            assert.equal(exceptions.length,0,'Room runtime errors: '+JSON.stringify(exceptions));
+            console.log('PASS focused room responses / recovery / structured previews: '+result.checks+' checks');
+            return;
+        }
         if(process.argv.includes('--auto-build')) {
             await resize(390,844);await click('#homeStoryList [data-work-id="ui-story"]');
             await evaluate(`window.__qaReadState=async()=>{const db=await StarlightPersistence.openDatabase({name:'starlight_chat_database'});try{return await StarlightPersistence.readState(db);}finally{db.close();}};`);
