@@ -2260,7 +2260,7 @@
                 <div class="library-page-heading"><h2>我的</h2><p>管理全局 API、模型、外观与存储设置。</p></div>
                 <div id="mySettingsMount"></div>
                 <div class="my-section-title">应用信息</div>
-                <div class="my-version-card"><strong>星陽之语 3.1.0</strong><br>房间工具收纳 · 智能建房 · 角色成长记录</div>
+                <div class="my-version-card"><strong>星陽之语 3.1.1</strong><br>修复房间首轮对白与情景预览的空白回复</div>
             </section>
         </main>
         <nav class="bottom-nav" aria-label="主导航">
@@ -3786,11 +3786,14 @@
                     generateScene:(room,instruction,signal)=>{
                         const settings=Memory.normalizeConfig(appData.roomMemorySettings);
                         const publicMemory=settings.enabled?Memory.buildMemoryContext(room.sharedMemory,instruction,settings,{tokenBudget:18000}):'';
-                        return callDeepSeekJSON([
+                        const messages=[
                         ...Rooms.buildNarrationMessages(room,instruction,StyleLab.buildInfluencePrompt(room.styleInfluence,{query:instruction})),
                         ...(publicMemory?[{role:'system',content:'【公开长期记忆｜仅供延续已发生事实，不是本轮新事件】\n'+publicMemory}]:[]),
                         {role:'system',content:'【手动情景预览协议】本次只生成未采纳预览。只输出 JSON：{"narration":"公开可观察的场景变化正文，不代替用户选择、不写人物内心或台词","state":{"time":"时间","place":"地点","summary":"采纳后的当前场景摘要","objects":"相关物件","pending":"未完成事项","presentIds":["本房间已存在角色id"]}}。在场id只可从 '+JSON.stringify(room.participants.map(m=>({id:m.id,name:m.name,enabled:m.enabled})))+' 中选择。用户要求是创作指令，不是已经发生的剧情；无指令的字段延续当前已确认场景。不要无因果制造危机，也不要以天气变化或旁白代替用户建立关系。'}
-                    ],{maxTokens:4000,purpose:'情景预览',independent:true,signal});},
+                        ];
+                        return withRoomJsonFallback(filter=>callDeepSeekJSON(messages,{mode:'room',maxTokens:4000,
+                            structured:filter,purpose:filter?'情景预览':'情景预览空白重试',independent:true,signal}),()=>!signal.aborted);
+                    },
                     commit:async(room,action)=>{
                         const next={...room,messages:room.messages.slice(),participants:room.participants.map(m=>({...m,relationshipPolicy:{...m.relationshipPolicy}})),
                             experience:RoomEngine.clone(RoomEngine.ensure(room)),turnEffects:RoomEngine.clone(room.turnEffects||{}),intimacy:room.intimacy?RoomEngine.clone(room.intimacy):null};
@@ -4240,22 +4243,24 @@
                 ].join('\n\n');
             }
 
-            function callStylePreview(messages, output = $stylePreviewOutput, purpose = '文风预览', maxTokens = 4000, overrides = {}) {
-                return new Promise((resolve, reject) => {
-                    callDeepSeekAPI(
-                        messages,
-                        content => { output.textContent = (overrides.structured?RoomEngine.partialDialogue(content):content) || '正在生成……'; },
-                        (content, metadata) => {
-                            if(content!==null&&overrides.structured){
-                                if(metadata?.finishReason!=='stop')return reject(new Error('房间试写未完整生成，原参考文本保留。'));
-                                try{content=RoomEngine.parseDialogue(content).content;}catch(error){return reject(error);}
-                            }
-                            resolve({ content, metadata });
-                        },
-                        reject,
-                        { temperature: 0.72, maxTokens, thinkingMode: 'disabled', purpose, ...overrides }
-                    );
+            async function callStylePreview(messages, output = $stylePreviewOutput, purpose = '文风预览', maxTokens = 4000, overrides = {}) {
+                const showChunk = content => { output.textContent = (overrides.structured?RoomEngine.partialDialogue(content):content) || '正在生成……'; };
+                const stream = filter => callDeepSeekStreamPromise(messages,showChunk,{
+                    temperature:0.72,maxTokens,thinkingMode:'disabled',...overrides,structured:filter,
+                    purpose:overrides.structured && !filter ? purpose+'空白重试' : purpose,
                 });
+                if (!overrides.structured) return stream(false);
+                const result = await withRoomJsonFallback(stream);
+                if (result.content===null) return result;
+                if (result.metadata?.finishReason!=='stop') throw new Error('房间试写未完整生成，原参考文本保留。');
+                const member = Rooms.getMember(getCurrentRoom(),document.getElementById('stylePreviewActor')?.value);
+                let dialogue;
+                try { dialogue = RoomEngine.parseDialogue(result.content); }
+                catch (error) {
+                    dialogue = RoomEngine.recoverDialogue(result.content,member);
+                    if (!dialogue) throw error;
+                }
+                return {...result,content:dialogue.content};
             }
 
             async function generateStylePreview() {
@@ -6755,11 +6760,11 @@
                 restoreRoomLayout(viewport);
             }
 
-            function callDeepSeekStreamPromise(messages, bubble, overrides = {}) {
+            function callDeepSeekStreamPromise(messages, onChunk, overrides = {}) {
                 return new Promise((resolve, reject) => {
                     callDeepSeekAPI(
                         messages,
-                        content => updateRoomStreamingBubble(bubble, content),
+                        onChunk,
                         (content, metadata) => resolve({ content, metadata: metadata || {} }),
                         reject,
                         overrides
@@ -6787,8 +6792,16 @@
 
             async function generateValidRoomResponse(room, messages, member, queueIndex, queueTotal) {
                 const bubble=createRoomStreamingMessage(member,queueIndex,queueTotal);
+                let retriedEmpty = false;
                 try{
-                    const response=await callDeepSeekStreamPromise(messages,bubble,{structured:true,reasoningEffort:'low',purpose:'房间对白'});
+                    const response = await withRoomJsonFallback(filter=>{
+                        retriedEmpty = !filter;
+                        if (retriedEmpty) updateMemoryStatus(member.name+'的回复为空，正在重新生成一次…',true);
+                        return callDeepSeekStreamPromise(messages,chunk=>updateRoomStreamingBubble(bubble,chunk),{
+                            structured:filter,reasoningEffort:'low',purpose:filter?'房间对白':'房间对白空白重试',
+                        });
+                    },()=>!roomTurnRead?.stopped && isGenerating && getCurrentRoom()===room);
+                    if (retriedEmpty && (response.metadata?.aborted || roomTurnRead?.stopped || getCurrentRoom()!==room)) return {content:null};
                     if(response.metadata?.partialContent)return {...response,content:'',invalidDraft:response.metadata.partialContent,invalidReason:'生成被停止，片段未作为完整回复采纳。'};
                     if(response.content===null||response.content===undefined||!isGenerating)return response;
                     if(response.metadata?.finishReason==='length')return {...response,content:'',invalidDraft:response.content,invalidReason:'输出达到上限，新稿暂未采纳；可在待修正稿中编辑。'};
@@ -6801,7 +6814,12 @@
                         const status = roomStreamRow?.querySelector('.room-speaker-name');
                         if (status) status.textContent = member.name + ' · 正在修正对白';
                         try {
-                            dialogue = await repairRoomDialogue(response.content,member);
+                            if (retriedEmpty) {
+                                dialogue = RoomEngine.recoverDialogue(response.content,member);
+                                if (!dialogue) throw new Error('重试已返回原稿，可在待修正回复中处理。');
+                            } else {
+                                dialogue = await repairRoomDialogue(response.content,member);
+                            }
                         } catch (error) {
                             if (error.name === 'AbortError' || roomTurnRead?.stopped) return {content:null};
                             return {...response,content:'',invalidDraft:response.content,invalidReason:'自动修正未完成：' + error.message};
@@ -6809,7 +6827,29 @@
                     }
                     if (roomTurnRead?.stopped || getCurrentRoom() !== room) return {content:null};
                     return {...response,content:dialogue.content,dialogue};
-                }catch(error){if(error.partialContent)return {content:'',metadata:{},invalidDraft:error.partialContent,invalidReason:error.message};throw error;}
+                }catch(error){
+                    if (retriedEmpty && error.code==='EMPTY_CONTENT') {
+                        return {content:'',emptyReply:true};
+                    }
+                    if(error.partialContent)return {content:'',metadata:{},invalidDraft:error.partialContent,invalidReason:error.message};
+                    throw error;
+                }
+            }
+
+            function isEmptyJsonResponse(error) {
+                return error.code==='JSON_WHITESPACE' || error.code==='EMPTY_JSON';
+            }
+
+            async function withRoomJsonFallback(request, canRetry = () => true) {
+                try {
+                    return await request(true);
+                } catch (error) {
+                    if (!isEmptyJsonResponse(error)) throw error;
+                    if (!canRetry()) throw new DOMException('请求已取消','AbortError');
+                }
+                // Retry the same generation once without server-side JSON filtering.
+                // Its caller still validates the output before using it.
+                return request(false);
             }
 
             // ==================== API调用与长期记忆整理 ====================
@@ -6965,7 +7005,7 @@
                         messages,
                         stream: false,
                     };
-                    if (provider.supportsJsonMode) {
+                    if (provider.supportsJsonMode && overrides.structured!==false) {
                         requestBody.response_format = { type: 'json_object' };
                     }
                     Object.assign(requestBody,fitRequestBudget(requestBody,messages));
@@ -6989,7 +7029,7 @@
                     metricUsage=result.usage;
                     const content = result.choices?.[0]?.message?.content;
                     const completion={content,finishReason:result.choices?.[0]?.finish_reason,usage:result.usage,reasoningChars:typeof result.choices?.[0]?.message?.reasoning_content==='string'?result.choices[0].message.reasoning_content.length:0};
-                    const validationOptions={structured:true,thinkingMode:requestBody.thinking?.type,maxTokens:requestBody.max_tokens,requireStop:true};
+                    const validationOptions={structured:requestBody.response_format?.type==='json_object',thinkingMode:requestBody.thinking?.type,maxTokens:requestBody.max_tokens,requireStop:true};
                     metricInfo=API.completionInfo(completion,validationOptions);
                     const completionError=API.completionError(completion,validationOptions);
                     if(completionError)throw completionError;
@@ -7295,7 +7335,13 @@
                 if (room.turnMode === 'mention' && !allowSmartFallback) {
                     throw new Error('当前房间设置为“仅指定角色”，请使用下方菜单或@角色名');
                 }
-                const decision = await callDeepSeekJSON(Rooms.buildDirectorMessages(room, userContent), { maxTokens: 800, purpose:'房间导演' });
+                let decision;
+                try {
+                    decision = await callDeepSeekJSON(Rooms.buildDirectorMessages(room, userContent), { maxTokens: 800, purpose:'房间导演' });
+                } catch (error) {
+                    if (!isEmptyJsonResponse(error)) throw error;
+                    // A missing speaker selection uses the same local default as an empty list.
+                }
                 const speakerIds = Rooms.sanitizeSpeakerIds(room, decision?.speakers);
                 return {
                     speakerIds: speakerIds.length ? speakerIds : [active[0].id],
@@ -7399,6 +7445,11 @@
                         );
                         const response = await generateValidRoomResponse(room, messages, member, index + 1, selection.speakerIds.length);
                         if (response.content === null || response.content === undefined || !isGenerating) break;
+                        if (response.emptyReply) {
+                            removeRoomStreamingMessage();
+                            showToast(member.name+'重试后仍未返回正文，可继续对话或长按未获答的消息重试。','info');
+                            continue;
+                        }
                         if(response.invalidDraft!==undefined){
                             invalidCandidates.push(RoomEngine.addCandidate(room,member.id,response.invalidDraft,response.invalidReason,null,turnId));
                             RoomEngine.ensure(room).notice='本轮有待修正回复，可以继续对话，也可以打开待修正回复处理原稿。';
@@ -7601,6 +7652,7 @@
                     );
                     const response = await generateValidRoomResponse(room, messages, member, 1, 1);
                     if (response.content !== null && response.content !== undefined && isGenerating) {
+                        if(response.emptyReply) return showToast(member.name+'重试后仍未返回正文，已保留原回复。','info');
                         if(response.invalidDraft!==undefined){RoomEngine.addCandidate(room,member.id,response.invalidDraft,response.invalidReason,oldMessage.id,oldMessage.turnId);saveData();return showToast('原回复保留，新稿放入待修正回复','info');}
                         const cleaned = Rooms.cleanCharacterOutput(response.content, member.name);
                         if (Rooms.hasSubstantiveRoomContent(room, cleaned)) {

@@ -46,7 +46,7 @@
     ].join('\n');
 
     const ROOM_TURN_REMINDER = [
-        '只生成当前指定角色本人的普通说话内容；括号内只放简短外显神态，不夹入心理独白、环境旁白或时间地点跳跃。',
+        '当前角色说的话写入 speech，简短可见的动作写入 expression，括号由界面添加。没有台词时，用 expression 给出当下看得见的反应。',
         '不得替用户行动或发言；不得代写其他角色的台词、动作或内心。',
         '不得泄露当前角色不知道的秘密或后台设定。',
         '字段内只写角色内容，不要加入角色名前缀、姓名标签、空白标签、分析或规则说明。',
@@ -494,6 +494,7 @@
             ? Experience.DIALOGUE_FORMAT
             : '【房间对白输出协议】只输出 JSON 对象 {"expression":"简短可见神态或小动作，可为空","speech":"当前角色说的话，可为空"}，两个字段均为字符串且至少一个有实际内容。';
         sections.push('【输出结构｜高于人物、历史与文风】\n' + dialogueProtocol
+            + '\n格式示例（仅示意字段） {"expression":"点点头","speech":"我记得。"}。'
             + '\n历史中未带结构的旧正文只是内容记录，不是输出格式模板；本轮必须按上面的 JSON 结构输出。');
         sections.push('【本轮强制要求】\n' + ROOM_TURN_REMINDER);
         return { stableSystemPrompt: sections.join('\n\n'), dynamicPrompt: dynamicSections.join('\n\n') };

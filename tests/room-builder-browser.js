@@ -17,6 +17,7 @@ module.exports = async function roomBuilderBrowser() {
     }
     const read = window.__qaReadState;
     const calls = [];
+    const firstTurnRequests = [];
     const orig = window.fetch;
     let delivery = 'normal', finishLate;
     const bookFact = '旧书局位于城北。';
@@ -29,6 +30,15 @@ module.exports = async function roomBuilderBrowser() {
     window.fetch = async (url,options) => {
         if (new URL(url,location.href).hostname !== 'api.deepseek.com') return orig(url,options);
         const body = JSON.parse(options.body);
+        if(body.stream) {
+            firstTurnRequests.push(body);
+            const content = body.response_format ? '   ' : '“你也是来收信的？”';
+            return new Response('data: '+JSON.stringify({choices:[{delta:{content},finish_reason:'stop'}]})+'\n\ndata: [DONE]\n\n',
+                {headers:{'Content-Type':'text/event-stream'}});
+        }
+        if(body.messages[0].content.includes('房间关系证据核对器')) {
+            return new Response(JSON.stringify({choices:[{message:{content:'{"judgements":[]}'},finish_reason:'stop'}]}));
+        }
         const payload = JSON.parse(body.messages.at(-1).content);
         calls.push({body,payload});
         if (delivery === 'error') return new Response('{}',{status:503});
@@ -83,6 +93,16 @@ module.exports = async function roomBuilderBrowser() {
         check(!double.participants[0].developmentEnabled && !double.worldBook.automation.enabled,'AI 建房 opt-out 持久化');
         check(double.participants[0].relationshipPolicy.preferences === '诚实守约' && calls.length === beforeAI+1,'角色偏好与边界随同一次请求生成，没有重复建档');
         check(!double.messages.length && double.userPersona.includes('用户扮演自己'),'显式选择以自己进入，预览内容只形成设定');
+        input('#messageInput','有人在吗？');
+        await click('#btnSend');
+        await wait(async()=>!(document.querySelector('#btnSend').classList.contains('stop-mode')) && (await room(double.id)).messages.length===2,'建房首轮空白后应自动接话');
+        const [asked,replied]=(await room(double.id)).messages;
+        check(asked.turnId===replied.turnId && replied.speakerId===double.participants[0].id &&
+            replied.dialogue.speech==='你也是来收信的？','AI 新房间首轮仅落盘一条用户发言及一条角色对白');
+        const [initial,retry] = firstTurnRequests;
+        check(firstTurnRequests.length===2 && initial.response_format.type==='json_object' && !retry.response_format &&
+            retry.model===initial.model && retry.thinking.type===initial.thinking.type && retry.max_tokens===initial.max_tokens &&
+            JSON.stringify(retry.messages)===JSON.stringify(initial.messages),'空白后仅解除服务端 JSON 格式约束，保留设定、历史与用户选择');
 
         await click('#btnChatSettings');
         await openBuilder();

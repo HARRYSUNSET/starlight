@@ -40,6 +40,10 @@ module.exports = async function roomDialogueRepairBrowser() {
             calls.push('生成');
             const text = streams.shift();
             if (!text) throw new Error('意外的对白生成请求');
+            if (text.hold) return new Promise((resolve,reject)=>{
+                held={signal:options.signal,release:()=>resolve(new Response(''))};
+                options.signal.addEventListener('abort',()=>reject(new DOMException('停止重试','AbortError')),{once:true});
+            });
             const events = [
                 {delta:{reasoning_content:'PRIVATE_REASON_MARKER'}},
                 {delta:{content:text}},
@@ -156,7 +160,7 @@ module.exports = async function roomDialogueRepairBrowser() {
         check(room.experience.candidates.length===priorDrafts && !node('#messageInput').disabled,'主动停止没有新增待修稿，输入框可继续使用');
 
         const previousMessages=room.messages.length, retriesBefore=counts('修正');
-        streams.push('   ');
+        streams.push('   ','   ');
         await send('@阿桑 还有空位吗？');
         await wait(async () => unlocked() && (await work()).messages.length===previousMessages+1,'空白回复留下可重试的用户轮');
         const unanswered=(await work()).messages.at(-1);
@@ -169,6 +173,22 @@ module.exports = async function roomDialogueRepairBrowser() {
             room.messages.at(-1).turnId===unanswered.turnId,'重试沿用原用户消息和回合编号');
         check(node('#messageInput').value==='下轮准备发送的草稿。' && counts('修正')===retriesBefore,
             '重试原轮保留未发送草稿，空白响应不消耗格式修正请求');
+        const countBeforeCancel=calls.length, sizeBeforeCancel=room.messages.length;
+        streams.push('   ',{hold:true});
+        await send('我们在哪里集合？');
+        await wait(()=>held,'空白后的重试开始');
+        await click('#btnSend');
+        await wait(async()=>unlocked() && (await work()).messages.length===sizeBeforeCancel+1,'取消重试后恢复');
+        check(held.signal.aborted && calls.slice(countBeforeCancel).join(',')==='生成,生成','停止空白重试不会再启动下一位角色或计分');
+        held=null;
+
+        const turnStart=(await work()).messages.length, callStart=calls.length;
+        streams.push('   ','   ',JSON.stringify(correct('在门口。')));
+        await send('大家在哪里？');
+        await wait(async()=>unlocked() && (await work()).messages.at(-1)?.dialogue?.speech==='在门口。','其他角色继续发言');
+        const tail=(await work()).messages.slice(turnStart);
+        check(tail.length===2 && tail[0].turnId===tail[1].turnId && tail[1].speakerId===room.participants[1].id &&
+            calls.slice(callStart).join(',')==='生成,生成,生成,核对','首位两次空白也不妨碍下一位正常接话');
         const after=await read();
         check(JSON.stringify(before.agents.find(a=>a.id==='ui-story').conversations)===JSON.stringify(after.agents.find(a=>a.id==='ui-story').conversations),'房间修正保持剧情历史隔离');
         await click('#btnHamburger');await click('[data-home-tab="story"]');await click('#homeStoryList [data-work-id="ui-story"]');

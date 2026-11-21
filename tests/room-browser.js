@@ -11,7 +11,7 @@ module.exports=async function roomBrowserChecks(){
     const base=await read(),originalStory=JSON.stringify(base.agents.find(a=>a.id==='ui-story').conversations),originalRoom=JSON.stringify(base.rooms.find(r=>r.id==='ui-room').messages);
     const savedFetch=window.fetch;
     const calls=[],requestBodies=[];let sceneMode='normal',dialogueMode='normal',judgeMode='normal',heldScene=null;
-    let currentId=null;
+    let currentId=null, directorEmpty=false;
     const work=async()=>{const state=await read();return state.rooms.find(r=>r.id===currentId);};
     const reply=(value,status=200)=>new Response(JSON.stringify(status===200?{choices:[{message:{content:JSON.stringify(value)},finish_reason:'stop'}],usage:{prompt_tokens:12,completion_tokens:6}}:{error:{message:'模拟失败，旧内容应保留'}}),{status,headers:{'Content-Type':'application/json'}});
     const sceneResult=()=>({narration:'走廊的灯亮了，窗外只剩一点暮色。',state:{time:'傍晚',place:'旧教室',summary:'放学后仍留在旧教室',objects:'桌上的借书',pending:'还没决定明天的安排'}});
@@ -22,7 +22,7 @@ module.exports=async function roomBrowserChecks(){
         if(body.stream){
             calls.push('dialogue');
             if(dialogueMode==='fail')throw new Error('模拟重写网络失败');
-            const raw=dialogueMode==='malformed'?'旁白：她心里想着已经攻略成功。':dialogueMode==='whitespace'?'   \n  ':['empty','reasoning-only'].includes(dialogueMode)?'':JSON.stringify({expression:'抬眼看你',speech:dialogueMode==='action'?'':'我记得你说过这件事。 回复'+calls.length});
+            const raw=dialogueMode==='recover'?(body.response_format?'   ':'“我记得。”'):dialogueMode==='malformed'?'旁白：她心里想着已经攻略成功。':dialogueMode==='whitespace'?'   \n  ':['empty','reasoning-only'].includes(dialogueMode)?'':JSON.stringify({expression:'抬眼看你',speech:dialogueMode==='action'?'':'我记得你说过这件事。 回复'+calls.length});
             const encoder=new TextEncoder();
             return new Response(new ReadableStream({start(controller){
                 controller.enqueue(encoder.encode('data: '+JSON.stringify({choices:[{delta:{content:raw}}]})+'\n\n'));
@@ -33,6 +33,7 @@ module.exports=async function roomBrowserChecks(){
         }
         if(all.includes('手动情景预览协议')){
             calls.push('scene');
+            if(sceneMode==='recover')return new Response(JSON.stringify({choices:[{message:{content:body.response_format?'  ':JSON.stringify({...sceneResult(),narration:'灯亮了一盏。'})},finish_reason:'stop'}]}));
             if(sceneMode==='fail')return reply(null,503);
             if(['whitespace','empty'].includes(sceneMode))return new Response(JSON.stringify({choices:[{message:{content:sceneMode==='whitespace'?'   ':''},finish_reason:'stop'}]}),{headers:{'Content-Type':'application/json'}});
             if(sceneMode==='hold')return new Promise(resolve=>{heldScene=()=>resolve(reply({...sceneResult(),narration:'旧请求晚到的内容'}));});
@@ -48,7 +49,9 @@ module.exports=async function roomBrowserChecks(){
             return reply({judgements:payload.characters.map(m=>({memberId:m.id,sources:[{id:source.id,quote:source.content}],kind:'action',tag:'兑现约定',familiarity:1,trust:2,affection:1,reason:'本轮实际行动符合人物重视守约的设定。',significant:false}))});
         }
         if(all.includes('隐藏发言调度器')){
-            calls.push('director');const state=await work();return reply({speakers:[state.participants[0].id],narration_needed:true,narration_hint:'不应自动执行的旁白'});
+            calls.push('director');
+            if(directorEmpty)return new Response(JSON.stringify({choices:[{message:{content:'    '},finish_reason:'stop'}]}));
+            const state=await work();return reply({speakers:[state.participants[0].id],narration_needed:true,narration_hint:'不应自动执行的旁白'});
         }
         throw new Error('不应自动发生的额外 API 请求');
     };
@@ -124,6 +127,13 @@ module.exports=async function roomBrowserChecks(){
         await click('#roomExperienceClose');await actionLast('undo');await wait(async()=>(await work()).messages.length===beforeInvalid,'撤回用户回合');assert((await work()).experience.relations[a].trust===24,'撤回同步恢复关系维度');
 
         await newRoom('group','房间2.4回归 · 多人');
+        directorEmpty=true;judgeMode='fail';
+        const beforeDirector=calls.length;
+        await send('大家在吗？');
+        value=await work();
+        assert(value.messages.length===2 && value.messages[1].speakerId===value.participants[0].id &&
+            calls.slice(beforeDirector).join(',')==='director,dialogue,judge','导演空白时仍由在场角色接话且只请求一次关系核对');
+        directorEmpty=false;judgeMode='normal';
         await send('@小夏 （按约归还书）');value=await work();const ids=value.participants.map(m=>m.id);assert(value.experience.relations[ids[0]].trust===2&&value.experience.relations[ids[1]].trust===0,'多人关系严格分角色');
         const scenesBefore=calls.filter(c=>c==='scene').length;await send('你们怎么看？');value=await work();assert(value.messages.every(m=>m.kind!=='narration'),'导演声称需要旁白也不会自动生成情景');assert(calls.filter(c=>c==='scene').length===scenesBefore,'对话路径不调用旁白模型');
         judgeMode='fail';const stateBefore=JSON.stringify(value.experience.relations);await send('（兑现新的约定）');value=await work();assert(JSON.stringify(value.experience.relations)===stateBefore,'关系服务失败不乱加减分');assert(value.messages.at(-1).role==='assistant','关系失败不丢正常对白');
@@ -144,13 +154,13 @@ module.exports=async function roomBrowserChecks(){
         await wait(()=>calls.length>beforeRegenerate&&!node('#btnSend').classList.contains('stop-mode'),'空白重写恢复');await delay(220);
         value=await work();assert(JSON.stringify(value.messages.at(-1))===originalReply,'空白重生成保留完整原回复');
         assert(JSON.stringify(value.experience.relations)===priorRelations,'失败重写不撤销原关系');
-        assert(calls.length===beforeRegenerate+1,'失败重写不自动重试或核对关系');
+        assert(calls.length===beforeRegenerate+2,'空白重写只补一次，均为空时不核对关系');
 
-        for(const [mode,expected] of [['whitespace','只返回了空白'],['empty','没有返回 JSON 正文'],['reasoning-only','已进行思考']]){
+        for(const [mode,expected] of [['whitespace','重试后仍未返回正文'],['empty','重试后仍未返回正文'],['reasoning-only','已进行思考']]){
             before=await work();const count=calls.length;dialogueMode=mode;
             input('#messageInput','继续刚才的谈话。');await click('#btnSend');
             await wait(async()=>!node('#btnSend').classList.contains('stop-mode')&&(await work()).messages.length===before.messages.length+1,'失败仅保存本次输入');
-            value=await work();assert(calls.length===count+1,mode+'不自动重复请求');
+            value=await work();assert(calls.length===count+(mode==='reasoning-only'?1:2),mode+'仅在正常结束但空白时补一次请求');
             assert(JSON.stringify(value.messages.slice(0,before.messages.length))===JSON.stringify(before.messages),mode+'保留原有消息');
             assert(JSON.stringify(value.sharedMemory)===JSON.stringify(before.sharedMemory)&&JSON.stringify(value.characterMemories)===JSON.stringify(before.characterMemories),mode+'不写入记忆');
             assert(JSON.stringify(value.experience.relations)===JSON.stringify(before.experience.relations),mode+'不结算关系');
@@ -171,9 +181,12 @@ module.exports=async function roomBrowserChecks(){
         for(const mode of ['whitespace','empty']){
             sceneMode=mode;const count=calls.length;await click('#roomSceneGenerate');await wait(()=>node('#roomSceneCancel').hidden,'空情景失败恢复');await delay(220);
             value=await work();assert(JSON.stringify(value.experience.sceneDraft)===preview,'情景'+mode+'保留上一份预览');
-            assert(JSON.stringify(value.messages)===formal&&calls.length===count+1,'情景'+mode+'不修改正式记录或自动重试');
-            assert(node('#roomExperienceNotice').textContent.includes(mode==='whitespace'?'只返回了空白':'没有返回 JSON 正文'),'情景'+mode+'错误可区分');
+            assert(JSON.stringify(value.messages)===formal&&calls.length===count+2,'情景'+mode+'只重试一次且不修改正式记录');
+            assert(node('#roomExperienceNotice').textContent.includes('没有返回有效正文'),'情景'+mode+'两次均为空时提示未产生有效正文');
         }
+        sceneMode='recover';const sceneCalls=calls.length;
+        await click('#roomSceneGenerate');await wait(async()=>(await work()).experience.sceneDraft?.content==='灯亮了一盏。','情景空白后重新取回有效预览');
+        assert(calls.length===sceneCalls+2 && JSON.stringify((await work()).messages)===formal,'情景重试成功也不自动采纳、计分或写入对话');
         await click('#roomExperienceClose');dialogueMode='normal';sceneMode='normal';
         const roomBeforePractice=JSON.stringify(await work());
         await click('#btnStyleLab');await click('#btnAddStyleProfile');
@@ -190,6 +203,10 @@ module.exports=async function roomBrowserChecks(){
         dialogueMode='whitespace';previewCallCount=calls.length;await click('#btnGenerateStylePreview');
         await wait(()=>!node('#btnGenerateStylePreview').disabled&&calls.length>previewCallCount,'失败试写恢复');await delay(220);
         assert((await read()).styleProfiles.find(p=>p.id===profileId).previewText===savedPreview,'空白试写保留原参考文本');
+        assert(calls.length===previewCallCount+2,'空白试写最多补一次');
+        dialogueMode='recover';previewCallCount=calls.length;await click('#btnGenerateStylePreview');
+        await wait(async()=>!node('#btnGenerateStylePreview').disabled && (await read()).styleProfiles.find(p=>p.id===profileId).previewText==='我记得。','补发后试写恢复');
+        assert(calls.length===previewCallCount+2 && !requestBodies.at(-1).response_format,'试写只对空白回复解除服务端格式约束');
         dialogueMode='normal';previewCallCount=calls.length;await click('#btnCompareStyle');
         await wait(()=>!node('#btnCompareStyle').disabled&&calls.length===previewCallCount+2,'房间A/B试写');
         assert([node('#styleCompareA'),node('#styleCompareB')].every(el=>el.textContent.includes('我记得')&&!el.textContent.includes('"speech"')),'房间A/B两份结果均解析展示');

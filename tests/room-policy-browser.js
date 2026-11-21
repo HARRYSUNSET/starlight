@@ -65,6 +65,7 @@ module.exports = async function roomPolicyBrowser() {
             check($('#roomRelationPreferences').value === '重视归还借书' && $('#roomRelationBaseline').value === '认识多年的邻居', '作者视图可查看自动形成的关系资料');
             edit($('#roomRelationBoundaries'),'借书前先登记');
             await click('#roomRelationSave');
+            await wait(() => !$('#roomExperienceClose').disabled, '关系档案保存完成，可以关闭');
             await click('#roomExperienceClose');
             await click('#btnChatSettings');
             check($('#roomInitPolicyRow').hidden, '编辑已有房间不重复初始化');
