@@ -50,5 +50,13 @@
         for (const node of newRows) onNew?.(node);
         return next;
     }
-    return { reconcile, equalSignature };
+    // A streaming row already contains its final bubble. Register its new
+    // identity so the next reconciliation can keep that same DOM in place.
+    function adopt(container, owner, node, key, signature) {
+        const state = states.get(container);
+        if (!state || state.owner !== owner) return;
+        node.dataset.viewKey = key;
+        state.rows.set(key, { node, signature });
+    }
+    return { reconcile, equalSignature, adopt };
 });

@@ -8,6 +8,8 @@
     const WorldBook = typeof module === 'object' && module.exports
         ? require('./worldbook.js')
         : globalThis.StarlightWorldBook;
+    const Growth = typeof module === 'object' && module.exports
+        ? require('./room-growth.js') : globalThis.StarlightRoomGrowth;
     const StyleLab = typeof module === 'object' && module.exports
         ? require('./style-lab.js')
         : globalThis.StarlightStyleLab;
@@ -212,6 +214,8 @@
             speakingStyle: asString(source.speakingStyle).trim(),
             privateGoal: asString(source.privateGoal).trim(),
             growthNotes: asString(source.growthNotes).trim(),
+            developmentEnabled: source.developmentEnabled !== false,
+            developmentEdits: Growth.normalizeEdits(source.developmentEdits),
             currentState: asString(source.currentState).trim(),
             relationships: asString(source.relationships).trim(),
             knowledgeBoundary: asString(source.knowledgeBoundary).trim(),
@@ -285,6 +289,10 @@
             draft: asString(source.draft),
             chapters: Array.isArray(source.chapters) ? source.chapters.map(item => ({ ...item })) : [],
             readingPosition: source.readingPosition && typeof source.readingPosition === 'object' ? { ...source.readingPosition } : null,
+            chatPanels: {
+                headerExpanded: source.chatPanels?.headerExpanded !== false,
+                composerExpanded: source.chatPanels?.composerExpanded === true,
+            },
             revisionHistory: Array.isArray(source.revisionHistory) ? JSON.parse(JSON.stringify(source.revisionHistory)) : [],
             styleEnabled: source.styleEnabled !== false,
             stylePrompt: legacyDefaultStyle
@@ -457,6 +465,8 @@
             '【当前场景｜已采纳进展优先于开场】\n' + ((Experience && Experience.currentScenePrompt(room)) || room.scenePrompt || '（延续最近对话）'),
         ];
         if(Experience)dynamicSections.push(Experience.relationPrompt(room,member.id));
+        const development = Growth.prompt(room,member,latestQuery);
+        if (development) dynamicSections.push(development);
         if (sharedMemory) dynamicSections.push('【房间公共长期记忆】\n' + sharedMemory);
         if (characterMemory) dynamicSections.push('【只有你可以使用的角色独立记忆】\n' + characterMemory);
         if (room.roomType === 'double') {

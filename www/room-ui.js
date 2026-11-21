@@ -4,7 +4,7 @@
         const {document:doc,engine:E,motion:M,ui:UI}=options;
         const escape=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const overlay=doc.createElement('div');overlay.id='roomExperienceOverlay';overlay.className='modal-overlay room-experience-overlay';overlay.style.display='none';
-        overlay.innerHTML=`<section class="room-experience-page" aria-label="房间情景与关系"><header class="room-experience-header"><div><h3 id="roomExperienceTitle">房间现场</h3><p>预览与正式记录分开</p></div><button type="button" class="mini-action-btn" id="roomExperienceClose">关闭</button></header><nav class="room-experience-tabs" aria-label="房间工具"><button type="button" data-room-tab="scene">情景预览</button><button type="button" data-room-tab="relations">关系档案</button><button type="button" data-room-tab="drafts">待修正回复</button></nav><div class="room-experience-scroll"><p id="roomExperienceNotice" role="status" hidden></p><section id="roomScenePage"><p class="room-note">这里的内容采纳前不进入正式对话、记忆或关系评分。不会自动切换场景，也不会代替用户作选择。</p><label>本次情景要求<textarea id="roomSceneInstruction" rows="3" placeholder="例如：推进到放学后，仍留在教室，不加入新冲突"></textarea></label><div class="room-inline"><button type="button" id="roomSceneGenerate" class="btn-confirm">生成预览</button><button type="button" id="roomSceneManual" class="mini-action-btn">手动写情景</button><button type="button" id="roomSceneCancel" class="mini-action-btn" hidden>取消生成</button></div><section id="roomSceneCandidate" hidden><div class="room-section-heading"><h4>待采纳情景 · 可直接修改</h4><span id="roomSceneStale"></span></div><label>正式旁白正文<textarea id="roomSceneText" rows="6"></textarea></label><div class="room-field-grid"><label>时间<input id="roomSceneTime" maxlength="200"></label><label>地点<input id="roomScenePlace" maxlength="300"></label></div><label>当前场景摘要<textarea id="roomSceneSummary" rows="3" maxlength="5000"></textarea></label><label>相关物件<textarea id="roomSceneObjects" rows="2" maxlength="3000"></textarea></label><label>未完成事项<textarea id="roomScenePending" rows="2" maxlength="3000"></textarea></label><fieldset class="room-present"><legend>采纳后在场的角色</legend><div id="roomScenePresent"></div></fieldset></section></section><section id="roomRelationsPage" hidden><label class="room-check"><input type="checkbox" id="roomAuthorView">作者视图：查看、校准关系与证据（默认沉浸视图）</label><p class="room-note">每名角色独立判断。信任、好感与当下情绪分开；不靠聊天轮数自动攻略。作者校准不会被当作角色亲历事件。</p><label>查看角色<select id="roomRelationMember"></select></label><div id="roomRelationContent"></div></section><section id="roomDialogueDraftsPage" hidden><p class="room-note">不合格式的模型输出留在这里，不进入正式消息或记忆；只在你点击采纳后成为人物回复，不自动重试付费请求。</p><div id="roomDialogueDraftList"></div></section></div><footer class="room-experience-actions"><span id="roomExperienceFootnote">正式记录不受未采纳预览影响</span><button type="button" class="btn-confirm" id="roomSceneAccept">采纳情景并回到对话</button></footer></section>`;
+        overlay.innerHTML=`<section class="room-experience-page" aria-label="房间情景与关系"><header class="room-experience-header"><div><h3 id="roomExperienceTitle">房间现场</h3><p>预览与正式记录分开</p></div><button type="button" class="mini-action-btn" id="roomExperienceClose">关闭</button></header><nav class="room-experience-tabs" aria-label="房间工具"><button type="button" data-room-tab="scene">情景预览</button><button type="button" data-room-tab="relations">关系档案</button><button type="button" data-room-tab="drafts">待修正回复</button></nav><div class="room-experience-scroll"><p id="roomExperienceNotice" role="status" hidden></p><section id="roomScenePage"><p class="room-note">这里的内容采纳前不进入正式对话、记忆或关系评分。不会自动切换场景，也不会代替用户作选择。</p><label>本次情景要求<textarea id="roomSceneInstruction" rows="3" placeholder="例如：推进到放学后，仍留在教室，不加入新冲突"></textarea></label><div class="room-inline"><button type="button" id="roomSceneGenerate" class="btn-confirm">生成预览</button><button type="button" id="roomSceneManual" class="mini-action-btn">手动写情景</button><button type="button" id="roomSceneCancel" class="mini-action-btn" hidden>取消生成</button></div><section id="roomSceneCandidate" hidden><div class="room-section-heading"><h4>待采纳情景 · 可直接修改</h4><span id="roomSceneStale"></span></div><label>正式旁白正文<textarea id="roomSceneText" rows="6"></textarea></label><div class="room-field-grid"><label>时间<input id="roomSceneTime" maxlength="200"></label><label>地点<input id="roomScenePlace" maxlength="300"></label></div><label>当前场景摘要<textarea id="roomSceneSummary" rows="3" maxlength="5000"></textarea></label><label>相关物件<textarea id="roomSceneObjects" rows="2" maxlength="3000"></textarea></label><label>未完成事项<textarea id="roomScenePending" rows="2" maxlength="3000"></textarea></label><fieldset class="room-present"><legend>采纳后在场的角色</legend><div id="roomScenePresent"></div></fieldset></section></section><section id="roomRelationsPage" hidden><label class="room-check"><input type="checkbox" id="roomAuthorView">作者视图：查看、校准关系与证据（默认沉浸视图）</label><p class="room-note">每名角色独立判断。信任、好感与当下情绪分开；不靠聊天轮数自动攻略。作者校准不会被当作角色亲历事件。</p><label>查看角色<select id="roomRelationMember"></select></label><div id="roomRelationContent"></div></section><section id="roomDialogueDraftsPage" hidden><p class="room-note">可以手动编辑后采纳，也可以直接修复并采纳原稿。自动修复优先使用本地整理，需要时会调用一次模型。</p><div id="roomDialogueDraftList"></div></section></div><footer class="room-experience-actions"><span id="roomExperienceFootnote">正式记录不受未采纳预览影响</span><button type="button" class="btn-confirm" id="roomSceneAccept">采纳情景并回到对话</button></footer></section>`;
         doc.body.appendChild(overlay);
         const el=id=>overlay.querySelector('#'+id);
         let ownerId=null,tab='scene',active=null,committing=false,memberId=null,historyCount=30;
@@ -22,7 +22,7 @@
             for(const button of [dialogue,scene])button.disabled=options.isBusy()||committing;
             const summary=[e.scene.time,e.scene.place].filter(Boolean).join(' · ')||e.scene.summary||'当前场景 · 点击查看';
             const status=doc.getElementById('btnRoomState');status.textContent=summary;status.title=summary;
-            doc.getElementById('btnRoomJournal').textContent=e.candidates.length?`关系／待修正 ${e.candidates.length}`:'关系档案';
+            doc.getElementById('btnRoomJournal').textContent=e.candidates.length?`待修正回复 · ${e.candidates.length}`:'关系档案';
             doc.getElementById('intimacyPanel').hidden=value.roomType!=='double'||!e.authorView;
             if(load)options.setComposer(E.composerValue(value));
             doc.getElementById('messageInput').placeholder=isScene?'输入情景要求，发送后先预览，不自动采纳':'输入对白…（可用 @角色名 指定回应）';
@@ -47,10 +47,21 @@
         function renderBusy(){
             const busy=Boolean(active)||committing;
             overlay.setAttribute('aria-busy',String(busy));
-            for(const button of overlay.querySelectorAll('button:not(#roomExperienceClose):not(#roomSceneCancel)'))button.disabled=busy;
+            for(const button of overlay.querySelectorAll('button:not(#roomExperienceClose):not(#roomSceneCancel):not([data-draft-cancel])'))button.disabled=busy;
             for(const input of overlay.querySelectorAll('input,textarea,select'))input.disabled=busy;
             el('roomExperienceClose').disabled=committing;el('roomSceneCancel').hidden=!active;el('roomSceneCancel').disabled=committing;
             const value=room(),candidate=value&&E.ensure(value).sceneDraft;
+            if (tab === 'drafts') {
+                for (const card of el('roomDialogueDraftList').querySelectorAll('[data-room-draft]')) {
+                    const repairing = active?.kind === 'repair' && active.id === card.dataset.roomDraft;
+                    card.setAttribute('aria-busy', String(repairing));
+                    card.querySelector('[data-draft-cancel]').hidden = !repairing;
+                    if (card.dataset.stale === 'true') {
+                        card.querySelector('[data-draft-repair]').disabled = true;
+                        card.querySelector('[data-draft-accept]').disabled = true;
+                    }
+                }
+            }
             el('roomSceneAccept').disabled=busy||!candidate||!candidate.content?.trim()||candidate.stamp!==E.stamp(value);
             const recheck=el('roomRelationRecheck');
             if(recheck&&value&&!busy){
@@ -66,6 +77,8 @@
         function render(){
             const value=room();if(!value)return;
             el('roomExperienceTitle').textContent=value.name;
+            const pendingCount = E.ensure(value).candidates.length;
+            overlay.querySelector('[data-room-tab="drafts"]').textContent = pendingCount ? `待修正回复 (${pendingCount})` : '待修正回复';
             for(const button of overlay.querySelectorAll('[data-room-tab]')){button.classList.toggle('active',button.dataset.roomTab===tab);button.setAttribute('aria-current',button.dataset.roomTab===tab?'page':'false');}
             el('roomScenePage').hidden=tab!=='scene';el('roomRelationsPage').hidden=tab!=='relations';el('roomDialogueDraftsPage').hidden=tab!=='drafts';el('roomSceneAccept').hidden=tab!=='scene';overlay.querySelector('.room-experience-actions').hidden=tab!=='scene';
             if(tab==='scene')renderScene(value);else if(tab==='relations')renderRelations(value);else renderDrafts(value);
@@ -145,8 +158,32 @@
             body.querySelectorAll('[data-room-source]').forEach(button=>button.onclick=()=>{close();options.locate(button.dataset.roomSource);});
             if(el('roomRelationMore'))el('roomRelationMore').onclick=()=>{historyCount+=30;renderRelations(value);};
         }
+        async function repairCandidate(value, candidate) {
+            if (room() !== value || active || committing || options.isBusy()) return;
+            const member = value.participants.find(item => item.id === candidate.memberId);
+            const current = () => E.ensure(value).candidates.some(item => item.id === candidate.id && item.raw === candidate.raw)
+                && candidate.stamp === E.stamp(value);
+            if (!member || !current()) { message('角色或原对话已变化，无法采纳这份旧稿。',true); return; }
+            const token = { kind:'repair', id:candidate.id, controller:new AbortController() };
+            active = token;
+            message('正在修复这份原稿。可以取消并保留原稿。');
+            renderBusy();
+            try {
+                const dialogue = await options.repairDialogue(candidate.raw,member,token.controller.signal);
+                if (active !== token || token.controller.signal.aborted || room() !== value) return;
+                if (!current()) throw new Error('修复期间原对话已变化，原稿已保留。');
+                const parsed = E.parseDialogue(dialogue);
+                active = null;
+                await commit(target => options.adoptDialogue(target,candidate,parsed));
+            } catch (error) {
+                if (active === token) message('修复未完成，原稿已保留。' + error.message,true);
+            } finally {
+                if (active === token) { active = null; renderBusy(); }
+            }
+        }
         function renderDrafts(value){
             const drafts=E.ensure(value).candidates,body=el('roomDialogueDraftList');
+            const stamp=E.stamp(value);
             body.innerHTML=drafts.map(d=>{
                 const member=value.participants.find(m=>m.id===d.memberId);let parsed={speech:'',expression:''};
                 try{parsed=E.parseDialogue(d.raw);}catch(error){try{const raw=JSON.parse(d.raw);parsed={speech:typeof raw.speech==='string'?raw.speech:'',expression:typeof raw.expression==='string'?raw.expression:''};}catch(ignored){parsed.speech=d.raw;}}
@@ -154,6 +191,27 @@
             }).join('')||'<p class="room-note">没有待修正的回复。</p>';
             body.querySelectorAll('[data-room-draft]').forEach(card=>{
                 const candidate=drafts.find(d=>d.id===card.dataset.roomDraft);
+                const stale = candidate.stamp !== stamp || !value.participants.some(m => m.id === candidate.memberId);
+                card.dataset.stale = String(stale);
+                const actions = card.querySelector('.room-inline');
+                const repair = doc.createElement('button');
+                repair.type = 'button'; repair.className = 'mini-action-btn'; repair.dataset.draftRepair = '';
+                repair.textContent = '自动修复原稿并采纳';
+                repair.onclick = () => repairCandidate(value,candidate);
+                const cancel = doc.createElement('button');
+                cancel.type = 'button'; cancel.className = 'mini-action-btn'; cancel.dataset.draftCancel = '';
+                cancel.textContent = '取消修复'; cancel.hidden = true;
+                cancel.onclick = () => {
+                    if (active?.kind !== 'repair' || active.id !== candidate.id) return;
+                    active.controller.abort(); active = null;
+                    message('已取消修复，原稿已保留。'); renderBusy();
+                };
+                actions.prepend(repair,cancel);
+                if (stale) {
+                    const note = doc.createElement('p');
+                    note.textContent = '来源或角色已变化，可查看或删除这份旧稿。';
+                    actions.before(note);
+                }
                 card.querySelector('[data-draft-delete]').onclick=()=>commit(current=>{E.ensure(current).candidates=E.ensure(current).candidates.filter(d=>d.id!==candidate.id);});
                 card.querySelector('[data-draft-accept]').onclick=()=>{
                     let parsed;try{parsed=E.parseDialogue({speech:card.querySelector('[data-draft-speech]').value,expression:card.querySelector('[data-draft-expression]').value});}catch(error){return message(error.message,true);}
@@ -164,7 +222,10 @@
         doc.getElementById('btnRoomDialogue').onclick=()=>setMode('dialogue');
         doc.getElementById('btnContinueScene').onclick=()=>setMode('scene');
         doc.getElementById('btnRoomState').onclick=()=>open('scene');
-        doc.getElementById('btnRoomJournal').onclick=()=>open('relations');
+        doc.getElementById('btnRoomJournal').onclick=()=>{
+            const value=options.getRoom();
+            open(value && E.ensure(value).candidates.length ? 'drafts' : 'relations');
+        };
         el('roomExperienceClose').onclick=close;
         overlay.querySelectorAll('[data-room-tab]').forEach(button=>button.onclick=()=>{if(active||committing)return;tab=button.dataset.roomTab;message('');render();overlay.querySelector('.room-experience-scroll').scrollTop=0;});
         el('roomSceneInstruction').oninput=()=>{const value=room();if(value){E.ensure(value).instruction=el('roomSceneInstruction').value;if(E.ensure(value).mode==='scene')options.setComposer(E.ensure(value).instruction);persist();}};

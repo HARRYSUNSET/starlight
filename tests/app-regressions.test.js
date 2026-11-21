@@ -32,12 +32,12 @@ test('页面打开不包含延迟编辑焦点，避免关闭后重新弹出键�
     assert.doesNotMatch(html,/\bautofocus\b/);
 });
 
-test('流式文字增长不会触发程序化滚动', () => {
+test('剧情流式保留阅读位置，房间流式仅在跟读时滚动', () => {
     assert.match(html, /\.messages-container\s*\{[\s\S]*?scroll-behavior:\s*auto;/);
     assert.match(html, /\.messages-container\s*\{[\s\S]*?overflow-anchor:\s*none;/);
     assert.doesNotMatch(html, /scrollToBottom\(true\)/);
     assert.doesNotMatch(functionBody('updateStreamingBubble', 'finalizeStreamingMessage'), /scrollToBottom/);
-    assert.doesNotMatch(functionBody('updateRoomStreamingBubble', 'removeRoomStreamingMessage'), /scrollToBottom/);
+    assert.match(functionBody('updateRoomStreamingBubble', 'removeRoomStreamingMessage'), /if \(roomTurnRead\?\.follows && bubble\.isConnected\) restoreRoomLayout/);
     assert.match(functionBody('sendMessage', 'regenerateRoomLastMessage'), /renderMessages\(\{ preserveScroll: true \}\)/);
 });
 
@@ -67,11 +67,11 @@ test('作品卡片菜单监听器只在主页渲染器中绑定到卡片自身',
 test('应用版本号在 npm 与 Android 配置中一致', () => {
     const gradle = fs.readFileSync(path.join(root, 'android', 'app', 'build.gradle'), 'utf8');
     const lock = require('../package-lock.json');
-    assert.equal(packageJson.version, '3.0.0');
+    assert.equal(packageJson.version, '3.1.0');
     assert.equal(lock.version, packageJson.version);
     assert.equal(lock.packages[''].version, packageJson.version);
-    assert.match(gradle, /versionCode\s+24/);
-    assert.match(gradle, /versionName\s+"3\.0\.0"/);
+    assert.match(gradle, /versionCode\s+25/);
+    assert.match(gradle, /versionName\s+"3\.1\.0"/);
     assert.ok(html.includes('星陽之语 ' + packageJson.version));
 });
 

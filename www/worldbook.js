@@ -85,8 +85,18 @@
                     sourceLabel: asString(source.origin.sourceLabel),
                     evidence: asString(source.origin.evidence),
                     signature: asString(source.origin.signature),
+                    ...(Array.isArray(source.origin.characterChanges) ? {characterChanges:normalizeCharacterChanges(source.origin.characterChanges)} : {}),
                 } } : {}),
         };
+    }
+
+    function normalizeCharacterChanges(input) {
+        const byMember = new Map();
+        for (const change of Array.isArray(input) ? input : []) {
+            if (typeof change?.memberId !== 'string' || !change.memberId || !['growth','state'].includes(change.section)) continue;
+            byMember.set(change.memberId, {memberId:change.memberId, section:change.section});
+        }
+        return [...byMember.values()];
     }
 
     function normalizeAutomation(input) {
@@ -247,6 +257,7 @@
         normalizeField,
         createEntry,
         normalizeEntry,
+        normalizeCharacterChanges,
         normalizeWorldBook,
         cloneEntrySchema,
         entryText,

@@ -21,14 +21,19 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 async function main() {
     const profile = await fsp.mkdtemp(path.join(os.tmpdir(), 'starlight-ui-'));
+    // Optional device-upgrade rehearsal: start the same browser origin with the
+    // previously shipped APK's assets, keep its IndexedDB, then load this build.
+    const previousRoot = process.argv.includes('--upgrade-from-previous') && process.env.STARLIGHT_PREVIOUS_WEBROOT;
+    if (process.argv.includes('--upgrade-from-previous') && !previousRoot) throw new Error('Set STARLIGHT_PREVIOUS_WEBROOT to the extracted previous assets/public directory');
+    let servedRoot = previousRoot ? path.resolve(previousRoot) : webRoot;
     const server = http.createServer(async (req, res) => {
         try {
             const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
-            const file = path.resolve(webRoot, '.' + (pathname === '/' ? '/index.html' : pathname));
-            if (!file.startsWith(webRoot + path.sep)) throw new Error('Invalid resource');
+            const file = path.resolve(servedRoot, '.' + (pathname === '/' ? '/index.html' : pathname));
+            if (!file.startsWith(servedRoot + path.sep)) throw new Error('Invalid resource');
             const mime = { '.html':'text/html; charset=utf-8', '.css':'text/css', '.js':'application/javascript' };
             const content = await fsp.readFile(file);
-            res.writeHead(200, { 'Content-Type':mime[path.extname(file)] || 'application/octet-stream' });
+            res.writeHead(200, { 'Content-Type':mime[path.extname(file)] || 'application/octet-stream', 'Cache-Control':'no-store' });
             res.end(content);
         } catch (error) { res.writeHead(404); res.end(); }
     });
@@ -101,7 +106,17 @@ async function main() {
                 participants:[{ id:'member-a', name:'小夏', personaPrompt:'同班同学', relationshipPolicy:{enabled:false} },{ id:'member-b', name:'小秋', personaPrompt:'图书委员', relationshipPolicy:{enabled:false} }],
                 messages:conversations.map((message,index) => ({ ...message, id:`room-msg-${index}`, speakerId:message.role === 'assistant' ? 'member-a' : null })) }],
         };
-        await send('Page.addScriptToEvaluateOnNewDocument', { source:`if(location.origin===${JSON.stringify(origin)})localStorage.setItem('deepseek_chat_platform_v2',${JSON.stringify(JSON.stringify(fixture))});` });
+        if (previousRoot) fixture.rooms.push({
+            id:'upgrade-double',roomType:'double',name:'旧房间',userPersona:'钟表匠',draft:'还没发出的半句话',
+            participants:[{id:'a',name:'林柯',personaPrompt:'在钟楼值夜',privateGoal:'藏好钟钥匙',relationshipPolicy:{enabled:false,baseline:'旧同事'}}],
+            messages:[{id:'u1',role:'user',turnId:'n1',kind:'dialogue',content:'我把钟修好了。'},
+                {id:'a1',role:'assistant',turnId:'n1',speakerId:'a',content:'那我去报时。',kind:'message'}],
+            intimacy:{value:84,initialValue:42,rulesReady:true,rules:{positive_signals:['守约'],negative_signals:['失约']}},
+            sharedMemory:{core:'两人轮班值夜'},characterMemories:{a:{core:'钟钥匙在我的口袋里'}},
+            experience:{version:1,relations:{a:{baseline:'旧同事',affection:38,trust:51,known:true}},instruction:'下一幕仍在钟楼'},
+            worldBook:{initialEntries:[{id:'private-key',knowledgeScope:'private',characterIds:['a'],fields:[{label:'钥匙',value:'只由值夜人保管'}]}],progressEntries:[]}
+        });
+        const fixtureScript=await send('Page.addScriptToEvaluateOnNewDocument', { source:`if(location.origin===${JSON.stringify(origin)})localStorage.setItem('deepseek_chat_platform_v2',${JSON.stringify(JSON.stringify(fixture))});` });
         await send('Page.navigate', { url:origin + '/index.html' });
         for (let i = 0; i < 60; i++) {
             if (await evaluate('Boolean(document.querySelector("#homeStoryList .v2-work-card") && window.StarlightBack)')) break;
@@ -112,6 +127,44 @@ async function main() {
         await delay(250);
         const startupAuto=await evaluate('(async()=>{const db=await StarlightPersistence.openDatabase({name:"starlight_chat_database"});try{return (await StarlightPersistence.readState(db)).agents.find(w=>w.id==="ui-story").autoBuild.mode;}finally{db.close();}})()');
         assert.equal(startupAuto,'paused','Interrupted automatic generation must recover paused without starting a request');
+        if (previousRoot) {
+            const loadWorks = () => evaluate(`(async()=>{const db=await StarlightPersistence.openDatabase({name:'starlight_chat_database'});try{const {rooms,agents}=await StarlightPersistence.readState(db);return {rooms,agents};}finally{db.close();}})()`);
+            const saveUpgradeRoom = async () => {
+                for (const selector of ['[data-home-tab="room"]','#homeRoomList [data-work-id="upgrade-double"]','#btnChatSettings','#btnConfirmRoom']) {
+                    await evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
+                    await settle();
+                }
+                assert.equal(await evaluate("StarlightMotion.isOpen(document.querySelector('#roomModalOverlay'))"),false,'Room editor must close after saving');
+            };
+            await saveUpgradeRoom();
+            const old = await loadWorks();
+            assert.equal(old.rooms.find(r=>r.id==='upgrade-double').intimacy.value,84);
+            await send('Page.removeScriptToEvaluateOnNewDocument',{identifier:fixtureScript.identifier});
+            await evaluate("localStorage.removeItem('deepseek_chat_platform_v2')");
+            servedRoot = webRoot;
+            await send('Page.reload',{ignoreCache:true});
+            for (let i=0;i<80;i++) {
+                if (await evaluate("Boolean(window.StarlightRoomBuilder && document.querySelector('#homeStoryList .v2-work-card'))")) break;
+                await delay(100);
+            }
+            assert.equal(await evaluate("Boolean(window.StarlightRoomBuilder && document.querySelector('#homeRoomList [data-work-id=\"upgrade-double\"]'))"),true);
+            await saveUpgradeRoom();
+            const now = await loadWorks(), restored = now.rooms.find(r=>r.id==='upgrade-double');
+            assert.deepEqual(now.agents.map(a=>a.conversations),old.agents.map(a=>a.conversations));
+            assert.deepEqual(now.rooms.map(r=>r.id),old.rooms.map(r=>r.id));
+            for (const key of ['messages','characterMemories','sharedMemory','draft']) assert.deepEqual(restored[key],old.rooms[1][key],key);
+            assert.deepEqual(restored.worldBook.initialEntries[0].characterIds,['a']);
+            assert.equal(restored.worldBook.initialEntries[0].fields[0].value,'只由值夜人保管');
+            assert.deepEqual(restored.intimacy,old.rooms[1].intimacy);
+            assert.deepEqual(restored.experience.relations,old.rooms[1].experience.relations);
+            assert.equal(restored.experience.instruction,'下一幕仍在钟楼');
+            assert.equal(restored.participants[0].privateGoal,'藏好钟钥匙');
+            assert.ok(restored.revisionHistory.length >= old.rooms[1].revisionHistory.length && restored.revisionHistory.length > 0);
+            assert.equal(restored.worldBook.automation.enabled,false);
+            assert.equal(exceptions.length,0,'Upgrade runtime errors: '+JSON.stringify(exceptions));
+            console.log('PASS actual previous application → current via the same IndexedDB, room re-save, messages, drafts, relationship scores, private worldbook and memories');
+            return;
+        }
         const click = async selector => { await evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`); await settle(); };
         const resize = async (width,height) => {
             await send('Emulation.setDeviceMetricsOverride', { width,height,deviceScaleFactor:1,mobile:true });
@@ -126,6 +179,9 @@ async function main() {
             await fsp.writeFile(path.join(outputDir,name + '.png'), Buffer.from(result.data,'base64'));
         };
         const checkChat = async label => {
+            if (await evaluate(`(() => { const toggle=document.querySelector('#btnRoomComposerTools'); return toggle.getClientRects().length>0 && toggle.getAttribute('aria-expanded')==='false'; })()`)) {
+                await click('#btnRoomComposerTools');
+            }
             const layout = await evaluate(`(() => {
                 const rect = selector => { const r=document.querySelector(selector).getBoundingClientRect(); return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,height:r.height}; };
                 const input=rect('#messageInput'), tools=rect('.composer-tools'), messages=rect('#messagesContainer'), area=rect('#inputArea');
@@ -212,6 +268,29 @@ async function main() {
             assert.equal(restored,true,'Both worldbooks must survive reload with completed extraction records');
             assert.equal(exceptions.length,0,'Worldbook runtime errors: '+JSON.stringify(exceptions));
             console.log('PASS worldbook import/editor/viewport: '+editorChecks+' checks; story/room generation, undo, retry and reload: '+(result.checks+1)+' checks');
+        }
+        async function checkRoomUpgrade(suites = ['room-reading-browser', 'room-policy-browser', 'room-builder-browser', 'room-dialogue-repair-browser']) {
+            await resize(390,844);
+            await click('[data-home-tab="story"]');
+            await click('#homeStoryList [data-work-id="ui-story"]');
+            await evaluate(`window.__qaReadState=async()=>{const db=await StarlightPersistence.openDatabase({name:'starlight_chat_database'});try{return await StarlightPersistence.readState(db);}finally{db.close();}};`);
+            for (const suite of suites) {
+                const result=await evaluate(`(${require('../tests/'+suite+'.js').toString()})()`);
+                console.log('PASS '+suite+': '+result.checks+' checks');
+            }
+            assert.equal(exceptions.length,0,'Room upgrade runtime errors: '+JSON.stringify(exceptions));
+        }
+        if(process.argv.includes('--room-builder-only')) {
+            await checkRoomUpgrade(['room-builder-browser']);
+            return;
+        }
+        if(process.argv.includes('--room-repair')) {
+            await checkRoomUpgrade(['room-dialogue-repair-browser']);
+            return;
+        }
+        if(process.argv.includes('--room-upgrade')) {
+            await checkRoomUpgrade();
+            return;
         }
         if(process.argv.includes('--worldbook')) {
             await click('#homeStoryList [data-work-id="ui-story"]');
@@ -641,6 +720,7 @@ async function main() {
         assert.equal(await evaluate('Boolean(document.querySelector("#writingSkillUser")?.value.includes("对白使用「」"))'),true,'Writing skill lost on full page reload');
         await click('#btnStyleLabClose');
         await checkWorldBook();
+        await checkRoomUpgrade();
         assert.equal(exceptions.length,0,'Runtime errors: ' + JSON.stringify(exceptions));
         console.log('All real-browser layout and motion checks passed; no external API calls were made.');
     } finally {

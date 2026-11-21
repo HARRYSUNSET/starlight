@@ -60,7 +60,8 @@
             room ? '房间卡分公开与私有。秘密、内心活动及只被个别角色知晓的信息单独成卡，knowledgeScope 填 private，characterIds 只可列原文明确知情且在所给名单中的角色 ID。知情者不明确留空。其余确实公开的信息填 public。'
                 : '剧情设定用 knowledgeScope public、characterIds 空数组。',
             '只输出 JSON 对象 {"entries":[{"fields":[{"label":"栏名","value":"内容"}],"evidence":"连续原文","knowledgeScope":"public","characterIds":[]}]}。每个条目的栏位须非空。没有可提取事实时返回 {"entries":[]}。',
-        ];
+            room && progress ? '若事实明确改变某个角色，在该条目附 characterChanges:[{"memberId":"发生变化的角色ID","section":"growth 或 state"}]。长期形成的能力、态度、认知等用 growth；当前伤势、装备、身份或处境等用 state。只填写变化的主体，旁观者、听众和知情者不等于主体。无明确主体时用空数组。' : '',
+        ].filter(Boolean);
         const data = { availableFieldLabels: schemaHints(book, kind, text(source).toLowerCase()), source };
         if (progress) {
             const previous = WorldBook.buildWorldBookPrompt(book, source, {maxCharacters:1200});
@@ -71,7 +72,7 @@
         return [{role:'system', content:rules.join('\n')}, {role:'user', content:JSON.stringify(data)}];
     }
 
-    function parseResult(raw, {text: source, mode, participants = []}) {
+    function parseResult(raw, {text: source, mode, kind, participants = []}) {
         if (!Array.isArray(raw?.entries)) throw new Error('模型返回的世界书格式不完整，请重新分析。');
         const room = mode === 'room';
         const roster = new Set((Array.isArray(participants) ? participants : []).map(p => p?.id));
@@ -88,6 +89,9 @@
                 evidence,
                 knowledgeScope: privateEntry ? 'private' : 'public',
                 characterIds: privateEntry ? [...new Set(recipients.filter(id => typeof id === 'string' && roster.has(id)))] : [],
+                ...(room && kind === 'progress' && Array.isArray(item.characterChanges) ? {
+                    characterChanges:WorldBook.normalizeCharacterChanges(item.characterChanges).filter(change => roster.has(change.memberId))
+                } : {}),
             };
         });
     }
@@ -149,6 +153,7 @@
             sourceLabel: text(options.sourceLabel),
             evidence: text(proposal.evidence),
             signature: signature(entry),
+            ...(options.kind === 'progress' && Array.isArray(proposal.characterChanges) ? {characterChanges:proposal.characterChanges} : {}),
         };
         return entry;
     }

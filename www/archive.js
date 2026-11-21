@@ -103,7 +103,7 @@
         data.agents ||= [];
         data.rooms ||= [];
         data.styleProfiles ||= [];
-        const backup = validateBackup({ format: FORMAT, version: 1, scope, createdAt: new Date().toISOString(), appVersion: options.appVersion || '3.0.0', state: data });
+        const backup = validateBackup({ format: FORMAT, version: 1, scope, createdAt: new Date().toISOString(), appVersion: options.appVersion || '3.1.0', state: data });
         if (byteLength(JSON.stringify(backup)) > (options.maxBytes || MAX_BACKUP_BYTES)) throw new Error('备份超过 256 MB，请按作品分别导出');
         return backup;
     }
@@ -137,6 +137,24 @@
             facts, images: images.size, styles: state.styleProfiles.length,
             bytes: byteLength(JSON.stringify(backup)),
         };
+    }
+
+    function remapRoomDraftStamps(room, original) {
+        const experience = room.experience;
+        if (!experience) return;
+        for (const draft of [experience.sceneDraft,...(Array.isArray(experience.candidates) ? experience.candidates : [])]) {
+            if (typeof draft?.stamp !== 'string' || !draft.stamp.startsWith('[')) continue;
+            let parts;
+            try { parts = JSON.parse(draft.stamp); } catch { continue; }
+            // Preserve the saved time, messages, settings, and memory versions.
+            // Only the owner's ID and a matching style-library reference can
+            // be remapped by importing; never refresh from the current transcript.
+            if (!Array.isArray(parts) || parts.length !== 14 || parts[0] !== original.id) continue;
+            parts[0] = room.id;
+            if (parts[10] && original.styleInfluence && JSON.stringify(parts[10]) === JSON.stringify(original.styleInfluence))
+                parts[10] = room.styleInfluence;
+            draft.stamp = JSON.stringify(parts);
+        }
     }
 
     function planImport(current, input, options = {}) {
@@ -188,6 +206,7 @@
                     const recovery = clone(existing);
                     recovery.id = makeId(`${mode}_recovery`);
                     recovery.name = `${existing.name || '作品'}（替换前备份）`;
+                    if (mode === 'room') remapRoomDraftStamps(recovery, existing);
                     next[field].push(recovery);
                     next[field] = next[field].map(existing => existing.id === work.id ? work : existing);
                 } else {
@@ -198,6 +217,7 @@
                     next[field].push(work);
                     used.add(id);
                 }
+                if (mode === 'room') remapRoomDraftStamps(work, original);
                 added.push({ mode, id: work.id, name: work.name });
             }
         }

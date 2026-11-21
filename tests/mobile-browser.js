@@ -19,14 +19,16 @@ module.exports = async function checkMobileInBrowser() {
         return savedFetch(url,options);
     };
     const restoreViewport=async()=>{Object.defineProperty(window,'visualViewport',viewportDescriptor);window.dispatchEvent(new Event('resize'));await settle();};
-    const checkKeyboardPanel=async(selector,label)=>{
+    const checkKeyboardPanel=async(selector,label,close)=>{
         Object.defineProperty(window,'visualViewport',{configurable:true,value:{height:360,offsetTop:24,scale:1}});
         window.dispatchEvent(new Event('resize'));await settle();
         const rect=node(selector).getBoundingClientRect();
         assert(rect.top>=23&&rect.bottom<=385&&rect.left>=-1&&rect.right<=innerWidth+1,label+'：键盘视觉视口内无溢出 '+JSON.stringify({top:rect.top,bottom:rect.bottom}));
-        const button=node(selector).querySelector('button');
-        button?.scrollIntoView({block:'nearest',behavior:'instant'});
-        if(button){const r=button.getBoundingClientRect();assert(button.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)),label+'：键盘弹出后仍可关闭页面');}
+        const button=node(close);
+        assert(node(selector).contains(button),label+'：关闭键属于当前页面');
+        button.scrollIntoView({block:'nearest',behavior:'instant'});
+        const r=button.getBoundingClientRect();
+        assert(r.width>0&&r.height>0&&button.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)),label+'：键盘弹出后仍可关闭页面');
         await restoreViewport();
     };
     const cycle=async({label,open,overlay,close,input,prepare,keyboard})=>{
@@ -36,7 +38,7 @@ module.exports = async function checkMobileInBrowser() {
         await noEditor(label+'打开');
         if(prepare){await prepare();await noEditor(label+'新增编辑项');}
         if(input){const element=focus(input);checkFont(element,label);}
-        if(keyboard)await checkKeyboardPanel(keyboard,label);
+        if(keyboard)await checkKeyboardPanel(keyboard,label,close);
         await click(close);
         assert(!StarlightMotion.isOpen(node(overlay)),label+'：关闭正确页面');
         await noEditor(label+'关闭');
@@ -93,7 +95,7 @@ module.exports = async function checkMobileInBrowser() {
         await settle();await noEditor('气泡菜单打开');
         await click('[data-message-action="refine"]');await noEditor('文风精修打开');
         checkFont(focus('#refineRequest'),'文风精修');
-        await checkKeyboardPanel('#refinementOverlay .workspace-page','文风精修');
+        await checkKeyboardPanel('#refinementOverlay .workspace-page','文风精修','#refineClose');
         await click('#refineClose');await noEditor('文风精修关闭');
 
         focus('#messageInput');await click('#btnHamburger');await noEditor('返回剧情库');

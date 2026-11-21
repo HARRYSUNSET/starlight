@@ -2232,6 +2232,8 @@
     </style>
     <link rel="stylesheet" href="ui.css">
     <link rel="stylesheet" href="room-ui.css">
+    <link rel="stylesheet" href="room-growth.css">
+    <link rel="stylesheet" href="room-builder-ui.css">
     <link rel="stylesheet" href="motion.css">
     <link rel="stylesheet" href="inspiration.css">
     <link rel="stylesheet" href="writing-skill.css">
@@ -2258,7 +2260,7 @@
                 <div class="library-page-heading"><h2>我的</h2><p>管理全局 API、模型、外观与存储设置。</p></div>
                 <div id="mySettingsMount"></div>
                 <div class="my-section-title">应用信息</div>
-                <div class="my-version-card"><strong>星陽之语 3.0.0</strong><br>从原文构建世界书 · 随剧情与房间对话整理进展</div>
+                <div class="my-version-card"><strong>星陽之语 3.1.0</strong><br>房间工具收纳 · 智能建房 · 角色成长记录</div>
             </section>
         </main>
         <nav class="bottom-nav" aria-label="主导航">
@@ -2386,7 +2388,7 @@
                 </div>
                 <div class="chat-title-stack">
                     <div class="chat-mode-eyebrow" id="chatModeEyebrow">STORY · 剧情模式</div>
-                    <span class="current-agent-name" id="currentAgentName">选择剧情智能体</span>
+                    <div class="chat-name-row"><span class="current-agent-name" id="currentAgentName">选择剧情智能体</span><button type="button" class="room-panel-toggle" id="btnRoomHeaderTools" aria-controls="chatQuickTools roomContextBar" hidden></button></div>
                     <div class="chat-subtitle" id="chatSubtitle">剧情 · 独立保存</div>
                 </div>
                 <span class="room-kind-badge" id="roomTypeBadge" hidden>双人房间</span>
@@ -2433,7 +2435,7 @@
                     </select>
                     <span id="roomSceneModeHint" hidden>发送后先预览情景</span>
                 </div>
-                <div class="composer-tools">
+                <div class="composer-tools" id="composerTools">
                     <button type="button" id="btnLastInput">上次输入</button>
                     <button type="button" id="btnInspiration">灵感推荐</button>
                     <button type="button" id="btnSnippets">常用语段</button>
@@ -2441,6 +2443,7 @@
                     <button type="button" id="btnAutoBuildSettings" class="story-only-control" aria-label="自动构筑设置" title="自动构筑设置">⚙</button>
                 </div>
                 <div class="message-entry-row">
+                    <button type="button" class="room-panel-toggle" id="btnRoomComposerTools" aria-controls="roomInputTools composerTools" hidden></button>
                     <textarea id="messageInput" placeholder="输入消息... (Enter发送，Shift+Enter换行)" rows="1" disabled></textarea>
                     <button class="btn-send" id="btnSend" disabled title="发送消息">➤</button>
                 </div>
@@ -2513,6 +2516,7 @@
             <div class="modal-loading" id="roomModalLoading" hidden>
                 <div class="typing-indicator"><span></span><span></span><span></span></div>
                 <div id="roomModalLoadingText">正在保存房间……</div>
+                <button type="button" class="mini-action-btn" id="roomSkipPolicy" hidden>跳过整理，先进入房间</button>
             </div>
             <div class="room-editor-header">
                 <h3 id="roomModalTitle">🎭 创建房间</h3>
@@ -2528,6 +2532,8 @@
                     <strong>🎭 多人房间</strong><br><span class="room-form-hint">多名角色参与，支持智能发言调度</span>
                 </button>
             </div>
+
+            <div id="roomBuilderMount"></div>
 
             <div class="room-form-grid">
                 <div>
@@ -2587,6 +2593,10 @@
                 </div>
             </div>
 
+            <div class="settings-toggle-row" id="roomInitPolicyRow">
+                <label for="roomInitPolicy">建房时按人设补齐关系偏好与边界（一次模型请求）</label>
+                <input type="checkbox" id="roomInitPolicy">
+            </div>
             <div class="room-form-section" id="groupRoomOptions" hidden>
                 <h4>🗣️ 发言调度</h4>
                 <div class="room-form-grid">
@@ -2909,7 +2919,11 @@
     <script src="story.js"></script>
     <script src="room-engine.js"></script>
     <script src="room-ui.js"></script>
+    <script src="room-growth.js"></script>
+    <script src="room-growth-ui.js"></script>
     <script src="rooms.js"></script>
+    <script src="room-builder.js"></script>
+    <script src="room-builder-ui.js"></script>
     <script>
         (function() {
             // ==================== DOM元素 ====================
@@ -3203,6 +3217,7 @@
             let storyDraftCharacters = [];
             let storyDraftWorldBook = WorldBook.normalizeWorldBook();
             const worldBookEditors = { story: null, room: null };
+            let roomBuilderEditor = null;
             let editingRoomId = null;
             let roomDraftType = 'double';
             let roomDraftParticipants = [];
@@ -3673,7 +3688,7 @@
                 UI.clearPanel($lastInputPopover);
                 $messageInput.blur();
                 const activeTarget = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
-                if (activeTarget) { if(appData.activeMode==='room')RoomEngine.setComposerValue(activeTarget,$messageInput.value);else activeTarget.draft = $messageInput.value; }
+                if (wasChatOpen && activeTarget) { if(appData.activeMode==='room')RoomEngine.setComposerValue(activeTarget,$messageInput.value);else activeTarget.draft = $messageInput.value; }
                 roomExperienceUI?.close();
                 rememberReadingPosition();
                 saveData();
@@ -3690,6 +3705,7 @@
                 $homeShell.classList.add('is-hidden');
                 $chatShell.classList.remove('is-hidden');
                 document.body.classList.add('chat-open');
+                restoreActiveComposer();
                 updateModeUI();
                 renderMessages();
                 UI.resizeComposer($messageInput);
@@ -3697,11 +3713,18 @@
                 if (wasHomeOpen) Motion.screens($homeShell, $chatShell, 1);
             }
 
+            function restoreActiveComposer() {
+                const room = appData.activeMode === 'room' ? getCurrentRoom() : null;
+                $messageInput.value = room ? RoomEngine.composerValue(room)
+                    : appData.activeMode === 'story' ? getCurrentAgent()?.draft || '' : '';
+                UI.resizeComposer($messageInput);
+            }
+
             function enterWork(mode, id) {
                 if (!canChangeConversationTarget()) return;
                 closeInspiration();
                 const previousTarget = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
-                if (previousTarget) { if(appData.activeMode==='room')RoomEngine.setComposerValue(previousTarget,$messageInput.value);else previousTarget.draft = $messageInput.value; }
+                if (!$chatShell.classList.contains('is-hidden') && previousTarget) { if(appData.activeMode==='room')RoomEngine.setComposerValue(previousTarget,$messageInput.value);else previousTarget.draft = $messageInput.value; }
                 roomExperienceUI?.close();
                 rememberReadingPosition();
                 appData.activeMode = mode === 'room' ? 'room' : 'story';
@@ -3717,8 +3740,6 @@
                 const nextTarget = appData.activeMode === 'room' ? getCurrentRoom() : getCurrentAgent();
                 const savedReading = Workspace.normalizeReading(nextTarget?.readingPosition, getActiveMessages().length);
                 if (savedReading && !savedReading.atLatest) setMessageRenderRange(Workspace.pageRange(getActiveMessages().length, Math.max(0, savedReading.index - 40), MESSAGE_PAGE_SIZE));
-                $messageInput.value = appData.activeMode==='room'&&nextTarget ? RoomEngine.composerValue(nextTarget) : nextTarget?.draft || '';
-                $messageInput.dispatchEvent(new Event('input'));
                 resetScrollIntent();
                 saveData();
                 showChatScreen();
@@ -3758,6 +3779,7 @@
                     getRoom:()=>appData.activeMode==='room'?getCurrentRoom():null,
                     isBusy:()=>isGenerating||styleLabBusy||maintenanceBusy||refinementBusy||storageReadFailed||!$roomModalLoading.hidden,
                     save:saveData,notify:showToast,updateSend:updateSendButton,
+                    repairDialogue:repairRoomDialogue,
                     setComposer:value=>{$messageInput.value=value;$messageInput.dispatchEvent(new Event('input'));},
                     refresh:()=>{renderRoomContext();renderMessages({preserveScroll:true});updateSendButton();},
                     locate:messageId=>{const index=getCurrentRoom()?.messages.findIndex(m=>m.id===messageId);if(index>=0)jumpToMessage(index);else showToast('来源已被撤回或替换','info');},
@@ -3790,6 +3812,9 @@
                     adoptDialogue:(room,candidate,parsed)=>{
                         if(candidate.stamp!==RoomEngine.stamp(room))throw new Error('来源已变化，请删除旧稿并重新生成；不会把旧回复接入新的剧情');
                         if(!room.participants.some(m=>m.id===candidate.memberId))throw new Error('原角色已移除');
+                        const experience = RoomEngine.ensure(room);
+                        const siblings = experience.candidates.filter(other => other.id !== candidate.id &&
+                            other.turnId === candidate.turnId && other.stamp === candidate.stamp);
                         if(candidate.replaceId){
                             const index=room.messages.findIndex(m=>m.id===candidate.replaceId);if(index<0)throw new Error('原消息已不存在');
                             RoomEngine.revertRelations(room,room.messages[index].turnId);
@@ -3800,7 +3825,11 @@
                             if(!room.messages.some(m=>m.turnId===candidate.turnId&&m.role==='user'))throw new Error('原用户回合已撤回');
                             room.messages.push({id:Rooms.createId('roommsg'),role:'assistant',speakerId:candidate.memberId,turnId:candidate.turnId,kind:'message',content:parsed.content,dialogue:parsed,createdAt:Date.now()});
                         }
-                        const e=RoomEngine.ensure(room);e.candidates=e.candidates.filter(d=>d.id!==candidate.id);e.notice='修正稿已采纳，关系未重复计分；可在作者视图核对本轮关系。';room.updatedAt=Date.now();
+                        experience.candidates=experience.candidates.filter(d=>d.id!==candidate.id);
+                        experience.notice='修正稿已采纳，可在作者视图核对本轮关系。';
+                        room.updatedAt=Date.now();
+                        const stamp=RoomEngine.stamp(room);
+                        for (const sibling of siblings) sibling.stamp=stamp;
                     },
                     recheckRelations:async(room,signal)=>{
                         const turnId=[...room.messages].reverse().find(m=>m.role==='user'&&m.turnId)?.turnId;
@@ -3869,8 +3898,8 @@
                 for (const work of planned.state.rooms) updateWorldSources('room', work, [], true);
                 await commitCandidate(planned.state);
                 worldProgress.wake();
-                $messageInput.value = (appData.activeMode==='room'?getCurrentRoom():getCurrentAgent())?.draft || '';
-                UI.resizeComposer($messageInput);
+                restoreActiveComposer();
+                updateSendButton();
             }
 
             function renderHomeCollection(container, items, mode) {
@@ -4612,8 +4641,42 @@
                 return `<span class="room-avatar-fallback ${className}" style="background:${member?.color || '#7c5cff'}">${initial}</span>`;
             }
 
+            const roomHeaderToggle = document.getElementById('btnRoomHeaderTools');
+            const roomComposerToggle = document.getElementById('btnRoomComposerTools');
+            function syncRoomPanels(room) {
+                const header = room?.chatPanels.headerExpanded === true;
+                const composer = room?.chatPanels.composerExpanded === true;
+                $chatShell.classList.toggle('room-header-folded', !!room && !header);
+                $chatShell.classList.toggle('room-composer-folded', !!room && !composer);
+                for (const [button, expanded, icon, label] of [
+                    [roomHeaderToggle, header, 'down', '房间信息与工具'],
+                    [roomComposerToggle, composer, 'plus', '输入工具'],
+                ]) {
+                    button.hidden = !room;
+                    if (!room) continue;
+                    button.setAttribute('aria-expanded', String(expanded));
+                    const description = (expanded ? '收起' : '展开') + label;
+                    if (button.title !== description) {
+                        UI.button(button, icon, description, true);
+                        button.title = description;
+                    }
+                }
+            }
+            for (const [button,key] of [[roomHeaderToggle,'headerExpanded'],[roomComposerToggle,'composerExpanded']]) {
+                button.addEventListener('click', () => {
+                    const room = getCurrentRoom();
+                    if (!room || appData.activeMode !== 'room') return;
+                    const viewport = captureRoomLayout();
+                    room.chatPanels[key] = !room.chatPanels[key];
+                    syncRoomPanels(room);
+                    restoreRoomLayout(viewport);
+                    saveData();
+                });
+            }
+
             function renderRoomContext() {
                 const room = getCurrentRoom();
+                syncRoomPanels(appData.activeMode === 'room' ? room : null);
                 if (!room || appData.activeMode !== 'room') {
                     $roomContextBar.hidden = true;
                     clearRoomBackground();
@@ -4679,9 +4742,11 @@
                 $roomModalLoadingText.textContent = text || '正在保存房间……';
                 $btnConfirmRoom.disabled = loading;
                 $btnCancelRoomModal.disabled = loading;
+                if (!loading && appData.activeMode === 'room') roomExperienceUI?.refreshComposer();
             }
 
             function setRoomDraftType(type) {
+                if (roomDraftType !== type) roomBuilderEditor?.reset();
                 roomDraftType = type === 'group' ? 'group' : 'double';
                 $roomTypeSelector.querySelectorAll('.room-type-option').forEach(button => {
                     button.classList.toggle('active', button.dataset.roomType === roomDraftType);
@@ -4727,6 +4792,7 @@
 
             function openRoomModal(roomId = null) {
                 if (!canChangeConversationTarget()) return;
+                roomBuilderEditor?.dispose();
                 roomDraftSessionId += 1;
                 roomDraftBackgroundRevision = 0;
                 roomDraftAvatarRevisions = new Map();
@@ -4735,6 +4801,8 @@
                 const room = roomId ? appData.rooms.find(item => item.id === roomId) : null;
                 $roomModalTitle.textContent = room ? '📝 编辑房间' : '🎭 创建房间';
                 $btnConfirmRoom.textContent = room ? '保存修改' : '创建房间';
+                document.getElementById('roomInitPolicyRow').hidden = !!room;
+                document.getElementById('roomInitPolicy').checked = false;
                 roomDraftType = room?.roomType || 'double';
                 roomDraftParticipants = room
                     ? room.participants.map(member => JSON.parse(JSON.stringify(member)))
@@ -4766,6 +4834,31 @@
                 renderIntimacyNodesEditor();
                 updateIntimacyRulesStatus(room);
                 setRoomDraftType(roomDraftType);
+                const builderFields = {name:$roomNameInput, subtitle:$roomSubtitleInput, scenePrompt:$roomScenePromptInput,
+                    userPersona:$roomUserPersonaInput, otherInfo:$roomOtherInfoInput};
+                roomBuilderEditor = StarlightRoomBuilderUI.mount(document.getElementById('roomBuilderMount'), {
+                    existing:!!room,
+                    getDraft:() => ({roomType:roomDraftType, participants:roomDraftParticipants, worldBook:roomDraftWorldBook,
+                        ...Object.fromEntries(Object.entries(builderFields).map(([key,input]) => [key,input.value]))}),
+                    request:(messages,signal) => callDeepSeekJSON(messages,{mode:'room', independent:true, signal,
+                        maxTokens:12000, purpose:'房间设定构建'}),
+                    async apply(draft, choices) {
+                        if (choices.save) validateRoomDraft(draft);
+                        for (const [key,input] of Object.entries(builderFields)) input.value = draft[key];
+                        roomDraftParticipants = draft.participants.map((p,i) => Rooms.normalizeMember(
+                            room ? p : {...p,developmentEnabled:choices.growth && p.developmentEnabled !== false},i));
+                        roomDraftWorldBook = WorldBook.normalizeWorldBook(draft.worldBook);
+                        if (!room) {
+                            roomDraftWorldBook.automation.enabled = choices.worldProgress;
+                            document.querySelector('#roomWorldBookTools .wb-auto').checked = choices.worldProgress;
+                            document.getElementById('roomInitPolicy').checked = false;
+                        }
+                        renderRoomParticipantsEditor();
+                        renderWorldBookEditor($roomWorldBookEditor,roomDraftWorldBook,true);
+                        $participantAddActions.hidden = roomDraftType === 'double' && roomDraftParticipants.length >= 1;
+                        if (choices.save) await saveRoomFromModal();
+                    },
+                });
                 $roomTypeSelector.querySelectorAll('.room-type-option').forEach(button => {
                     button.disabled = !!room;
                     button.title = room ? '房间创建后不可更换类型，以保护既有对话和记忆' : '';
@@ -4779,6 +4872,8 @@
 
             function closeRoomModal(force = false) {
                 if (!$roomModalLoading.hidden && !force) return;
+                roomBuilderEditor?.dispose();
+                roomBuilderEditor = null;
                 closeWorldBookTools('room');
                 Motion.setVisible($roomModalOverlay, false);
                 roomDraftSessionId += 1;
@@ -4883,6 +4978,7 @@
                                 <label>当前状态</label>
                                 <textarea class="member-current-state" style="min-height:130px" placeholder="当前身体、情绪、处境、近期关注点，以及本场景中特别需要延续的状态">${escapeHtml(member.currentState)}</textarea>
                             </div>
+                            <div class="full member-development"></div>
                             <div>
                                 <label>关系网络</label>
                                 <textarea class="member-relationships" style="min-height:130px" placeholder="与用户和其他角色当前的关系、称呼、信任、矛盾、未说出口的态度">${escapeHtml(member.relationships)}</textarea>
@@ -4914,6 +5010,10 @@
                     bind('.member-style', 'speakingStyle');
                     bind('.member-goal', 'privateGoal');
                     bind('.member-growth', 'growthNotes');
+                    const sourceRoom = appData.rooms.find(item => item.id === editingRoomId);
+                    StarlightRoomGrowthUI.mount(editor.querySelector('.member-development'), () => ({
+                        ...sourceRoom, participants:roomDraftParticipants, worldBook:roomDraftWorldBook
+                    }), member);
                     bind('.member-current-state', 'currentState');
                     bind('.member-relationships', 'relationships');
                     bind('.member-knowledge', 'knowledgeBoundary');
@@ -5073,6 +5173,33 @@
                     if (draftSessionId !== roomDraftSessionId) return;
                     const room = collectRoomDraft(existing);
                     validateRoomDraft(room);
+                    if (!existing && document.getElementById('roomInitPolicy').checked) {
+                        setRoomModalLoading(true, '正在按人设整理关系档案……');
+                        const controller = new AbortController();
+                        const skip = document.getElementById('roomSkipPolicy');
+                        skip.hidden = false;
+                        skip.onclick = () => controller.abort();
+                        try {
+                            const result = await callDeepSeekJSON(RoomEngine.initialPolicyMessages(room), {
+                                mode:'room', independent:true, signal:controller.signal, maxTokens:4000, purpose:'建房关系档案',
+                            });
+                            if (!controller.signal.aborted && draftSessionId === roomDraftSessionId) {
+                                RoomEngine.applyInitialPolicies(room,result);
+                                for (const draft of roomDraftParticipants) {
+                                    const member=room.participants.find(item=>item.id===draft.id);
+                                    if (member) draft.relationshipPolicy={...member.relationshipPolicy};
+                                }
+                                document.getElementById('roomInitPolicy').checked=false;
+                            }
+                        } catch (error) {
+                            if (!controller.signal.aborted) showToast('本次关系档案未生成，将沿用角色设定进入房间。','info');
+                        } finally {
+                            skip.hidden = true;
+                            skip.onclick = null;
+                        }
+                        if (draftSessionId !== roomDraftSessionId) return;
+                    }
+                    setRoomModalLoading(true, '正在保存房间……');
                     const signatureChanged = room.roomType === 'double'
                         && room.intimacy.rulesSignature !== getIntimacyRulesSignature(room);
                     if (room.roomType === 'double' && (!room.intimacy.rulesReady || signatureChanged)) {
@@ -5083,6 +5210,13 @@
                     if(existing){
                         const oldMembers=new Map(existing.participants.map(m=>[m.id,m]));
                         const e=RoomEngine.ensure(room);
+                        for (const member of room.participants) {
+                            const previous = oldMembers.get(member.id);
+                            const baseline = member.relationshipPolicy?.baseline;
+                            if (previous && baseline !== previous.relationshipPolicy?.baseline) {
+                                e.relations[member.id].baseline = baseline || member.relationships || '';
+                            }
+                        }
                         for(const member of room.participants)if(oldMembers.has(member.id)&&oldMembers.get(member.id).enabled!==member.enabled){
                             e.presenceEdits[member.id]=(Number(e.presenceEdits[member.id])||0)+1;
                             if(member.enabled===false){e.scene.presentIds=e.scene.presentIds.filter(id=>id!==member.id);e.initialScene.presentIds=e.initialScene.presentIds.filter(id=>id!==member.id);}
@@ -5094,24 +5228,15 @@
                     }
                     if (existing) {
                         room.revisionHistory = Archive.captureRevision(existing,{mode:'room',label:'修改房间设定前'}).revisionHistory;
-                        const index = appData.rooms.findIndex(item => item.id === existing.id);
-                        appData.rooms[index] = room;
-                    } else {
-                        appData.rooms.push(room);
                     }
-                    appData.currentRoomId = room.id;
-                    appData.activeMode = 'room';
-                    saveData();
-                    await persistFullState();
+                    const rooms = existing ? appData.rooms.map(item=>item.id===room.id ? room : item) : [...appData.rooms,room];
+                    await commitCandidate({...appData,rooms,currentRoomId:room.id,activeMode:'room'});
                     const retryWorldBook = worldBookEditors.room?.tools.shouldRetry();
                     closeRoomModal(true);
                     worldProgress.wake();
                     if (retryWorldBook) window.retryWorldProgress('room', room.id);
-                    renderHomeLibraries();
-                    updateModeUI();
-                    renderMessages();
                     showChatScreen();
-                    showToast(room.roomType === 'double' ? '判定已启用，可进行攻略' : '多人房间已创建', 'success');
+                    showToast(existing ? '房间设定已保存' : '房间已创建', 'success');
                 } catch (error) {
                     showToast('房间保存失败：' + error.message, 'error');
                 } finally {
@@ -5736,6 +5861,7 @@
             
             // ==================== 聊天UI更新 ====================
             function updateChatUI() {
+                if (appData.activeMode !== 'room') syncRoomPanels(null);
                 $chatSubtitle.textContent = appData.activeMode === 'room'
                     ? `${getCurrentRoom()?.roomType === 'group' ? '多人房间' : '双人房间'} · 独立保存`
                     : '剧情 · 独立保存';
@@ -5829,11 +5955,11 @@
                     const room = getCurrentRoom();
                     const hasConversation = !!room?.messages?.length;
                     const lastConversational = hasConversation ? room.messages.at(-1) : null;
-                    const lastIsAssistant = lastConversational?.role === 'assistant';
+                    const canRetry = lastConversational?.role === 'assistant' || (lastConversational?.role === 'user' && lastConversational.turnId);
                     $btnLocate.disabled = !hasConversation;
                     $btnEditStory.disabled = true;
                     $btnMemoryManager.disabled = !room || isGenerating;
-                    $btnRegenerate.disabled = !hasConversation || !lastIsAssistant || isGenerating;
+                    $btnRegenerate.disabled = !canRetry || isGenerating;
                     $btnUndo.disabled = !hasConversation || isGenerating;
                     $btnRestart.disabled = !hasConversation || isGenerating;
                     return;
@@ -5913,9 +6039,11 @@
             }
 
             function restoreReadingPosition(position) {
-                const target=appData.activeMode==='room'?getCurrentRoom():getCurrentAgent();
+                const mode=appData.activeMode;
+                const target=mode==='room'?getCurrentRoom():getCurrentAgent();
                 const saved=Workspace.normalizeReading(position||target?.readingPosition,getActiveMessages().length);
                 requestAnimationFrame(()=>requestAnimationFrame(()=>{
+                    if (appData.activeMode !== mode || (mode === 'room' ? getCurrentRoom() : getCurrentAgent())?.id !== target?.id || roomTurnRead) return;
                     if(!saved||saved.atLatest) { resetScrollIntent(); scrollToBottom(); return; }
                     const node=$messagesContainer.querySelector(`[data-message-index="${saved.index}"]`);
                     if(node){isUserScrolledUp=true;$messagesContainer.scrollTop+=node.getBoundingClientRect().top-$messagesContainer.getBoundingClientRect().top-saved.offset;}
@@ -6004,6 +6132,7 @@
             }
 
             function renderRoomMessages(options = {}) {
+                const turnViewport = roomTurnRead ? captureRoomLayout() : null;
                 const viewport = options.preserveScroll ? captureMessageViewport() : null;
                 const room = getCurrentRoom();
                 const items = [];
@@ -6017,7 +6146,8 @@
                         ` });
                     MessageView.reconcile($messagesContainer, `room:${room?.id || ''}`, items, 0);
                     applyRoomBackground(room);
-                    finishMessageRender(viewport);
+                    if (turnViewport) restoreRoomLayout(turnViewport);
+                    else finishMessageRender(viewport);
                     updateToolbarButtons();
                     return;
                 }
@@ -6046,8 +6176,13 @@
                 });
                 appendMessageWindowControls(room.messages.length, range, items);
                 MessageView.reconcile($messagesContainer, `room:${room.id}`, items, room.messages.length, node => Motion.enter(node,'message'));
+                if (roomStreamRow && range.end === room.messages.length) {
+                    $messagesContainer.appendChild(roomStreamRow);
+                    if (roomStreamText) updateRoomStreamingBubble(roomStreamRow.querySelector('.message-bubble'), roomStreamText);
+                }
                 applyRoomBackground(room);
-                finishMessageRender(viewport);
+                if (turnViewport) restoreRoomLayout(turnViewport);
+                else finishMessageRender(viewport);
                 updateToolbarButtons();
             }
 
@@ -6073,6 +6208,7 @@
                 }
                 if (e.target.dataset.action === 'load-latest') {
                     setMessageRenderRange(null);
+                    if (roomTurnRead) roomTurnRead.follows = true;
                     resetScrollIntent();
                     renderMessages();
                     return;
@@ -6417,12 +6553,69 @@
             }
             
             let isUserScrolledUp = false;
+            let roomTurnRead = null;
+            let roomStreamRow = null;
+            let roomStreamText = '';
+            function roomAtTailPage() {
+                const count = getCurrentRoom()?.messages.length || 0;
+                return getMessageRenderRange(count, 'room').end === count;
+            }
+            function roomBottomGap() {
+                return $messagesContainer.scrollHeight - $messagesContainer.clientHeight - $messagesContainer.scrollTop;
+            }
+            function beginRoomReading() {
+                const follows = roomAtTailPage() && roomBottomGap() < 50;
+                roomTurnRead = { follows, writtenTop:$messagesContainer.scrollTop };
+                isUserScrolledUp = !follows;
+                if (roomAtTailPage()) roomRenderedMessageRange = null;
+            }
+            function captureRoomLayout() {
+                const follow = roomTurnRead ? roomTurnRead.follows : roomAtTailPage() && roomBottomGap() < 50;
+                if (follow) return { follow:true };
+                const top = $messagesContainer.getBoundingClientRect().top;
+                const row = Array.from($messagesContainer.children).find(item =>
+                    (item.hasAttribute('data-message-index') || item === roomStreamRow) && item.getBoundingClientRect().bottom > top + 1);
+                return { row, index:row?.dataset.messageIndex, offset:row ? row.getBoundingClientRect().top - top : 0, scrollTop:$messagesContainer.scrollTop };
+            }
+            function restoreRoomLayout(view) {
+                if (view.follow) $messagesContainer.scrollTop = $messagesContainer.scrollHeight;
+                else {
+                    const node = view.row?.isConnected ? view.row : $messagesContainer.querySelector(`[data-message-index="${view.index}"]`);
+                    if (node) $messagesContainer.scrollTop += node.getBoundingClientRect().top - $messagesContainer.getBoundingClientRect().top - view.offset;
+                    else $messagesContainer.scrollTop = view.scrollTop;
+                }
+                if (roomTurnRead) roomTurnRead.writtenTop = $messagesContainer.scrollTop;
+            }
+            function detachRoomReading() {
+                if (roomTurnRead && $messagesContainer.scrollTop > 0) {
+                    roomTurnRead.follows = false;
+                    isUserScrolledUp = true;
+                }
+            }
+            let lastRoomTouchY = null;
+            $messagesContainer.addEventListener('wheel', event => { if (event.deltaY < 0) detachRoomReading(); }, {passive:true});
+            $messagesContainer.addEventListener('touchstart', event => { lastRoomTouchY = event.touches[0]?.clientY; }, {passive:true});
+            $messagesContainer.addEventListener('touchmove', event => {
+                const y = event.touches[0]?.clientY;
+                if (Number.isFinite(lastRoomTouchY) && y > lastRoomTouchY + 1) detachRoomReading();
+                lastRoomTouchY = y;
+            }, {passive:true});
 
             function markUserInteraction() {
-                isUserScrolledUp = true;
+                if (!roomTurnRead) isUserScrolledUp = true;
             }
 
             $messagesContainer.addEventListener('scroll', () => {
+                if (roomTurnRead) {
+                    // DOM writes and genuine user scrolls both dispatch scroll asynchronously.
+                    // Ignore only the exact offset last restored by our own layout change.
+                    if (Math.abs($messagesContainer.scrollTop - roomTurnRead.writtenTop) > 0.5) {
+                        roomTurnRead.follows = roomAtTailPage() && roomBottomGap() <= 2;
+                    }
+                    roomTurnRead.writtenTop = $messagesContainer.scrollTop;
+                    isUserScrolledUp = !roomTurnRead.follows;
+                    return;
+                }
                 const threshold = 50; 
                 const isNearBottom = $messagesContainer.scrollHeight - $messagesContainer.scrollTop - $messagesContainer.clientHeight <= threshold;
                 isUserScrolledUp = !isNearBottom;
@@ -6436,6 +6629,7 @@
                 if (isGenerating) return;
                 if (!isUserScrolledUp) {
                     requestAnimationFrame(() => {
+                        if (roomTurnRead && !roomTurnRead.follows) return;
                         $messagesContainer.scrollTop = $messagesContainer.scrollHeight;
                     });
                 }
@@ -6493,6 +6687,7 @@
 
             function createRoomStreamingMessage(member, queueIndex, queueTotal) {
                 removeRoomStreamingMessage();
+                const viewport = captureRoomLayout();
                 const row = document.createElement('div');
                 row.className = 'room-message-row assistant';
                 row.id = 'roomStreamingMessage';
@@ -6504,7 +6699,9 @@
                             <span class="typing-indicator"><span></span><span></span><span></span></span>
                         </div>
                     </div>`;
-                $messagesContainer.appendChild(row);
+                roomStreamRow = row;
+                if (roomAtTailPage()) $messagesContainer.appendChild(row);
+                restoreRoomLayout(viewport);
                 document.querySelectorAll('.room-participant-chip').forEach(chip=>chip.classList.toggle('speaking',chip.dataset.memberId===member.id));
                 const bubble = row.querySelector('.message-bubble');
                 bubble.dataset.memberName = member.name;
@@ -6513,18 +6710,49 @@
 
             function updateRoomStreamingBubble(bubble, content) {
                 if (!bubble) return;
+                roomStreamText = content;
                 Motion.writeFrame(bubble, () => {
                     const cleaned = RoomEngine.partialDialogue(content);
                     bubble.innerHTML = cleaned
                         ? formatMessageContent(cleaned)
                         : '<span class="typing-indicator"><span></span><span></span><span></span></span>';
+                    if (roomTurnRead?.follows && bubble.isConnected) restoreRoomLayout({ follow:true });
                 });
             }
 
             function removeRoomStreamingMessage() {
                 document.querySelectorAll('.room-participant-chip.speaking').forEach(chip=>chip.classList.remove('speaking'));
-                const el = document.getElementById('roomStreamingMessage');
-                if (el) { Motion.flushWrite(el.querySelector('.message-bubble'), true); el.remove(); }
+                if (!roomStreamRow) return;
+                const viewport = captureRoomLayout();
+                Motion.flushWrite(roomStreamRow.querySelector('.message-bubble'), true);
+                roomStreamRow.remove();
+                roomStreamRow = null;
+                roomStreamText = '';
+                restoreRoomLayout(viewport);
+            }
+
+            function commitRoomStreamingMessage(room, index, member) {
+                const row = roomStreamRow;
+                if (!row) return;
+                const viewport = captureRoomLayout();
+                const bubble = row.querySelector('.message-bubble');
+                Motion.flushWrite(bubble, true);
+                const message = room.messages[index];
+                const content = Rooms.cleanCharacterOutput(message.content, member.name);
+                row.id = 'message-' + index;
+                row.dataset.messageIndex = String(index);
+                row.querySelector('.room-speaker-name').textContent = member.name + ' · #' + (index + 1);
+                bubble.innerHTML = formatMessageContent(content) + `<button class="copy-btn" title="复制正文" data-index="${index}">📋 复制</button>`;
+                // A regenerated reply replaces the previously committed row only on success.
+                const previous = $messagesContainer.querySelector(`[data-view-key="message:${index}"]`);
+                if (previous && previous !== row) previous.replaceWith(row);
+                MessageView.adopt($messagesContainer, 'room:' + room.id, row, 'message:' + index,
+                    [message.role,content,member.name,member.color,member.avatar]);
+                roomStreamRow = null;
+                roomStreamText = '';
+                document.querySelectorAll('.room-participant-chip.speaking').forEach(chip=>chip.classList.remove('speaking'));
+                renderRoomMessages({preserveScroll:true});
+                restoreRoomLayout(viewport);
             }
 
             function callDeepSeekStreamPromise(messages, bubble, overrides = {}) {
@@ -6539,6 +6767,24 @@
                 });
             }
 
+            function normalizedRoomDialogue(raw,member) {
+                const parsed = RoomEngine.parseDialogue(raw);
+                return RoomEngine.parseDialogue({...parsed,speech:Rooms.cleanCharacterOutput(parsed.speech,member.name)});
+            }
+
+            async function repairRoomDialogue(raw,member,signal) {
+                const local = RoomEngine.recoverDialogue(raw,member);
+                if (local) return normalizedRoomDialogue(local,member);
+                const messages = RoomEngine.buildRepairMessages(raw,member);
+                if (!messages) throw new Error('原稿里没有可辨认的对白或动作，可重试本轮发言。');
+                const limit = Memory.normalizeConfig(appData.roomMemorySettings).maxOutputTokens;
+                const result = await callDeepSeekJSON(messages,{
+                    mode:'room',maxTokens:Math.min(limit,4000,Math.max(384,Math.ceil(raw.length * 1.5) + 128)),
+                    purpose:'房间对白格式修正',signal,independent:Boolean(signal),
+                });
+                return RoomEngine.validateRepairedDialogue(raw,result,member);
+            }
+
             async function generateValidRoomResponse(room, messages, member, queueIndex, queueTotal) {
                 const bubble=createRoomStreamingMessage(member,queueIndex,queueTotal);
                 try{
@@ -6546,10 +6792,24 @@
                     if(response.metadata?.partialContent)return {...response,content:'',invalidDraft:response.metadata.partialContent,invalidReason:'生成被停止，片段未作为完整回复采纳。'};
                     if(response.content===null||response.content===undefined||!isGenerating)return response;
                     if(response.metadata?.finishReason==='length')return {...response,content:'',invalidDraft:response.content,invalidReason:'输出达到上限，新稿暂未采纳；可在待修正稿中编辑。'};
-                    try{const parsed=RoomEngine.parseDialogue(response.content);const dialogue=RoomEngine.parseDialogue({...parsed,speech:Rooms.cleanCharacterOutput(parsed.speech,member.name)});return {...response,content:dialogue.content,dialogue};}
-                    catch(error){return {...response,content:'',invalidDraft:response.content,invalidReason:error.message};}
+                    let dialogue;
+                    try {
+                        dialogue = normalizedRoomDialogue(response.content,member);
+                    } catch {
+                        if (roomTurnRead?.stopped) return {content:null};
+                        updateMemoryStatus('正在整理' + member.name + '的对白格式…',true);
+                        const status = roomStreamRow?.querySelector('.room-speaker-name');
+                        if (status) status.textContent = member.name + ' · 正在修正对白';
+                        try {
+                            dialogue = await repairRoomDialogue(response.content,member);
+                        } catch (error) {
+                            if (error.name === 'AbortError' || roomTurnRead?.stopped) return {content:null};
+                            return {...response,content:'',invalidDraft:response.content,invalidReason:'自动修正未完成：' + error.message};
+                        }
+                    }
+                    if (roomTurnRead?.stopped || getCurrentRoom() !== room) return {content:null};
+                    return {...response,content:dialogue.content,dialogue};
                 }catch(error){if(error.partialContent)return {content:'',metadata:{},invalidDraft:error.partialContent,invalidReason:error.message};throw error;}
-                finally{removeRoomStreamingMessage();}
             }
 
             // ==================== API调用与长期记忆整理 ====================
@@ -7074,36 +7334,40 @@
                     showToast('请先选择或创建房间', 'error');
                     return;
                 }
-                if(options.continueScene===true||RoomEngine.ensure(room).mode==='scene'){
+                if(!options.retryUser && (options.continueScene===true||RoomEngine.ensure(room).mode==='scene')){
                     RoomEngine.ensure(room).instruction=String(userContent||RoomEngine.ensure(room).instruction||'');
                     getRoomExperienceUI().preview();return;
                 }
                 const content = String(userContent || '').trim();
                 if (!content) return;
-                const turnId = Rooms.createId('turn');
-                room.messages.push({
-                    id: Rooms.createId('roommsg'),
-                    role: 'user',
-                    speakerId: null,
-                    content,
-                    turnId,
-                    kind: 'dialogue',
-                    createdAt: Date.now(),
-                });
-                room.updatedAt = Date.now();
-                room.draft = '';
-                roomRenderedMessageRange = null;
-                saveData();
+                const retry = options.retryUser;
+                if (retry && (room.messages.at(-1) !== retry || retry.role !== 'user' || !retry.turnId)) return;
+                beginRoomReading();
+                const turnId = retry ? retry.turnId : Rooms.createId('turn');
+                if (!retry) {
+                    room.messages.push({
+                        id: Rooms.createId('roommsg'),
+                        role: 'user',
+                        speakerId: null,
+                        content,
+                        turnId,
+                        kind: 'dialogue',
+                        createdAt: Date.now(),
+                    });
+                    room.updatedAt = Date.now();
+                    room.draft = '';
+                    $messageInput.value = '';
+                    $messageInput.style.height = 'auto';
+                    saveData();
+                }
                 renderMessages();
-                $messageInput.value = '';
-                $messageInput.style.height = 'auto';
-                const forcedMemberId = $roomTargetSelect.value;
-                $roomTargetSelect.value = '';
+                const forcedMemberId = retry ? '' : $roomTargetSelect.value;
+                if (!retry) $roomTargetSelect.value = '';
                 isGenerating = true;
                 updateSendButton();
                 updateToolbarButtons();
                 let generatedCount = 0;
-                let invalidCandidate=null;
+                const invalidCandidates=[];
                 try {
                     try {
                         await ensureRoomLongTermMemory(room);
@@ -7112,11 +7376,14 @@
                         console.error('房间长期记忆整理暂未完成:', memoryError);
                         showToast('长期记忆本轮未整理完成，已使用受控最近上下文继续生成；原文没有丢失', 'info');
                     }
-                    if (!isGenerating) return;
+                    if (!isGenerating || roomTurnRead?.stopped) return;
                     updateMemoryStatus('正在判断本轮发言角色…', true);
-                    const selection = await selectRoomSpeakers(room, content, forcedMemberId);
+                    const pending = retry ? RoomEngine.ensure(room).candidates.filter(c => c.turnId === turnId) : [];
+                    const speakers = pending.map(c=>c.memberId).filter(id=>RoomEngine.presentMembers(room).some(m=>m.id===id));
+                    const selection = speakers.length ? {speakerIds:[...new Set(speakers)]}
+                        : await selectRoomSpeakers(room, content, forcedMemberId,Boolean(retry));
                     for (let index = 0; index < selection.speakerIds.length; index += 1) {
-                        if (!isGenerating) break;
+                        if (!isGenerating || roomTurnRead?.stopped) break;
                         const memberId = selection.speakerIds[index];
                         const member = Rooms.getMember(room, memberId);
                         if (!member) continue;
@@ -7133,9 +7400,12 @@
                         const response = await generateValidRoomResponse(room, messages, member, index + 1, selection.speakerIds.length);
                         if (response.content === null || response.content === undefined || !isGenerating) break;
                         if(response.invalidDraft!==undefined){
-                            invalidCandidate=RoomEngine.addCandidate(room,member.id,response.invalidDraft,response.invalidReason,null,turnId);
-                            RoomEngine.ensure(room).notice='本轮有待修正回复，未自动重试，也未结算关系。';
-                            saveData();showToast('回复已留在“关系档案 → 待修正回复”，未写入记忆','info');break;
+                            invalidCandidates.push(RoomEngine.addCandidate(room,member.id,response.invalidDraft,response.invalidReason,null,turnId));
+                            RoomEngine.ensure(room).notice='本轮有待修正回复，可以继续对话，也可以打开待修正回复处理原稿。';
+                            saveData();
+                            showToast(member.name+'的原稿已留在待修正回复，可以继续对话','info');
+                            removeRoomStreamingMessage();
+                            continue;
                         }
                         const responseText = Rooms.cleanCharacterOutput(response.content, member.name);
                         if (!Rooms.hasSubstantiveRoomContent(room, responseText)) {
@@ -7154,15 +7424,19 @@
                             createdAt: Date.now(),
                         });
                         generatedCount += 1;
+                        if (retry) {
+                            const e = RoomEngine.ensure(room);
+                            e.candidates = e.candidates.filter(c=>!(c.turnId===turnId && c.memberId===member.id));
+                        }
                         trackWorldMessage('room', room, room.messages.at(-1), room.messages.length - 1);
                         room.updatedAt = Date.now();
                         saveData();
-                        renderRoomMessages({ preserveScroll: true });
+                        commitRoomStreamingMessage(room, room.messages.length - 1, member);
                         if (response.metadata?.finishReason === 'length') {
                             showToast(`${member.name}的回复达到长度上限`, 'info');
                         }
                     }
-                    if (generatedCount > 0 && !invalidCandidate && isGenerating) {
+                    if (generatedCount > 0 && !invalidCandidates.length && isGenerating && !roomTurnRead?.stopped) {
                         try {
                             await evaluateRoomIntimacy(room, turnId);
                         } catch (error) {
@@ -7175,13 +7449,18 @@
                 } finally {
                     removeRoomStreamingMessage();
                     isGenerating = false;
-                    if(invalidCandidate)invalidCandidate.stamp=RoomEngine.stamp(room);
+                    if (invalidCandidates.length) {
+                        const stamp=RoomEngine.stamp(room);
+                        for (const candidate of invalidCandidates) candidate.stamp=stamp;
+                    }
                     saveData();
                     roomExperienceUI?.refreshComposer();
                     updateSendButton();
                     updateToolbarButtons();
                     updateMemoryStatus();
                     renderRoomMessages({ preserveScroll: true });
+                    roomTurnRead = null;
+                    updateJumpLatest();
                 }
             }
 
@@ -7290,6 +7569,9 @@
                 }
                 if (messageIndex < 0) return;
                 const oldMessage = room.messages[messageIndex];
+                if (messageIndex===room.messages.length-1 && oldMessage.role==='user' && oldMessage.turnId) {
+                    return sendRoomMessage(oldMessage.content,{retryUser:oldMessage});
+                }
                 if (oldMessage.role !== 'assistant') return;
                 if(messageIndex!==room.messages.length-1)return showToast('后续已有情景或其他记录，请先撤回后续回合再重写','info');
                 const member = Rooms.getMember(room, oldMessage.speakerId);
@@ -7301,6 +7583,7 @@
                     characterMemories:Object.fromEntries(Object.entries(room.characterMemories||{}).map(([id,memory])=>[id,Memory.invalidateMemoryFromIndex(memory,messageIndex)]))};
                 RoomEngine.revertRelations(requestRoom,oldMessage.turnId);
                 updateWorldSources('room', requestRoom, [StarlightWorldProgress.sourceKey('room', oldMessage, messageIndex)]);
+                beginRoomReading();
                 isGenerating = true;
                 updateSendButton();
                 updateToolbarButtons();
@@ -7324,10 +7607,13 @@
                             RoomEngine.revertRelations(room,oldMessage.turnId);
                             room.sharedMemory=requestRoom.sharedMemory;room.characterMemories=requestRoom.characterMemories;
                             room.messages[messageIndex]={ ...oldMessage, id: Rooms.createId('roommsg'), content: cleaned, dialogue:response.dialogue, createdAt: Date.now() };
+                            const experience=RoomEngine.ensure(room);
+                            experience.candidates=experience.candidates.filter(c=>c.replaceId!==oldMessage.id);
                             trackWorldMessage('room', room, room.messages[messageIndex], messageIndex);
                             room.updatedAt=Date.now();
                             replacementSaved = true;
                             saveData();
+                            commitRoomStreamingMessage(room, messageIndex, member);
                             try{await evaluateRoomIntimacy(room,oldMessage.turnId);}catch(error){RoomEngine.ensure(room).notice='重写后原关系判定已撤销，新判定待核对。';}
                         } else {
                             showToast('重新生成仍未得到有效内容，已保留原回复', 'info');
@@ -7340,6 +7626,8 @@
                     isGenerating = false;
                     saveData();
                     renderRoomMessages({ preserveScroll: true });
+                    roomTurnRead = null;
+                    updateJumpLatest();
                     updateSendButton();
                     updateToolbarButtons();
                     updateMemoryStatus();
@@ -7558,6 +7846,7 @@
             }
 
             function stopGeneration() {
+                if (roomTurnRead) roomTurnRead.stopped = true;
                 if (abortController) abortController.abort();
             }
 
@@ -7738,6 +8027,7 @@
                     latest&&message.role==='assistant'?'<button type="button" data-message-action="refine">文风精修（先预览）</button>':'',
                     latest&&message.previousVersions?.length?'<button type="button" data-message-action="restore-text">恢复上版正文</button>':'',
                     latest && message.role === 'assistant' ? '<button type="button" data-message-action="regenerate">重新生成这次回复</button>' : '',
+                    latest && appData.activeMode==='room' && message.role==='user' && message.turnId ? '<button type="button" data-message-action="regenerate">重试这轮发言</button>' : '',
                     latest ? '<button type="button" data-message-action="undo">撤回上一轮</button>' : '',
                     '<button type="button" class="danger" data-message-action="restart">重启当前对话</button>',
                 ].filter(Boolean).join('');
@@ -7858,8 +8148,10 @@
             function updateJumpLatest() {
                 const total = getActiveMessages().length;
                 const hasLaterMessages = getMessageRenderRange(total).end < total;
+                const updates = !!roomTurnRead && !roomTurnRead.follows;
+                $btnJumpLatest.toggleAttribute('data-updates', updates);
                 $btnJumpLatest.hidden = $chatShell.classList.contains('is-hidden')
-                    || (!hasLaterMessages && $messagesContainer.scrollHeight - $messagesContainer.clientHeight - $messagesContainer.scrollTop < 96);
+                    || (!updates && !hasLaterMessages && $messagesContainer.scrollHeight - $messagesContainer.clientHeight - $messagesContainer.scrollTop < 96);
             }
             $messagesContainer.addEventListener('scroll', updateJumpLatest, { passive:true });
             let jumpUpdateFrame = null;
@@ -7870,12 +8162,13 @@
             jumpObserver.observe($messagesContainer, { childList:true, subtree:true, characterData:true });
             $btnJumpLatest.addEventListener('click', () => {
                 isUserScrolledUp = false;
-                if (!isGenerating) {
-                    const total = getActiveMessages().length;
-                    setMessageRenderRange({ start:Math.max(0,total - MESSAGE_PAGE_SIZE), end:total });
+                if (roomTurnRead) roomTurnRead.follows = true;
+                if (!isGenerating || roomTurnRead) {
+                    setMessageRenderRange(null);
                     renderMessages({ preserveScroll:true });
                 }
                 requestAnimationFrame(() => {
+                    if (roomTurnRead && !roomTurnRead.follows) return;
                     $messagesContainer.scrollTop = $messagesContainer.scrollHeight;
                     updateJumpLatest();
                 });

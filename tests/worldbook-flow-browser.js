@@ -64,7 +64,9 @@ module.exports = async function worldBookFlowBrowser() {
         extractions.push({body, source:payload.source});
         const event = [storyFact,rewriteFact,sceneFact,dialogueFact].find(value => payload.source.includes(value));
         if (!event) throw new Error('提取范围错误 ' + payload.source.slice(0,80));
-        return finish({entries:[entry('具体变化',event,badProgress ? '原文里没有的句子' : event)]});
+        const proposed = entry('具体变化',event,badProgress ? '原文里没有的句子' : event);
+        if (event === dialogueFact) proposed.characterChanges = [{memberId:payload.participants[0].id,section:'state'}];
+        return finish({entries:[proposed]});
     };
     async function action(name) {
         el('#messagesContainer [data-message-index]:last-child').dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true}));
@@ -146,10 +148,26 @@ module.exports = async function worldBookFlowBrowser() {
         await click('#roomWorldBookTools .wb-retry');
         await click('#btnConfirmRoom');
         await wait(async () => texts((await findWork('room')).worldBook.progressEntries).includes(dialogueFact),'用户重试后新进展可用');
+        const countBeforeDevelopments = requests.length;
+        await click('#btnChatSettings');
+        const panel = '#roomParticipantsEditor .member-development';
+        await click(panel+' > details > summary');
+        check(el(panel+' textarea').value === dialogueFact,'角色设定显示已证实的当前状态');
+        check(el(panel+' blockquote').textContent === dialogueFact,'角色记录可展开原文依据');
+        type(panel+' textarea','正在灯塔重新安顿生活。');
+        await click(panel+' section > button');
+        check(!document.querySelector(panel+' textarea'),'从人物设定移除后可单独恢复');
+        await click(panel+' section > button');
+        check(el(panel+' textarea').value === '正在灯塔重新安顿生活。','恢复使用保留作者修改');
+        await click('#btnConfirmRoom');
+        await wait(async () => (await findWork('room')).participants[0].developmentEdits?.some(edit => edit.text==='正在灯塔重新安顿生活。'),'编辑落盘');
+        room = await findWork('room');
+        check(StarlightRoomGrowth.prompt(room,room.participants[0],'').includes('正在灯塔重新安顿生活。') && requests.length === countBeforeDevelopments,'使用编辑后的人物补充，无新增接口调用');
         await action('undo');
         await wait(async () => (await findWork('room')).worldBook.progressEntries.length === 1,'房间只撤回对应对白的进展');
         room = await findWork('room');
         check(texts(room.worldBook.progressEntries).includes(sceneFact),'房间撤回保留更早情景');
+        check(!StarlightRoomGrowth.prompt(room,room.participants[0],'').includes('重新安顿'),'来源撤回后人物当前状态不再带入');
         check(JSON.stringify((await findWork('story')).worldBook) === frozen,'两种模式各自保存世界书和自动整理任务');
         const archive = StarlightArchive.parseBackup(JSON.stringify(StarlightArchive.createBackup(await read(),{mode:'room',id:room.id})));
         const normalized = StarlightRooms.normalizeRoom(archive.state.rooms[0],StarlightMemory);

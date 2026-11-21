@@ -63,6 +63,7 @@ module.exports=async function roomBrowserChecks(){
         await click('#btnConfirmRoom');
         await wait(()=>!StarlightMotion.isOpen(node('#roomModalOverlay'))&&node('#currentAgentName').textContent===label,'保存房间');
         currentId=(await read()).rooms.find(r=>r.name===label).id;
+        if (node('#btnRoomComposerTools').getAttribute('aria-expanded') === 'false') await click('#btnRoomComposerTools');
         return currentId;
     }
     async function send(text){

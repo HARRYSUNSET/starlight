@@ -64,3 +64,38 @@
 .keyboard-open .room-input-tools button { min-height:28px; }
 .keyboard-open .input-area { gap:5px; padding-top:5px; }
 @media(max-height:460px){.room-experience-header p{display:none;}.room-experience-header{padding-top:calc(7px + var(--ui-safe-top));padding-bottom:7px;}.room-experience-tabs{padding-top:4px;padding-bottom:4px;}.room-experience-scroll{padding-top:10px;}.room-context-actions button{min-height:26px;padding-top:2px;padding-bottom:2px;}}
+.room-panel-toggle[hidden] { display:none!important; }
+.room-panel-toggle { flex:0 0 42px; width:42px; height:42px; display:inline-grid; place-items:center; cursor:pointer; color:var(--text-secondary); background:var(--bg); border:0; border-radius:50%; }
+.room-panel-toggle[aria-expanded="true"] .ui-icon { transform:rotate(180deg); }
+#btnRoomComposerTools[aria-expanded="true"] .ui-icon { transform:rotate(45deg); }
+.room-panel-toggle .ui-icon { transition:transform .16s ease; }
+.mode-room .chat-name-row { display:flex; align-items:center; justify-content:center; min-width:0; gap:2px; }
+#btnRoomHeaderTools { background:transparent; }
+.mode-room .room-header-folded #chatQuickTools,.mode-room .room-header-folded #roomContextBar,
+.mode-room .room-header-folded #chatSubtitle,
+.mode-room .room-composer-folded #roomInputTools,.mode-room .room-composer-folded #composerTools { display:none!important; }
+.mode-room .room-composer-folded #btnSend[aria-label="预览情景"] { width:auto; min-width:52px; padding-inline:8px; }
+.mode-room .room-composer-folded #btnSend[aria-label="预览情景"] .ui-icon { display:none; }
+.mode-room .room-composer-folded #btnSend[aria-label="预览情景"]::after { content:'预览'; font-size:.85rem; }
+.mode-room #chatShell .messages-container { overflow-anchor:none; }
+.mode-room #chatShell .main-area > * { grid-column:1; }
+.mode-room #chatShell .jump-latest[data-updates] { width:auto; max-width:90%; padding-inline:12px; display:flex; align-items:center; justify-content:center; gap:5px; }
+.mode-room #chatShell .jump-latest[data-updates]::after { content:'查看新回复'; }
+.keyboard-open.mode-room #chatShell .chat-topbar { min-height:46px; padding-block:calc(2px + var(--ui-safe-top)) 2px; }
+.keyboard-open.mode-room #chatSubtitle { display:none; }
+.keyboard-open.mode-room #chatQuickTools { padding-block:2px 4px; }
+.keyboard-open.mode-room #roomContextBar { flex-wrap:nowrap; overflow-x:auto; }
+.keyboard-open.mode-room .room-participants-strip { flex:1 0 72px; }
+.keyboard-open.mode-room .room-context-actions { width:clamp(140px,48%,340px); flex:0 0 auto; }
+.keyboard-open.mode-room #messagesContainer { padding-block:6px; }
+@media (min-width:620px) {
+    .keyboard-open.mode-room #chatShell .main-area { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+    .keyboard-open.mode-room #chatShell .main-area > * { grid-column:1/-1; }
+    .keyboard-open.mode-room #chatShell #chatQuickTools { grid-column:1; align-items:center; }
+    .keyboard-open.mode-room #chatShell #roomContextBar { grid-column:2; grid-row:2; }
+    .keyboard-open.mode-room #inputArea.room-active { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; }
+    .keyboard-open.mode-room #roomInputTools { grid-column:1; }
+    .keyboard-open.mode-room #composerTools { grid-column:2; }
+    .keyboard-open.mode-room .message-entry-row { grid-column:1/-1; }
+}
+@media(prefers-reduced-motion:reduce) { .room-panel-toggle .ui-icon { transition:none; } }

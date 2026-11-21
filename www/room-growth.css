@@ -1,0 +1,6 @@
+.member-development > details { margin-top: .55rem; }
+.member-development summary { min-height: 44px; align-content: center; cursor: pointer; }
+.member-development section { display: grid; gap: .55rem; padding: .65rem 0; }
+.member-development select, .member-development textarea { width: 100%; min-width: 0; box-sizing: border-box; }
+.member-development blockquote { margin: .45rem .5rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.member-development button { justify-self: start; min-height: 44px; }
