@@ -35,3 +35,6 @@
 .wb-recipients small { flex-basis: 100%; }
 .worldbook-origin { color: var(--text-secondary); font-size: .82rem; margin-bottom: 8px; overflow-wrap: anywhere; }
 .worldbook-origin summary { cursor: pointer; }
+.wb-progress:not([hidden]) { display:grid; gap:5px; margin-bottom:10px; max-height:13rem; overflow:auto; }
+.wb-progress-row { display:flex; align-items:center; flex-wrap:wrap; gap:8px; padding:6px; border-radius:8px; background:var(--bg); color:var(--text-secondary); font-size:.78rem; }
+.wb-progress-row span { flex:1 1 auto; }

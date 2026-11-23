@@ -59,26 +59,40 @@
                     <button type="button" class="mini-action-btn wb-apply" hidden>将所选条目加入初始设定</button>
                 </div>
             </details>
-            <label class="wb-auto-label"><input type="checkbox" class="wb-auto"><span>自动整理后续进展<small>${room ? '从新保存的角色回复和已采纳情景提取变化。' : '从新保存的剧情正文提取装备、能力、关系等变化。'}开启后将额外调用模型。</small></span></label>
-            <div class="wb-retry-row" hidden><button type="button" class="mini-action-btn wb-retry">重试未完成的整理</button><span role="status"></span></div>`;
+            <label class="wb-auto-label"><input type="checkbox" class="wb-auto"><span>自动整理后续进展<small>${room ? '从新保存的角色回复和已采纳情景提取变化。' : '从新保存的剧情正文提取装备、能力、关系等变化。'}开启后将额外调用模型。</small></span></label>`;
         const $ = selector => container.querySelector(selector);
         const source = $('.wb-source'), status = $('.wb-status'), results = $('.wb-results');
         const analyze = $('.wb-analyze'), stop = $('.wb-cancel'), apply = $('.wb-apply');
-        const pick = $('.wb-pick'), file = $('.wb-file'), auto = $('.wb-auto'), retry = $('.wb-retry');
+        const pick = $('.wb-pick'), file = $('.wb-file'), auto = $('.wb-auto');
         auto.checked = getBook().automation.enabled;
         auto.addEventListener('change', () => {
             getBook().automation.enabled = auto.checked;
-            retry.disabled = !auto.checked;
+            options.refreshProgress?.();
         });
-        let retryOnSave = false;
-        if (getBook().automation.sources.some(row => row.status === 'failed')) {
-            $('.wb-retry-row').hidden = false;
-            retry.disabled = !auto.checked;
-            retry.addEventListener('click', () => {
-                retryOnSave = true;
-                retry.disabled = true;
-                $('.wb-retry-row span').textContent = '保存设定后开始重试';
-            });
+
+        function renderProgress(panel) {
+            if (!panel) return;
+            const automation = options.getWork?.()?.worldBook?.automation;
+            const pending = (automation?.sources || []).filter(row => row.status !== 'done').reverse();
+            panel.hidden = !pending.length;
+            panel.replaceChildren();
+            for (const row of pending) {
+                const line = element('div','','wb-progress-row');
+                const label = element('button',row.label || options.sourceLabel?.(row.key) || '原对话','mini-action-btn');
+                label.type='button';
+                label.onclick=()=>options.locate?.(row.key);
+                const detail = element('span',row.status==='pending'?'等待整理':
+                    options.failureLabels?.[row.reason] || '整理未完成');
+                line.append(label,detail);
+                if (row.status==='failed') {
+                    const retry=element('button','重试','mini-action-btn wb-retry');
+                    retry.type='button';
+                    retry.disabled=!automation.enabled||!auto.checked;
+                    retry.onclick=()=>options.retry?.(row.key);
+                    line.append(retry);
+                }
+                panel.append(line);
+            }
         }
 
         let disposed = false, controller = null, fileRevision = 0, run = null;
@@ -231,7 +245,7 @@
             }
         });
         return {
-            shouldRetry: () => retryOnSave && auto.checked,
+            renderProgress,
             dispose() {
                 disposed = true;
                 controller?.abort();

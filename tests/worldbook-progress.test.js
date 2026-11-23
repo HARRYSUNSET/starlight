@@ -113,12 +113,47 @@ test('invalid extraction is atomic across chunks, failure is durable, retry is e
     assert.equal(rows(work)[0].status,'failed');
     assert.equal(work.worldBook.progressEntries.length,0);
     await service.wake();
-    assert.equal(attempts,2);
+    assert.equal(attempts,3);
+    assert.equal(rows(work)[0].reason,'evidence');
     fail = false;
     await service.retry('story', work.id);
     assert.equal(attempts,4);
     assert.equal(rows(work)[0].status,'done');
     assert.equal(work.worldBook.progressEntries.length,2);
+});
+
+test('background extraction retries a blank response unfiltered and keeps a valid empty result quiet', async () => {
+    const work=makeWork('story');
+    work.conversations=[{id:'kept',role:'assistant',content:'小夏取得铜钥匙。'},{id:'empty',role:'assistant',content:'小夏点了点头。'}];
+    changed(work,'story');
+    const attempts=[];
+    await runner([{mode:'story',work}],async (messages,mode,options)=>{
+        const source=JSON.parse(messages[1].content).source;
+        attempts.push([source,options.structured]);
+        if(source.includes('钥匙')&&options.structured)throw Object.assign(new Error('空白'),{code:'JSON_WHITESPACE'});
+        return source.includes('钥匙')?reply('取得铜钥匙'):{entries:[]};
+    }).wake();
+    assert.deepEqual(attempts.map(a=>a[1]),[true,false,true]);
+    assert.deepEqual(rows(work).map(row=>row.status),['done','done']);
+    assert.equal(work.worldBook.progressEntries.length,1);
+});
+
+test('truncated extraction finishes with smaller requests and one verified source', async () => {
+    const work=makeWork('story');
+    const original='阿青找到了钥匙。后来还给了小桃。';
+    work.conversations=[{id:'chapter',role:'assistant',content:original}];
+    changed(work,'story');
+    const inputs=[];
+    await runner([{mode:'story',work}],async (messages,mode,options)=>{
+        const source=JSON.parse(messages[1].content).source;
+        if(!options.recovery) throw Object.assign(new Error('截断'),{code:'JSON_TRUNCATED'});
+        assert.ok(source.length<original.length);
+        inputs.push(source);
+        return reply(source);
+    }).wake();
+    assert.equal(inputs.join(''),original);
+    assert.equal(rows(work)[0].status,'done');
+    assert.ok(work.worldBook.progressEntries.every(entry=>entry.origin.sourceKey==='story:chapter'));
 });
 
 test('rewriting tracked sources removes derived facts and detaches author edits, even after switching automation off', async () => {

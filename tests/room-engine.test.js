@@ -7,9 +7,9 @@ function room(input={}){return Rooms.normalizeRoom({id:'test-room',roomType:'dou
 function turn(value,text,id){value.messages.push({id:id+'-u',turnId:id,role:'user',kind:'dialogue',content:text},{id:id+'-a',turnId:id,role:'assistant',kind:'message',speakerId:'a',content:'（点头）谢谢。'});}
 function judgement(turnId,quote,extra={}){return {judgements:[{memberId:'a',sources:[{id:turnId+'-u',quote}],kind:'action',tag:'守约',familiarity:1,trust:2,affection:1,reason:'按先前约定归还物品',...extra}]};}
 
-test('旧亲密度与已达到节点原样继承，不补造新维度的经历',()=>{
+test('旧房间保留关系基线和事件描述，空缺维度与门槛等待校准',()=>{
     const value=room({intimacy:{value:180,initialValue:20,nodes:[{id:'old',value:100,description:'既有关系'}]},participants:[{id:'a',name:'小夏',relationships:'已是恋人'}]});
-    const e=E.ensure(value);assert.equal(value.intimacy.value,180);assert.equal(e.relations.a.baseline,'已是恋人');assert.equal(e.relations.a.known,false);assert.equal(e.relationHistory.length,0);assert.equal(Rooms.getAvailableNodes(value)[0].id,'old');
+    const e=E.ensure(value);assert.equal(value.intimacy,undefined);assert.equal(e.relations.a.baseline,'已是恋人');assert.equal(e.relations.a.known,false);assert.equal(e.relationHistory.length,0);assert.deepEqual(value.relationshipEvents,[{id:'old',description:'既有关系',condition:'',thresholds:{}}]);assert.deepEqual(E.availableNodes(value),[]);
 });
 test('对话和情景草稿独立，切换模式不把要求变成正式消息',()=>{
     const value=room();E.setComposerValue(value,'对白草稿');E.ensure(value).mode='scene';E.setComposerValue(value,'推进到放学');assert.equal(E.composerValue(value),'推进到放学');E.ensure(value).mode='dialogue';assert.equal(E.composerValue(value),'对白草稿');assert.equal(value.messages.length,0);
@@ -30,7 +30,7 @@ test('来源变更或未知角色会拒绝旧预览，旧正式场景不变',()=
     assert.throws(()=>E.sceneCandidate(value,{narration:'新场景',state:{presentIds:['unknown']}},'',E.stamp(value)),/不存在/);
 });
 
-test('升级兼容旧房间的预览和关系规则，后台整理不会让预览过期', () => {
+test('升级兼容旧房间的预览，后台整理不会让预览过期', () => {
     const value = room();
     const parts = JSON.parse(E.stamp(value));
     const legacyBook = JSON.parse(JSON.stringify(value.worldBook));
@@ -39,10 +39,7 @@ test('升级兼容旧房间的预览和关系规则，后台整理不会让预�
     const oldStamp = JSON.stringify(parts);
     const preview = E.sceneCandidate(value, {narration:'电灯亮了。',state:{}}, '', oldStamp);
     E.ensure(value).sceneDraft = preview;
-    const oldRuleKey = JSON.stringify([legacyBook, '原有人设']);
-    value.intimacy.rulesSignature = oldRuleKey;
     const upgraded = Rooms.normalizeRoom(JSON.parse(JSON.stringify(value)), Memory);
-    assert.equal(upgraded.intimacy.rulesSignature, JSON.stringify([E.bookStamp(upgraded.worldBook), '原有人设']));
     const candidate = E.ensure(upgraded).sceneDraft;
     assert.equal(candidate.stamp, E.stamp(upgraded));
     upgraded.worldBook.automation = {enabled:true, sources:[{key:'turn-1', stamp:'a', status:'done'}]};
@@ -84,36 +81,36 @@ test('角色可以只以简短动作回应，协议、流式展示和最终校�
 });
 test('关系非零判定必须有本轮真实用户来源，伪造及角色自我害羞不能充当证据',()=>{
     const value=room();turn(value,'（归还借来的书）','t1');const before=JSON.stringify(E.ensure(value).relations);
-    assert.throws(()=>E.applyJudgements(value,'t1',judgement('t1','不在原文里'),Rooms.applyIntimacyResult),/来源/);
-    assert.throws(()=>E.applyJudgements(value,'t1',judgement('t1','点头',{sources:[{id:'t1-a',quote:'点头'}]}),Rooms.applyIntimacyResult),/来源/);
+    assert.throws(()=>E.applyJudgements(value,'t1',judgement('t1','不在原文里')),/来源/);
+    assert.throws(()=>E.applyJudgements(value,'t1',judgement('t1','点头',{sources:[{id:'t1-a',quote:'点头'}]})),/来源/);
     assert.equal(JSON.stringify(E.ensure(value).relations),before);assert.equal(E.ensure(value).relationHistory.length,0);
 });
 test('同轮不重复结算，重复事件换标签也不能反复刷分',()=>{
-    const value=room(),quote='（归还借来的书）';turn(value,quote,'t1');E.applyJudgements(value,'t1',judgement('t1',quote),Rooms.applyIntimacyResult);
+    const value=room(),quote='（归还借来的书）';turn(value,quote,'t1');E.applyJudgements(value,'t1',judgement('t1',quote));
     const before=E.ensure(value).relations.a.trust;assert.equal(E.applyJudgements(value,'t1',judgement('t1',quote)).duplicate,true);
-    turn(value,quote,'t2');E.applyJudgements(value,'t2',judgement('t2',quote,{tag:'换个名字的还书事件'}),Rooms.applyIntimacyResult);assert.equal(E.ensure(value).relations.a.trust,before);
+    turn(value,quote,'t2');E.applyJudgements(value,'t2',judgement('t2',quote,{tag:'换个名字的还书事件'}));assert.equal(E.ensure(value).relations.a.trust,before);
 });
 test('寒暄、赞美和未兑现承诺不因模型误判就持续加分',()=>{
-    for(const [quote,kind] of [['你好','action'],['明天一定归还','promise'],['你真棒','praise']]){const value=room();turn(value,quote,'t');E.applyJudgements(value,'t',judgement('t',quote,{kind}),Rooms.applyIntimacyResult);assert.equal(E.ensure(value).relations.a.trust,0);assert.equal(value.intimacy.value,0);}
+    for(const [quote,kind] of [['你好','action'],['明天一定归还','promise'],['你真棒','praise']]){const value=room();turn(value,quote,'t');E.applyJudgements(value,'t',judgement('t',quote,{kind}));assert.equal(E.ensure(value).relations.a.trust,0);assert.equal(E.ensure(value).relations.a.affection,0);}
 });
-test('各维度限速、独立人物，节点还需信任、证据和文字条件',()=>{
-    const value=room();value.intimacy.nodes=[{id:'n',value:1,description:'愿意分享私事',minTrust:1,minEvents:1,condition:'归还借物'}];
-    turn(value,'（归还第一本书）','t1');E.applyJudgements(value,'t1',judgement('t1','归还第一本书',{trust:99,affection:99}),Rooms.applyIntimacyResult);
-    assert.equal(E.ensure(value).relations.a.trust,2);assert.equal(E.ensure(value).relations.a.affection,1);assert.equal(Rooms.getAvailableNodes(value).length,0);
-    turn(value,'（归还第二本书）','t2');E.applyJudgements(value,'t2',judgement('t2','归还第二本书',{grantedNodes:['n']}),Rooms.applyIntimacyResult);assert.equal(Rooms.getAvailableNodes(value)[0].id,'n');
+test('各维度限速，事件要求已评估的数值门槛与选填的剧情条件',()=>{
+    const value=room({relationshipEvents:[{id:'n',thresholds:{trust:4,affection:1},description:'愿意分享私事',condition:'归还借物'}]});
+    turn(value,'（归还第一本书）','t1');E.applyJudgements(value,'t1',judgement('t1','归还第一本书',{trust:99,affection:99}));
+    assert.equal(E.ensure(value).relations.a.trust,2);assert.equal(E.ensure(value).relations.a.affection,1);assert.equal(E.availableNodes(value).length,0);
+    turn(value,'（归还第二本书）','t2');E.applyJudgements(value,'t2',judgement('t2','归还第二本书',{grantedNodes:['n']}));assert.equal(E.availableNodes(value)[0].id,'n');
 });
 test('多人只修改实际回应者的关系，缺失或重复角色判定不部分写入',()=>{
     const value=room({roomType:'group',participants:[{id:'a',name:'小夏'},{id:'b',name:'小秋'}]});turn(value,'遵守了约定','t');E.applyJudgements(value,'t',judgement('t','遵守了约定'));
     assert.equal(E.ensure(value).relations.a.trust,2);assert.equal(E.ensure(value).relations.b.trust,0);
     turn(value,'新的共同事件','t2');assert.throws(()=>E.applyJudgements(value,'t2',{judgements:[]}),/角色/);assert.equal(E.ensure(value).relations.a.trust,2);
 });
-test('撤回与重新生成撤销来源对应的关系与旧亲密度，并保留后来的作者校准',()=>{
-    const value=room(),quote='兑现先前承诺';turn(value,quote,'t');E.applyJudgements(value,'t',judgement('t',quote),Rooms.applyIntimacyResult);assert.equal(value.intimacy.value,1);
-    E.revertRelations(value,'t');assert.equal(value.intimacy.value,0);assert.equal(E.ensure(value).relations.a.trust,0);assert.equal(E.ensure(value).relationHistory.length,0);
-    E.applyJudgements(value,'t',judgement('t',quote),Rooms.applyIntimacyResult);E.calibrate(value,'a',{trust:60,policy:{baseline:'作者确认的旧友'}});E.revertRelations(value,'t');assert.equal(E.ensure(value).relations.a.trust,60);assert.equal(E.ensure(value).relations.a.baseline,'作者确认的旧友');
+test('撤回与重新生成撤销来源对应的关系，并保留后来的作者校准',()=>{
+    const value=room(),quote='兑现先前承诺';turn(value,quote,'t');E.applyJudgements(value,'t',judgement('t',quote));assert.equal(E.ensure(value).relations.a.affection,1);
+    E.revertRelations(value,'t');assert.equal(E.ensure(value).relations.a.affection,0);assert.equal(E.ensure(value).relations.a.trust,0);assert.equal(E.ensure(value).relationHistory.length,0);
+    E.applyJudgements(value,'t',judgement('t',quote));E.calibrate(value,'a',{trust:60,policy:{baseline:'作者确认的旧友'}});E.revertRelations(value,'t');assert.equal(E.ensure(value).relations.a.trust,60);assert.equal(E.ensure(value).relations.a.baseline,'作者确认的旧友');assert.equal(E.ensure(value).relations.a.affection,0);
 });
 test('新数据归一化、备份往返不丢预览、规则或关系来源',()=>{
-    const value=room(),quote='履行昨日约定';turn(value,quote,'t');E.applyJudgements(value,'t',judgement('t',quote),Rooms.applyIntimacyResult);
+    const value=room(),quote='履行昨日约定';turn(value,quote,'t');E.applyJudgements(value,'t',judgement('t',quote));
     E.ensure(value).sceneDraft=E.sceneCandidate(value,{narration:'灯亮了。',state:{}},'推进一下',E.stamp(value));E.ensure(value).profileDrafts.a={policy:{preferences:'未保存的作者草稿'}};
     const next=Rooms.normalizeRoom(JSON.parse(JSON.stringify(value)),Memory);assert.equal(E.ensure(next).relationHistory.length,1);assert.equal(E.ensure(next).sceneDraft.content,'灯亮了。');assert.equal(E.ensure(next).profileDrafts.a.policy.preferences,'未保存的作者草稿');
 });
@@ -132,9 +129,51 @@ test('采纳情景同步人物入场离场，撤回恢复名单且不覆盖后�
     E.revertTurn(value,next);assert.equal(value.participants[0].enabled,false);assert.ok(!E.ensure(value).scene.presentIds.includes('a'));
 });
 test('旧版已经结算的回合不因补判再增加一次分数',()=>{
-    const value=room();turn(value,'旧版已核对的行动','old');value.intimacy.value=50;value.turnEffects.old={intimacyDelta:1};
-    const result=E.applyJudgements(value,'old',judgement('old','旧版已核对的行动'),Rooms.applyIntimacyResult);assert.equal(result.legacy,true);assert.equal(value.intimacy.value,50);
-    value.intimacy.rules='已有规则：角色重视守约。';
-    const payload=JSON.parse(E.buildJudgeMessages(value,'old').at(-1).content);
-    assert.equal(payload.legacyRules,value.intimacy.rules,'已有关系规则继续参与核对');
+    const value=room();turn(value,'旧版已核对的行动','old');value.turnEffects.old={intimacyDelta:1};
+    const result=E.applyJudgements(value,'old',judgement('old','旧版已核对的行动'));assert.equal(result.legacy,true);assert.equal(E.ensure(value).relations.a.affection,0);
+});
+
+test('已知维度门槛均达标才开放事件，换剧情条件需要重新核对',()=>{
+    const value=room({relationshipEvents:[
+        {id:'known',description:'主动聊往事',thresholds:{trust:1,affection:0}},
+        {id:'condition',description:'一起修书',thresholds:{trust:1},condition:'归还借物'},
+    ]});
+    E.calibrate(value,'a',{trust:1});
+    assert.deepEqual(E.availableNodes(value),[]);
+    turn(value,'按约归还借来的书','t');
+    E.applyJudgements(value,'t',judgement('t','按约归还借来的书',{grantedNodes:['condition']}));
+    assert.deepEqual(E.availableNodes(value).map(event=>event.id),['known','condition']);
+    value.relationshipEvents[1].condition='一起完成另一项约定';
+    assert.deepEqual(E.availableNodes(value).map(event=>event.id),['known']);
+});
+
+test('可选第四项独立结算、限制升幅并随正式转场回落，撤回可复原',()=>{
+    const value=room({relationshipEvents:[{id:'optional',description:'可选事件',thresholds:{desire:2}}]});
+    const positive={desire:80,desireSignal:'rise',desireReason:'当前场景下的明确互动',affection:0};
+    turn(value,'这次由我主动发出邀请','t1');
+    E.applyJudgements(value,'t1',judgement('t1','这次由我主动发出邀请',positive));
+    assert.equal(E.ensure(value).relations.a.desire,0);
+    assert.doesNotMatch(JSON.stringify(E.buildJudgeMessages(value,'t1')),/desire|性欲度/);
+    value.desireEnabled=true;
+    const exp=E.ensure(value);exp.scene.place='教室';
+    turn(value,'我靠近后明确表达了此刻的感受','t2');
+    E.applyJudgements(value,'t2',judgement('t2','我靠近后明确表达了此刻的感受',positive));
+    assert.equal(exp.relations.a.desire,3);
+    assert.equal(exp.relations.a.affection,0);
+    assert.equal(E.availableNodes(value).length,1);
+    assert.match(JSON.stringify(E.buildJudgeMessages(value,'t2')),/desireSignal/);
+    const candidate=E.sceneCandidate(value,{narration:'晚些时候，两人换到了走廊。',state:{place:'走廊'}},'',E.stamp(value));
+    assert.equal(exp.relations.a.desire,3);
+    E.acceptScene(value,candidate);
+    assert.equal(exp.relations.a.desire,1);
+    assert.equal(E.availableNodes(value).length,0);
+    E.revertTurn(value,value.messages.at(-1).turnId);
+    assert.equal(exp.relations.a.desire,3);
+    assert.equal(exp.scene.place,'教室');
+    const restored=Rooms.normalizeRoom(JSON.parse(JSON.stringify(value)),Memory);
+    assert.equal(E.ensure(restored).relations.a.desire,3);
+    assert.equal(E.availableNodes(restored).length,1);
+    restored.desireEnabled=false;
+    assert.equal(E.availableNodes(restored).length,0);
+    assert.doesNotMatch(JSON.stringify(E.buildJudgeMessages(restored,'t2')),/desireSignal|性欲度/);
 });

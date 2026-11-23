@@ -81,6 +81,15 @@ module.exports=async function roomBrowserChecks(){
         await newRoom('double','房间2.4回归 · 双人');
         assert(calls.length===0,'创建房间不强制请求 AI 规则');
         assert(!node('#messageInput').disabled,'没有预生成规则也能编辑对白');
+        let scorecard=node('#roomRelationshipCard');
+        assert(!scorecard.hidden&&scorecard.querySelectorAll('[data-dimension]').length===3,'双人房间显示三维进度');
+        assert(scorecard.getAttribute('aria-label').includes('待评估'),'缺失的旧分数显示待评估');
+        await click('#btnRoomHeaderTools');
+        assert(getComputedStyle(node('#roomContextBar')).display==='none'&&scorecard.getBoundingClientRect().height>0,'折叠只收起工具，保留关系浮卡');
+        await click('#roomRelationshipCard');
+        assert(StarlightMotion.isOpen(node('#roomExperienceOverlay'))&&!document.querySelector('[data-relation-value]'),'浮卡打开只读关系档案');
+        await click('#roomExperienceClose');
+        await click('#btnRoomHeaderTools');
         input('#messageInput','对白草稿');await click('#btnContinueScene');
         assert(!node('#messageInput').value,'首次情景草稿为空');input('#messageInput','推进到放学后，仍留在教室。');await click('#btnRoomDialogue');assert(node('#messageInput').value==='对白草稿','两个通道独立草稿');
         await click('#btnContinueScene');assert(node('#messageInput').value.includes('放学后'),'切回情景恢复草稿');assert(calls.length===0,'切换模式不请求模型');
@@ -101,7 +110,7 @@ module.exports=async function roomBrowserChecks(){
         assert(document.querySelectorAll('.room-scene-card').length===1,'旁白使用独立场景卡');
         await click('#roomExperienceClose');await actionLast('undo');await wait(async()=>!(await work()).messages.length,'撤回情景');assert((await work()).experience.scene.summary.includes('初始教室'),'撤回恢复场景状态');
 
-        await click('#btnRoomJournal');assert(node('#roomRelationContent').textContent.includes('沉浸视图'),'默认不显示后台心理与分数');
+        await click('#btnRoomJournal');assert(!node('#roomRelationContent').querySelector('[data-relation-value]'),'作者视图关闭时不显示评分修改框');
         node('#roomAuthorView').checked=true;node('#roomAuthorView').dispatchEvent(new Event('change'));await settle();
         input('#roomRelationPreferences','重视守约，不喜欢反复讨好。');input('[data-relation-value="trust"]','20');input('#roomRelationBaseline','已是同学，不因升级重置为陌生');
         node('#roomRelationBaseline').focus();document.dispatchEvent(new KeyboardEvent('keydown',{key:'z',ctrlKey:true,bubbles:true,cancelable:true}));assert((await work()).messages.length===0,'作者输入框 Ctrl+Z 不撤回正式回合');
@@ -213,6 +222,21 @@ module.exports=async function roomBrowserChecks(){
         assert(requestBodies.slice(-2).every(b=>b.response_format.type==='json_object'),'房间A/B两份请求均为JSON模式');
         await delay(220);assert(JSON.stringify(await work())===roomBeforePractice,'试写和A/B对比不改变房间、场景、关系或记忆');
         await click('#btnStyleLabClose');
+        await click('#btnChatSettings');
+        assert(!node('#roomDesireEnabled').checked,'第四项默认关闭');
+        await click('#roomDesireEnabled');
+        await click('#btnAddRelationshipEvent');
+        input('.node-description','主动分享一件往事');
+        input('[data-node-threshold="trust"]','40');
+        input('[data-node-threshold="desire"]','12');
+        await click('#btnConfirmRoom');
+        await wait(async()=>(await work()).relationshipEvents?.[0]?.thresholds.desire===12,'保存各维度的独立门槛');
+        scorecard=node('#roomRelationshipCard');
+        assert(scorecard.querySelectorAll('[data-dimension]').length===4,'启用后在同一浮卡显示第四维');
+        assert((await work()).relationshipEvents[0].thresholds.trust===40,'保存信任门槛且保留空缺项');
+        await click('#roomRelationshipCard');
+        assert(node('#roomRelationContent').textContent.includes('待解锁')&&node('#roomRelationContent').textContent.includes('主动分享一件往事'),'关系档案展示事件与状态');
+        await click('#roomExperienceClose');
         return {checks,roomId:currentId};
     }finally{if(heldScene)heldScene();window.fetch=savedFetch;document.activeElement?.blur();}
 };

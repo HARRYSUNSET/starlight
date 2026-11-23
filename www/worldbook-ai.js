@@ -49,7 +49,7 @@
         return [...labels];
     }
 
-    function buildMessages({mode, kind, text: source, book, participants = []}) {
+    function buildMessages({mode, kind, text: source, book, participants = [], recovery = false}) {
         const progress = kind === 'progress';
         const room = mode === 'room';
         const rules = [
@@ -60,6 +60,7 @@
             room ? '房间卡分公开与私有。秘密、内心活动及只被个别角色知晓的信息单独成卡，knowledgeScope 填 private，characterIds 只可列原文明确知情且在所给名单中的角色 ID。知情者不明确留空。其余确实公开的信息填 public。'
                 : '剧情设定用 knowledgeScope public、characterIds 空数组。',
             '只输出 JSON 对象 {"entries":[{"fields":[{"label":"栏名","value":"内容"}],"evidence":"连续原文","knowledgeScope":"public","characterIds":[]}]}。每个条目的栏位须非空。没有可提取事实时返回 {"entries":[]}。',
+            recovery ? '优先保留明确影响后文的状态变化，条目和每个栏位尽量简洁。从 source 直接复制连续引文，保留原标点，避免省略或拼接；只返回可核验的 JSON 对象。' : '',
             room && progress ? '若事实明确改变某个角色，在该条目附 characterChanges:[{"memberId":"发生变化的角色ID","section":"growth 或 state"}]。长期形成的能力、态度、认知等用 growth；当前伤势、装备、身份或处境等用 state。只填写变化的主体，旁观者、听众和知情者不等于主体。无明确主体时用空数组。' : '',
         ].filter(Boolean);
         const data = { availableFieldLabels: schemaHints(book, kind, text(source).toLowerCase()), source };
@@ -73,15 +74,15 @@
     }
 
     function parseResult(raw, {text: source, mode, kind, participants = []}) {
-        if (!Array.isArray(raw?.entries)) throw new Error('模型返回的世界书格式不完整，请重新分析。');
+        if (!Array.isArray(raw?.entries)) throw Object.assign(new Error('模型返回的世界书格式不完整，请重新分析。'), {code:'WORLD_FORMAT'});
         const room = mode === 'room';
         const roster = new Set((Array.isArray(participants) ? participants : []).map(p => p?.id));
         return raw.entries.map(item => {
             const evidence = text(item?.evidence);
             if (!evidence || typeof source !== 'string' || !source.includes(evidence))
-                throw new Error('世界书条目的出处与原文不符，请重新分析。');
+                throw Object.assign(new Error('世界书条目的出处与原文不符，请重新分析。'), {code:'WORLD_EVIDENCE'});
             if (!Array.isArray(item.fields) || !item.fields.length || item.fields.some(f => !text(f?.label) || !text(f?.value)))
-                throw new Error('世界书条目缺少栏名或内容，请重新分析。');
+                throw Object.assign(new Error('世界书条目缺少栏名或内容，请重新分析。'), {code:'WORLD_FORMAT'});
             const recipients = Array.isArray(item.characterIds) ? item.characterIds : [];
             const privateEntry = room && (item.knowledgeScope !== 'public' || recipients.length > 0);
             return {

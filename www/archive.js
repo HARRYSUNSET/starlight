@@ -12,7 +12,7 @@
     const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype', '$starlightAsset']);
     const MEDIA_KEYS = new Set(['avatar', 'backgroundImage']);
     const STORY_FIELDS = ['name', 'subtitle', 'storyRules', 'worldPrompt', 'worldBook', 'openingScene', 'currentScene', 'userPersona', 'characters', 'stylePrompt', 'styleExamples', 'otherInfo', 'styleInfluence', 'memory'];
-    const ROOM_FIELDS = ['name', 'subtitle', 'basePrompt', 'worldPrompt', 'worldBook', 'scenePrompt', 'userPersona', 'participants', 'styleEnabled', 'stylePrompt', 'styleExamples', 'otherInfo', 'styleInfluence', 'narrationEnabled', 'turnMode', 'maxSpeakers', 'sharedMemory', 'characterMemories', 'intimacy'];
+    const ROOM_FIELDS = ['name', 'subtitle', 'basePrompt', 'worldPrompt', 'worldBook', 'scenePrompt', 'userPersona', 'participants', 'styleEnabled', 'stylePrompt', 'styleExamples', 'otherInfo', 'styleInfluence', 'narrationEnabled', 'turnMode', 'maxSpeakers', 'sharedMemory', 'characterMemories', 'relationshipEvents', 'desireEnabled', 'intimacy'];
     const fieldsFor = mode => mode === 'room' ? ROOM_FIELDS : STORY_FIELDS;
     const clone = value => JSON.parse(JSON.stringify(value));
     const byteLength = value => new TextEncoder().encode(value).byteLength;
@@ -103,7 +103,7 @@
         data.agents ||= [];
         data.rooms ||= [];
         data.styleProfiles ||= [];
-        const backup = validateBackup({ format: FORMAT, version: 1, scope, createdAt: new Date().toISOString(), appVersion: options.appVersion || '3.1.1', state: data });
+        const backup = validateBackup({ format: FORMAT, version: 1, scope, createdAt: new Date().toISOString(), appVersion: options.appVersion || '3.2.0', state: data });
         if (byteLength(JSON.stringify(backup)) > (options.maxBytes || MAX_BACKUP_BYTES)) throw new Error('备份超过 256 MB，请按作品分别导出');
         return backup;
     }
@@ -311,9 +311,6 @@
                 progressEntries: progress,
                 automation: { ...clone(work.worldBook.automation), enabled: book.automation?.enabled === true },
             };
-        }
-        if(revision.mode==='room' && restored.intimacy && work.intimacy){
-            for(const key of ['value','recentDeltas','lastReason']) if(work.intimacy[key]!==undefined)restored.intimacy[key]=clone(work.intimacy[key]);
         }
         restored.updatedAt = Date.now();
         return restored;

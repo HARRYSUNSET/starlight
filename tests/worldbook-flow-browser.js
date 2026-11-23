@@ -64,6 +64,9 @@ module.exports = async function worldBookFlowBrowser() {
         extractions.push({body, source:payload.source});
         const event = [storyFact,rewriteFact,sceneFact,dialogueFact].find(value => payload.source.includes(value));
         if (!event) throw new Error('提取范围错误 ' + payload.source.slice(0,80));
+        if (event === storyFact && body.response_format) {
+            return new Response(JSON.stringify({choices:[{message:{content:'   '},finish_reason:'stop'}]}));
+        }
         const proposed = entry('具体变化',event,badProgress ? '原文里没有的句子' : event);
         if (event === dialogueFact) proposed.characterChanges = [{memberId:payload.participants[0].id,section:'state'}];
         return finish({entries:[proposed]});
@@ -95,8 +98,9 @@ module.exports = async function worldBookFlowBrowser() {
         type('#messageInput','下一章要写主角还没有做到的计划：炸毁钟楼。');
         await click('#btnSend');
         await wait(async () => texts((await findWork('story')).worldBook.progressEntries).includes(storyFact),'普通正文写入进展');
-        check(extractions.length === 1 && extractions[0].source === storyFact,'只提取正式剧情正文，提示词计划不作事实');
+        check(extractions.length === 2 && extractions.every(job=>job.source===storyFact),'空白时只重试当前的正式剧情正文');
         check(extractions[0].body.thinking.type === 'disabled' && extractions[0].body.response_format.type === 'json_object','独立非思考结构化整理');
+        check(!extractions[1].body.response_format && extractions[1].body.thinking.type === 'disabled','补救不改变模型思考模式，只解除服务端 JSON 过滤');
         responseText = rewriteFact;
         await action('regenerate');
         await wait(async () => texts((await findWork('story')).worldBook.progressEntries).includes(rewriteFact),'改写后的进展');
@@ -145,9 +149,11 @@ module.exports = async function worldBookFlowBrowser() {
         check(room.messages.at(-1).content.includes(dialogueFact) && room.worldBook.progressEntries.length === 1,'整理失败保留对白与已有世界书');
         badProgress = false;
         await click('#btnChatSettings');
-        await click('#roomWorldBookTools .wb-retry');
-        await click('#btnConfirmRoom');
+        check(el('#roomWorldBookEditor .wb-progress').textContent.includes('引文与原文不符'),'失败原因显示在后续进展');
+        await click('#roomWorldBookEditor .wb-retry');
         await wait(async () => texts((await findWork('room')).worldBook.progressEntries).includes(dialogueFact),'用户重试后新进展可用');
+        check(el('#roomWorldBookEditor .worldbook-locate'),'重试直接生效并可以定位原文');
+        await click('#btnRoomEditorClose');
         const countBeforeDevelopments = requests.length;
         await click('#btnChatSettings');
         const panel = '#roomParticipantsEditor .member-development';

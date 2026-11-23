@@ -100,13 +100,27 @@
                 touched = true;
             }
             if (source && automation.enabled && (row || changedSet.has(key))) {
-                tracked.set(key, {key, stamp:source.stamp, status:'pending'});
+                tracked.set(key, {key, stamp:source.stamp, status:'pending', label:source.label});
                 touched = true;
             }
         }
         if (removed.size) book = ai.removeSources(book, removed);
         if (touched) work.worldBook = {...book, automation:{...automation, sources:[...tracked.values()]}};
     }
+
+    function failureKind(error) {
+        if (['EMPTY_JSON','JSON_WHITESPACE','EMPTY_CONTENT'].includes(error?.code)) return 'empty';
+        if (['JSON_TRUNCATED','OUTPUT_LIMIT_EMPTY','REASONING_LIMIT'].includes(error?.code)) return 'truncated';
+        if (error?.code === 'WORLD_EVIDENCE') return 'evidence';
+        if (['WORLD_FORMAT','JSON_FORMAT'].includes(error?.code)) return 'format';
+        if (error?.code === 'LOCAL_WRITE') return 'storage';
+        return 'request';
+    }
+    const failureLabels = {
+        empty:'模型返回空白', truncated:'模型输出被截断', evidence:'引文与原文不符',
+        format:'模型返回格式不完整', storage:'本地记录尚未保存', request:'请求或服务未完成',
+        apply:'进展暂未写入',
+    };
 
     function create(options) {
         const { ai, getWork, works, request, save, blocked, ready } = options;
@@ -130,6 +144,27 @@
             while (ready() && pending(job) && blocked()) await wait();
             return ready() && pending(job);
         }
+        async function extract(input, job) {
+            const read = async (text, structured, recovery = false) => {
+                if (!await available(job)) throw new Error('整理来源已变化');
+                const context={...input,text,recovery};
+                const result=await request(ai.buildMessages(context),input.mode,{structured,recovery});
+                return ai.parseResult(result,context);
+            };
+            try {
+                return await read(input.text,true);
+            } catch (error) {
+                const reason=failureKind(error);
+                if(reason==='empty') return read(input.text,false,true);
+                if(reason==='evidence'||reason==='format') return read(input.text,true,true);
+                if(reason!=='truncated') throw error;
+                const recovered=[];
+                for(const text of ai.splitText(input.text,Math.max(2,Math.ceil(input.text.length/2)))) {
+                    recovered.push(...await read(text,true,true));
+                }
+                return recovered;
+            }
+        }
         async function process(job) {
             let work = await available(job);
             if (!work) return;
@@ -139,22 +174,29 @@
                 save();
                 return;
             }
-            let proposals = [], status;
+            const checkpoint=[];
+            let status, reason;
             try {
                 // Manual chat saves are normally debounced. Complete the write
                 // containing both the source and its pending row before billing.
-                if (options.flush) await options.flush();
+                try { if (options.flush) await options.flush(); }
+                catch (error) { throw Object.assign(new Error('未保存归纳来源'), {code:'LOCAL_WRITE',cause:error}); }
+                const cached=work.worldBook.automation.sources.find(row=>row.key===job.key)?.checkpoint;
                 const parts = ai.splitText(source.text);
-                for (const text of parts) {
+                for (const [index,text] of parts.entries()) {
                     work = await available(job);
                     if (!work) return;
                     const participants = (work.participants || []).map(({id,name}) => ({id,name}));
                     const input = {mode:job.mode, kind:'progress', text, book:work.worldBook, participants};
-                    const result = await request(ai.buildMessages(input), job.mode);
-                    proposals.push(...ai.parseResult(result, input));
+                    if (cached?.[index]) {
+                        try { checkpoint.push(ai.parseResult({entries:cached[index]},input)); continue; }
+                        catch { /* Re-extract a checkpoint that cannot be verified against the source. */ }
+                    }
+                    const entries=await extract(input,job);
+                    checkpoint.push(entries);
                 }
                 status = 'done';
-            } catch (error) { status = 'failed'; }
+            } catch (error) { status = 'failed'; reason=failureKind(error); }
             work = await available(job);
             if (!work) return;
             // A restore, undo, or rewrite can finish while the model is working.
@@ -168,6 +210,7 @@
             let book = work.worldBook;
             if (status === 'done') {
                 try {
+                    let proposals=checkpoint.flat();
                     if (job.mode === 'room') {
                         const witnesses = (work.participants || []).map(member => member.id).filter(id => current.witnesses.has(id));
                         proposals = proposals.map(entry => {
@@ -179,12 +222,15 @@
                     }
                     book = ai.applyEntries(book, proposals, {kind:'progress', sourceKey:job.key,
                         sourceIndex:current.index, sourceEndIndex:current.endIndex, sourceLabel:current.label}).book;
-                } catch (error) { status = 'failed'; }
+                } catch (error) { status = 'failed'; reason='apply'; }
             }
-            const sources = book.automation.sources.map(row => row.key === job.key ? {...row, status} : row);
+            const sources = book.automation.sources.map(row => row.key === job.key ? {
+                key:row.key, stamp:row.stamp, status, label:current.label,
+                ...(status==='failed'?{reason,checkpoint:checkpoint.length ? checkpoint : row.checkpoint}:{}),
+            } : row);
             work.worldBook = {...book, automation:{...book.automation, sources}};
             save();
-            if (status === 'failed') options.onFailure?.(work, job.mode);
+            options.onChange?.(work, job.mode);
         }
         function wake() {
             if (active) return active;
@@ -195,15 +241,17 @@
             }).finally(() => { active = null; });
             return active;
         }
-        function retry(mode, id) {
-            const book = getWork(mode, id)?.worldBook;
+        function retry(mode, id, key) {
+            const work=getWork(mode,id), book=work?.worldBook;
             if (!book?.automation?.enabled) return;
             book.automation = {...book.automation, sources:book.automation.sources.map(row =>
-                row.status === 'failed' ? {...row, status:'pending'} : row)};
+                row.status === 'failed' && (!key || key===row.key) ? {...row, status:'pending',reason:undefined} : row)};
             save();
+            options.onChange?.(work,mode);
             return wake();
         }
         return {wake, retry};
     }
-    return {sourceKey, changedKeys, reconcile, create};
+    const locate = (mode,work,key) => work ? collect(mode,work,new Set([key])).get(key) : undefined;
+    return {sourceKey, changedKeys, reconcile, create, locate, failureLabels};
 });

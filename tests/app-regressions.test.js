@@ -44,7 +44,8 @@ test('剧情流式保留阅读位置，房间流式仅在跟读时滚动', () =>
 test('图片保存等待压缩完成并强制刷新到持久存储', () => {
     const saveRoom = functionBody('saveRoomFromModal', 'showToast');
     assert.match(saveRoom, /await waitForRoomDraftImages\(\)/);
-    assert.match(saveRoom, /await persistFullState\(\)/);
+    assert.match(saveRoom, /await commitCandidate\(/);
+    assert.match(functionBody('commitCandidate','commitWorkspaceWork'), /await writeDatabaseState\(next\)/);
     assert.match(html, /roomDraftBackgroundRevision/);
     assert.match(html, /roomDraftAvatarRevisions/);
 });
@@ -67,11 +68,11 @@ test('作品卡片菜单监听器只在主页渲染器中绑定到卡片自身',
 test('应用版本号在 npm 与 Android 配置中一致', () => {
     const gradle = fs.readFileSync(path.join(root, 'android', 'app', 'build.gradle'), 'utf8');
     const lock = require('../package-lock.json');
-    assert.equal(packageJson.version, '3.1.1');
+    assert.equal(packageJson.version, '3.2.0');
     assert.equal(lock.version, packageJson.version);
     assert.equal(lock.packages[''].version, packageJson.version);
-    assert.match(gradle, /versionCode\s+26/);
-    assert.match(gradle, /versionName\s+"3\.1\.1"/);
+    assert.match(gradle, /versionCode\s+27/);
+    assert.match(gradle, /versionName\s+"3\.2\.0"/);
     assert.ok(html.includes('星陽之语 ' + packageJson.version));
 });
 

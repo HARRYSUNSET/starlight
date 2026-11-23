@@ -105,7 +105,11 @@
         for (const item of Array.isArray(source.sources) ? source.sources : []) {
             if (!asString(item?.key) || !asString(item.stamp) ||
                 !['pending', 'done', 'failed'].includes(item.status)) continue;
-            records.set(item.key, { key: item.key, stamp: item.stamp, status: item.status });
+            const row = { key: item.key, stamp: item.stamp, status: item.status };
+            if (asString(item.label)) row.label = item.label.slice(0,120);
+            if (asString(item.reason)) row.reason = item.reason.slice(0,80);
+            if (item.status !== 'done' && Array.isArray(item.checkpoint)) row.checkpoint = item.checkpoint;
+            records.set(item.key, row);
         }
         return { enabled: source.enabled === true, sources: [...records.values()] };
     }

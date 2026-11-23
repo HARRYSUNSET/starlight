@@ -18,7 +18,6 @@
     const Voice = typeof module === 'object' && module.exports
         ? require('./voice.js') : globalThis.StarlightVoice;
 
-    const MAX_INTIMACY = 200;
     const MAX_GROUP_MEMBERS = 8;
     const MAX_SMART_SPEAKERS = 3;
     const IMAGE_LIMIT_BYTES = 12 * 1024 * 1024;
@@ -180,28 +179,21 @@
             : Object.assign(createEmptyMemory(), value || {});
     }
 
-    function normalizeNode(node, index) {
-        const source = node && typeof node === 'object' ? node : {};
-        return {
-            id: asString(source.id) || createId('node'),
-            value: finiteInt(source.value, Math.min(MAX_INTIMACY, (index + 1) * 40), 1, MAX_INTIMACY),
-            description: asString(source.description).trim(),
-            minTrust: finiteInt(source.minTrust,10,0,100),
-            minEvents: finiteInt(source.minEvents,2,0,1000),
-            condition: asString(source.condition).trim(),
-        };
-    }
-
-    function normalizeNodes(nodes) {
+    function normalizeRelationshipEvents(events) {
         const seen = new Set();
-        return (Array.isArray(nodes) ? nodes : [])
-            .map(normalizeNode)
-            .filter(node => {
-                if (!node.description || seen.has(node.value)) return false;
-                seen.add(node.value);
-                return true;
-            })
-            .sort((a, b) => a.value - b.value);
+        return (Array.isArray(events) ? events : []).flatMap(event => {
+            const description = asString(event?.description).trim();
+            if (!description) return [];
+            const id = asString(event.id) || createId('node');
+            if (seen.has(id)) return [];
+            seen.add(id);
+            const thresholds = {};
+            for (const key of Object.keys(Experience.RELATION_LABELS)) {
+                const value = event.thresholds?.[key];
+                if (typeof value === 'number' && Number.isFinite(value)) thresholds[key] = finiteInt(value, 0, 0, 100);
+            }
+            return [{id, description, thresholds, condition:asString(event.condition).trim()}];
+        });
     }
 
     function normalizeMember(member, index) {
@@ -308,28 +300,14 @@
             characterMemories,
             turnEffects: source.turnEffects && typeof source.turnEffects === 'object' ? source.turnEffects : {},
             experience: source.experience,
-            intimacy: roomType === 'double' ? normalizeIntimacy(source.intimacy) : null,
+            relationshipEvents: roomType === 'double' ? normalizeRelationshipEvents(
+                source.relationshipEvents ?? source.intimacy?.nodes) : [],
+            desireEnabled: roomType === 'double' && source.desireEnabled === true,
             createdAt: Number(source.createdAt) || Date.now(),
             updatedAt: Number(source.updatedAt) || Date.now(),
         };
         if(Experience) Experience.ensure(result);
         return result;
-    }
-
-    function normalizeIntimacy(intimacy) {
-        const source = intimacy && typeof intimacy === 'object' ? intimacy : {};
-        return {
-            value: finiteInt(source.value, 0, 0, MAX_INTIMACY),
-            initialValue: finiteInt(source.initialValue, finiteInt(source.value, 0, 0, MAX_INTIMACY), 0, MAX_INTIMACY),
-            nodes: normalizeNodes(source.nodes),
-            rules: source.rules && typeof source.rules === 'object' ? source.rules : null,
-            rulesReady: source.rulesReady === true && !!source.rules,
-            rulesSignature: Experience ? Experience.upgradeBookStamp(asString(source.rulesSignature), 0) : asString(source.rulesSignature),
-            recentDeltas: (Array.isArray(source.recentDeltas) ? source.recentDeltas : [])
-                .map(value => finiteInt(value, 0, -3, 2)).slice(-20),
-            lastReason: asString(source.lastReason),
-            updatedAt: Number(source.updatedAt) || 0,
-        };
     }
 
     function createRoom(input, memoryApi, defaultStylePrompt) {
@@ -429,13 +407,8 @@
         return lines.length ? lines.join('\n') : '（没有其他在场角色）';
     }
 
-    function getAvailableNodes(room) {
-        if (room?.roomType !== 'double' || !room.intimacy) return [];
-        return Experience ? Experience.availableNodes(room) : room.intimacy.nodes.filter(node => node.value <= room.intimacy.value);
-    }
-
     function buildCharacterPromptParts(room, member, contexts = {}, styleInfluencePrompt) {
-        const availableNodes = getAvailableNodes(room);
+        const availableNodes = Experience.availableNodes(room);
         const characterMemory = asString(contexts.characterMemory).trim();
         const sharedMemory = asString(contexts.sharedMemory).trim();
         let latestQuery = '';
@@ -470,9 +443,8 @@
         if (sharedMemory) dynamicSections.push('【房间公共长期记忆】\n' + sharedMemory);
         if (characterMemory) dynamicSections.push('【只有你可以使用的角色独立记忆】\n' + characterMemory);
         if (room.roomType === 'double') {
-            dynamicSections.push(`【当前亲密度】\n${room.intimacy.value}/${MAX_INTIMACY}。亲密度只约束关系进展，不得直接朗读数值。`);
             dynamicSections.push('【当前已达到的关系节点】\n' + (availableNodes.length
-                ? availableNodes.map(node => `- ${node.value}：${node.description}`).join('\n')
+                ? availableNodes.map(node => '- ' + node.description).join('\n')
                 : '（尚未达到任何自定义节点）'));
             dynamicSections.push('达到节点只表示相关互动在人物和情境允许时可以发生，并不要求立刻发生；仍须尊重人设、上下文与用户意愿。');
         }
@@ -618,122 +590,6 @@
         return result;
     }
 
-    function buildIntimacyRulesMessages(room) {
-        const member = room?.participants?.[0];
-        if (!member) throw new Error('双人房间缺少角色');
-        return [
-            {
-                role: 'system',
-                content: [
-                    '你是角色关系进展规则设计器。根据人物性格、经历、价值观、边界、目标以及用户角色，建立隐藏的亲密度判定依据。',
-                    '规则必须体现这个人物独有的偏好和雷区，不能使用通用讨好模板。',
-                    '普通寒暄和重复讨好通常不改变数值；真诚、长期一致性和关键事件才可能缓慢提升；冒犯边界、欺骗或背叛会降低。',
-                    '只输出合法JSON对象，格式：',
-                    '{"relationship_basis":"关系判断核心","positive_signals":[{"signal":"条件","weight":1}],"negative_signals":[{"signal":"条件","weight":-1}],"hard_boundaries":["不可触碰的边界"],"special_events":["可被视为重要事件的情形"]}',
-                    'weight只能是-3到2之间的整数。不要输出亲密度节点内容，不要向用户解释规则。',
-                ].join('\n'),
-            },
-            {
-                role: 'user',
-                content: [
-                    `【角色名称】${member.name}`,
-                    '【角色完整人设】\n' + member.personaPrompt,
-                    '【角色语言与行动风格】\n' + member.speakingStyle,
-                    '【角色私人目标】\n' + member.privateGoal,
-                    '【用户角色设定】\n' + room.userPersona,
-                    '【世界与场景】\n' + [WorldBook ? WorldBook.buildWorldBookPrompt(room.worldBook, '', { characterId: member.id }) : room.worldPrompt, room.scenePrompt].filter(Boolean).join('\n'),
-                    '【角色成长与当前状态】\n' + [member.growthNotes, member.currentState, member.relationships].filter(Boolean).join('\n'),
-                ].join('\n\n'),
-            },
-        ];
-    }
-
-    function buildIntimacyJudgeMessages(room, turnMessages) {
-        const member = room?.participants?.[0];
-        if (!member || !room.intimacy?.rulesReady) throw new Error('亲密度判定尚未启用');
-        const transcript = (Array.isArray(turnMessages) ? turnMessages : []).map(message => {
-            if (message.role === 'user') return `用户：${message.content}`;
-            if (message.role === 'assistant') return `${member.name}：${message.content}`;
-            return `事件：${message.content}`;
-        }).join('\n');
-        return [
-            {
-                role: 'system',
-                content: [
-                    '你是隐藏的亲密度变化判定器。只评价本轮用户行为对角色关系的真实影响，不评价写作水平。',
-                    '绝大多数普通交流应为0。轻微但符合人物偏好的有效互动可为+1；明显而真诚的重要互动最多+2。',
-                    '轻微冒犯为-1，明显违背偏好或边界为-2，严重背叛或伤害可为-3。',
-                    '不得因为用户重复夸奖、刷同类话术或单纯对话轮数而持续加分。高亲密阶段必须更加谨慎。',
-                    '只输出合法JSON：{"delta":0,"significant":false,"reason":"内部简短依据"}',
-                ].join('\n'),
-            },
-            {
-                role: 'user',
-                content: [
-                    `【当前亲密度】${room.intimacy.value}/${MAX_INTIMACY}`,
-                    '【隐藏判定规则】\n' + JSON.stringify(room.intimacy.rules),
-                    '【角色人设】\n' + member.personaPrompt,
-                    '【本轮对话】\n' + transcript,
-                ].join('\n\n'),
-            },
-        ];
-    }
-
-    function clampIntimacyDelta(rawDelta, currentValue, significant, recentDeltas) {
-        let delta = finiteInt(rawDelta, 0, -3, 2);
-        const current = finiteInt(currentValue, 0, 0, MAX_INTIMACY);
-        const recent = (Array.isArray(recentDeltas) ? recentDeltas : []).slice(-5);
-        if (delta > 0) {
-            const cap = current < 60 ? 2 : 1;
-            delta = Math.min(delta, cap);
-            const recentPositive = recent.filter(value => value > 0).length;
-            if (!significant && current >= 170) delta = 0;
-            else if (!significant && recentPositive >= 4) delta = 0;
-            else if (!significant && recentPositive >= 2) delta = Math.min(delta, 1);
-        }
-        if (delta < 0 && !significant) delta = Math.max(delta, -2);
-        if (current + delta > MAX_INTIMACY) delta = MAX_INTIMACY - current;
-        if (current + delta < 0) delta = -current;
-        return delta;
-    }
-
-    function applyIntimacyResult(room, result) {
-        if (!room?.intimacy) return { delta: 0, oldValue: 0, newValue: 0, unlocked: [], relocked: [] };
-        const oldValue = room.intimacy.value;
-        const delta = clampIntimacyDelta(
-            result?.delta,
-            oldValue,
-            result?.significant === true,
-            room.intimacy.recentDeltas
-        );
-        const newValue = Math.min(MAX_INTIMACY, Math.max(0, oldValue + delta));
-        const unlocked = room.intimacy.nodes.filter(node => oldValue < node.value && newValue >= node.value);
-        const relocked = room.intimacy.nodes.filter(node => oldValue >= node.value && newValue < node.value);
-        room.intimacy.value = newValue;
-        room.intimacy.recentDeltas = room.intimacy.recentDeltas.concat(delta).slice(-20);
-        room.intimacy.lastReason = asString(result?.reason).slice(0, 500);
-        room.intimacy.updatedAt = Date.now();
-        room.updatedAt = Date.now();
-        return { delta, oldValue, newValue, unlocked, relocked };
-    }
-
-    function fallbackIntimacyRules(room) {
-        const member = room?.participants?.[0];
-        return {
-            relationship_basis: `严格依据${member?.name || '角色'}的人设、边界、目标以及与用户角色的长期互动一致性判断`,
-            positive_signals: [
-                { signal: '尊重明确边界并表现出持续一致的真诚', weight: 1 },
-                { signal: '在关键事件中作出符合角色核心价值观的选择', weight: 2 },
-            ],
-            negative_signals: [
-                { signal: '无视角色表达的边界或反复进行角色厌恶的行为', weight: -1 },
-                { signal: '欺骗、背叛或故意伤害角色重视的人与事', weight: -3 },
-            ],
-            hard_boundaries: ['以角色完整人设中明确写出的边界为准'],
-            special_events: ['足以改变双方信任或关系认知的关键事件'],
-        };
-    }
-
     async function compressImageFile(file, options) {
         const fileType = asString(file?.type).trim();
         if (!file || (fileType && !/^image\//i.test(fileType))) {
@@ -786,16 +642,14 @@
     }
 
     return {
-        MAX_INTIMACY,
         MAX_GROUP_MEMBERS,
         DEFAULT_ROOM_PROMPT,
         STORY_STYLE_GUIDE,
         createId,
         memberColor,
         normalizeMember,
-        normalizeNodes,
+        normalizeRelationshipEvents,
         normalizeRoom,
-        normalizeIntimacy,
         createRoom,
         getMember,
         getActiveMembers,
@@ -806,11 +660,6 @@
         buildDirectorMessages,
         buildNarrationMessages,
         sanitizeSpeakerIds,
-        buildIntimacyRulesMessages,
-        buildIntimacyJudgeMessages,
-        applyIntimacyResult,
-        fallbackIntimacyRules,
-        getAvailableNodes,
         roomMessageForModel,
         roomMessagesForMemory,
         cleanCharacterOutput,

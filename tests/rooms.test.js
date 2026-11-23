@@ -84,19 +84,6 @@ test('@点名优先匹配较长角色名，不会同时误选同名前缀角色'
     assert.deepEqual(Rooms.detectMentionedMembers(room, '@小明 和 @小明月').map(member => member.id), ['short', 'long']);
 });
 
-test('亲密度变化始终受上下限和连续上涨保护', () => {
-    const room = Rooms.normalizeRoom({
-        roomType: 'double',
-        participants: [{ id: 'only', name: '林澈', personaPrompt: '冷静。' }],
-        intimacy: { value: 199, initialValue: 10, recentDeltas: [1, 1, 1, 1], nodes: [] },
-    }, Memory, Memory.NATURAL_STYLE_GUIDE);
-
-    const ordinary = Rooms.applyIntimacyResult(room, { delta: 2, significant: false, reason: '普通互动' });
-    assert.equal(ordinary.delta, 0);
-    const significant = Rooms.applyIntimacyResult(room, { delta: 2, significant: true, reason: '关键事件' });
-    assert.equal(significant.newValue, 200);
-});
-
 test('长期记忆切块只在完整助手边界结束', () => {
     const conversations = [];
     for (let index = 0; index < 50; index += 1) {

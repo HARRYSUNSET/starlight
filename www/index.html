@@ -1178,40 +1178,6 @@
             font-size: 0.7rem;
             font-weight: 700;
         }
-        .intimacy-panel {
-            min-width: 190px;
-            max-width: 260px;
-            flex: 0 1 260px;
-        }
-        .intimacy-label-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            color: var(--text-secondary);
-            font-size: 0.68rem;
-            margin-bottom: 4px;
-        }
-        .intimacy-number { color: #e05d86; font-weight: 700; }
-        .intimacy-track {
-            height: 7px;
-            border-radius: 999px;
-            background: var(--border);
-            overflow: hidden;
-        }
-        .intimacy-fill {
-            height: 100%;
-            width: 0;
-            border-radius: inherit;
-            background: linear-gradient(90deg, #c65d7b, #ff88a7);
-            transition: width 0.5s ease;
-        }
-        .intimacy-delta {
-            margin-left: 5px;
-            font-size: 0.64rem;
-            font-weight: 700;
-        }
-        .intimacy-delta.positive { color: #2a9d8f; }
-        .intimacy-delta.negative { color: var(--danger); }
         .room-message-row {
             display: flex;
             align-items: flex-start;
@@ -1442,23 +1408,6 @@
             object-fit: cover;
         }
         .image-preview.background-preview { width: 150px; height: 84px; }
-        .intimacy-node-row {
-            display: grid;
-            grid-template-columns: 86px 1fr auto;
-            gap: 8px;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-        .intimacy-status-card {
-            padding: 10px 12px;
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            background: var(--bg);
-            color: var(--text-secondary);
-            font-size: 0.72rem;
-            margin-bottom: 10px;
-        }
-        .intimacy-status-card.ready { border-color: rgba(42, 157, 143, 0.5); color: #2a9d8f; }
         .modal-loading {
             position: absolute;
             inset: 0;
@@ -1526,7 +1475,6 @@
         }
         @media (max-width: 768px) {
             .room-context-bar { padding: 7px 10px; gap: 7px; }
-            .intimacy-panel { min-width: 150px; flex-basis: 190px; }
             .room-message-row { max-width: 94%; }
             .modal.room-modal { width: 100vw; padding: 20px 14px; }
             .room-editor-header { top: -20px; margin: -20px -14px 18px; padding: 15px 14px; }
@@ -1536,7 +1484,6 @@
             .participant-editor-body { grid-template-columns: 1fr; }
             .room-form-grid .full,
             .participant-editor-body .full { grid-column: auto; }
-            .intimacy-node-row { grid-template-columns: 72px 1fr auto; }
             .navigator-toolbar { grid-template-columns: 1fr 92px; }
             .navigator-result { grid-template-columns: 62px minmax(0, 1fr) 24px; }
             .bookmark-btn { opacity: 0.72; }
@@ -2260,7 +2207,7 @@
                 <div class="library-page-heading"><h2>我的</h2><p>管理全局 API、模型、外观与存储设置。</p></div>
                 <div id="mySettingsMount"></div>
                 <div class="my-section-title">应用信息</div>
-                <div class="my-version-card"><strong>星陽之语 3.1.1</strong><br>修复房间首轮对白与情景预览的空白回复</div>
+                <div class="my-version-card"><strong>星陽之语 3.2.0</strong><br>房间三维关系与事件门槛，世界书归纳自动补救</div>
             </section>
         </main>
         <nav class="bottom-nav" aria-label="主导航">
@@ -2406,16 +2353,12 @@
 
             <div class="chat-quick-tools" id="chatQuickTools"></div>
 
-            <div class="room-context-bar" id="roomContextBar" hidden>
-                <div class="room-participants-strip" id="roomParticipantsStrip"></div>
-                <div class="intimacy-panel" id="intimacyPanel" hidden>
-                    <div class="intimacy-label-row">
-                        <span>💗 亲密度</span>
-                        <span><span class="intimacy-number" id="intimacyNumber">0 / 200</span><span class="intimacy-delta" id="intimacyDelta"></span></span>
-                    </div>
-                    <div class="intimacy-track"><div class="intimacy-fill" id="intimacyFill"></div></div>
+            <div class="room-header-deck" id="roomHeaderDeck" hidden>
+                <div class="room-context-bar" id="roomContextBar" hidden>
+                    <div class="room-participants-strip" id="roomParticipantsStrip"></div>
+                    <div class="room-context-actions"><button type="button" id="btnRoomState" title="查看当前场景与情景预览">当前场景</button><button type="button" id="btnRoomJournal">关系档案</button></div>
                 </div>
-                <div class="room-context-actions"><button type="button" id="btnRoomState" title="查看当前场景与情景预览">当前场景</button><button type="button" id="btnRoomJournal">关系档案</button></div>
+                <button type="button" id="roomRelationshipCard" class="room-relationship-card" aria-label="查看关系进度" hidden></button>
             </div>
 
             <div class="messages-container" id="messagesContainer">
@@ -2526,7 +2469,7 @@
             <label>房间类型</label>
             <div class="room-type-selector" id="roomTypeSelector">
                 <button type="button" class="room-type-option active" data-room-type="double">
-                    <strong>💗 双人房间</strong><br><span class="room-form-hint">用户与一名角色，启用亲密度攻略</span>
+                    <strong>💗 双人房间</strong><br><span class="room-form-hint">用户与一名角色，使用三维关系进度</span>
                 </button>
                 <button type="button" class="room-type-option" data-room-type="group">
                     <strong>🎭 多人房间</strong><br><span class="room-form-hint">多名角色参与，支持智能发言调度</span>
@@ -2620,15 +2563,11 @@
             </div>
 
             <div class="room-form-section" id="doubleRoomOptions">
-                <h4>💗 亲密度攻略</h4>
-                <div class="intimacy-status-card" id="intimacyRulesStatus">保存角色设定后，将自动生成隐藏判定条件。</div>
-                <button type="button" class="mini-action-btn" id="btnRegenerateIntimacyRules" hidden>重新生成隐藏判定</button>
-                <label for="initialIntimacyInput">当前/重启后的初始亲密度（0—200）</label>
-                <input type="number" id="initialIntimacyInput" min="0" max="200" value="0">
-                <label>自定义亲密度节点</label>
-                <div class="room-form-hint">达到节点后，对应互动将进入可用范围；数值降低到节点以下时会暂时重新锁定。</div>
-                <div id="intimacyNodesEditor"></div>
-                <button type="button" class="mini-action-btn" id="btnAddIntimacyNode">＋ 添加节点</button>
+                <h4>关系进度与事件</h4>
+                <label class="room-optional-dimension" for="roomDesireEnabled"><input id="roomDesireEnabled" type="checkbox">启用性欲度</label>
+                <div class="room-form-hint">性欲度按当前情境独立评估。调整各项门槛以开放事件，留空的维度不参与判断。</div>
+                <div id="roomRelationshipEvents"></div>
+                <button type="button" class="mini-action-btn" id="btnAddRelationshipEvent">＋ 添加事件</button>
             </div>
 
             <div class="room-form-section">
@@ -3001,12 +2940,12 @@
             const $btnCreateRoom = document.getElementById('btnCreateRoom');
             const $roomTypeBadge = document.getElementById('roomTypeBadge');
             const $btnEditRoom = document.getElementById('btnEditRoom');
+            const $roomHeaderDeck = document.getElementById('roomHeaderDeck');
+            const $roomRelationshipCard = document.getElementById('roomRelationshipCard');
+            const $roomDesireEnabled = document.getElementById('roomDesireEnabled');
+            const $roomRelationshipEvents = document.getElementById('roomRelationshipEvents');
             const $roomContextBar = document.getElementById('roomContextBar');
             const $roomParticipantsStrip = document.getElementById('roomParticipantsStrip');
-            const $intimacyPanel = document.getElementById('intimacyPanel');
-            const $intimacyNumber = document.getElementById('intimacyNumber');
-            const $intimacyFill = document.getElementById('intimacyFill');
-            const $intimacyDelta = document.getElementById('intimacyDelta');
             const $inputArea = document.getElementById('inputArea');
             const $roomInputTools = document.getElementById('roomInputTools');
             const $roomTargetSelect = document.getElementById('roomTargetSelect');
@@ -3037,11 +2976,6 @@
             const $roomTurnModeSelect = document.getElementById('roomTurnModeSelect');
             const $roomMaxSpeakersSelect = document.getElementById('roomMaxSpeakersSelect');
             const $doubleRoomOptions = document.getElementById('doubleRoomOptions');
-            const $intimacyRulesStatus = document.getElementById('intimacyRulesStatus');
-            const $btnRegenerateIntimacyRules = document.getElementById('btnRegenerateIntimacyRules');
-            const $initialIntimacyInput = document.getElementById('initialIntimacyInput');
-            const $intimacyNodesEditor = document.getElementById('intimacyNodesEditor');
-            const $btnAddIntimacyNode = document.getElementById('btnAddIntimacyNode');
             const $roomStyleToggle = document.getElementById('roomStyleToggle');
             const $roomStylePromptInput = document.getElementById('roomStylePromptInput');
             const $roomStyleExamplesInput = document.getElementById('roomStyleExamplesInput');
@@ -3228,8 +3162,6 @@
             let roomDraftBackgroundRevision = 0;
             let roomDraftAvatarRevisions = new Map();
             let roomDraftImageTasks = new Set();
-            let roomDraftIntimacyValueAtOpen = 0;
-            let lastIntimacyDelta = null;
             let storageDb = null;
             let storageReadFailed = false;
             let maintenanceBusy = false;
@@ -3237,15 +3169,15 @@
                 ai:window.StarlightWorldBookAI,
                 works:() => [...appData.agents.map(work => ({mode:'story',work})), ...appData.rooms.map(work => ({mode:'room',work}))],
                 getWork:(mode,id) => (mode === 'room' ? appData.rooms : appData.agents).find(work => work.id === id),
-                // Hold finished extractions while an editor has a separate draft.
-                blocked:() => maintenanceBusy || isGenerating || refinementBusy || Motion.isOpen($modalOverlay) || Motion.isOpen($roomModalOverlay),
+                blocked:() => maintenanceBusy || isGenerating || refinementBusy || !$roomModalLoading.hidden,
                 ready:() => !storageReadFailed && !!appData.apiKey,
-                request:(messages,mode) => callDeepSeekJSON(messages,{mode,maxTokens:6000,purpose:'世界书进展整理',independent:true}),
+                request:(messages,mode,{structured,recovery}) => callDeepSeekJSON(messages,{
+                    mode,maxTokens:6000,structured,purpose:recovery?'世界书进展补救':'世界书进展整理',independent:true,
+                }),
                 flush:persistFullState,
                 save:saveData,
-                onFailure:work => showToast('「'+work.name+'」的世界书整理未完成，可在设定中重试。','info'),
+                onChange:refreshWorldProgress,
             });
-            window.retryWorldProgress = worldProgress.retry;
             function updateWorldSources(mode, work, keys, verify = false) {
                 StarlightWorldProgress.reconcile(window.StarlightWorldBookAI, mode, work, keys, verify);
             }
@@ -3796,7 +3728,7 @@
                     },
                     commit:async(room,action)=>{
                         const next={...room,messages:room.messages.slice(),participants:room.participants.map(m=>({...m,relationshipPolicy:{...m.relationshipPolicy}})),
-                            experience:RoomEngine.clone(RoomEngine.ensure(room)),turnEffects:RoomEngine.clone(room.turnEffects||{}),intimacy:room.intimacy?RoomEngine.clone(room.intimacy):null};
+                            experience:RoomEngine.clone(RoomEngine.ensure(room)),turnEffects:RoomEngine.clone(room.turnEffects||{})};
                         action(next);
                         if(next.worldBook?.automation?.enabled){
                             const priorIds = new Set(room.messages.map(message => message.id));
@@ -3841,7 +3773,7 @@
                         if(RoomEngine.ensure(room).candidates.some(d=>d.turnId===turnId))throw new Error('请先处理本轮待修正回复');
                         const result=await callDeepSeekJSON(RoomEngine.buildJudgeMessages(room,turnId,roomRelationContexts(room,turnId)),{maxTokens:6000,purpose:'关系证据核对',independent:true,signal});
                         return {turnId,result};
-                    },applyRecheck:(room,result)=>{RoomEngine.applyJudgements(room,result.turnId,result.result,Rooms.applyIntimacyResult);room.updatedAt=Date.now();}
+                    },applyRecheck:(room,result)=>{RoomEngine.applyJudgements(room,result.turnId,result.result);room.updatedAt=Date.now();}
                 });
                 return roomExperienceUI;
             }
@@ -4488,24 +4420,6 @@
                 appData.providerModels.deepseek = normalized;
             }
 
-            function getIntimacyRulesSignature(room) {
-                const member = room?.participants?.[0];
-                return JSON.stringify([
-                    RoomEngine.bookStamp(room?.worldBook),
-                    room?.scenePrompt || '',
-                    room?.userPersona || '',
-                    room?.otherInfo || '',
-                    member?.name || '',
-                    member?.personaPrompt || '',
-                    member?.speakingStyle || '',
-                    member?.privateGoal || '',
-                    member?.growthNotes || '',
-                    member?.currentState || '',
-                    member?.relationships || '',
-                    member?.knowledgeBoundary || '',
-                ]);
-            }
-
             function setActiveMode(mode) {
                 const nextMode = mode === 'room' ? 'room' : 'story';
                 if (!canChangeConversationTarget()) return;
@@ -4560,7 +4474,6 @@
                 if (!canChangeConversationTarget()) return;
                 appData.currentRoomId = roomId;
                 roomRenderedMessageRange = null;
-                lastIntimacyDelta = null;
                 resetScrollIntent();
                 saveData();
                 renderRoomsList();
@@ -4651,6 +4564,8 @@
             function syncRoomPanels(room) {
                 const header = room?.chatPanels.headerExpanded === true;
                 const composer = room?.chatPanels.composerExpanded === true;
+                $roomHeaderDeck.hidden = !room;
+                window.StarlightRoomUI.renderScorecard($roomRelationshipCard, room, RoomEngine);
                 $chatShell.classList.toggle('room-header-folded', !!room && !header);
                 $chatShell.classList.toggle('room-composer-folded', !!room && !composer);
                 for (const [button, expanded, icon, label] of [
@@ -4667,6 +4582,7 @@
                     }
                 }
             }
+            $roomRelationshipCard.addEventListener('click', () => getRoomExperienceUI().open('relations'));
             for (const [button,key] of [[roomHeaderToggle,'headerExpanded'],[roomComposerToggle,'composerExpanded']]) {
                 button.addEventListener('click', () => {
                     const room = getCurrentRoom();
@@ -4692,27 +4608,9 @@
                     <span class="room-participant-chip ${Rooms.getActiveMembers(room).some(m=>m.id===member.id) ? '' : 'muted'}" data-member-id="${escapeHtml(member.id)}" title="${escapeHtml(member.publicProfile || member.name)}">
                         ${avatarMarkup(member)}<span>${escapeHtml(member.name)}</span>
                     </span>`).join('');
-                const isDouble = room.roomType === 'double';
-                $intimacyPanel.hidden = !isDouble;
-                if (isDouble) updateIntimacyUI(room);
                 updateRoomTargetSelect(room);
                 applyRoomBackground(room);
                 roomExperienceUI?.refreshComposer();
-            }
-
-            function updateIntimacyUI(room) {
-                const value = room?.intimacy?.value || 0;
-                $intimacyNumber.textContent = `${value} / ${Rooms.MAX_INTIMACY}`;
-                $intimacyFill.style.width = `${value / Rooms.MAX_INTIMACY * 100}%`;
-                $intimacyDelta.textContent = '';
-                $intimacyDelta.className = 'intimacy-delta';
-                if (lastIntimacyDelta && lastIntimacyDelta.roomId === room.id) {
-                    const delta = lastIntimacyDelta.delta;
-                    if (delta !== 0) {
-                        $intimacyDelta.textContent = delta > 0 ? `+${delta}` : String(delta);
-                        $intimacyDelta.classList.add(delta > 0 ? 'positive' : 'negative');
-                    }
-                }
             }
 
             function updateRoomTargetSelect(room) {
@@ -4813,7 +4711,8 @@
                     ? room.participants.map(member => JSON.parse(JSON.stringify(member)))
                     : [];
                 roomDraftBackground = room?.backgroundImage || '';
-                roomDraftNodes = room?.intimacy?.nodes?.map(node => ({ ...node })) || [];
+                roomDraftNodes = RoomEngine.clone(room?.relationshipEvents || []);
+                $roomDesireEnabled.checked = room?.desireEnabled === true;
                 $roomNameInput.value = room?.name || '';
                 $roomSubtitleInput.value = room?.subtitle || '';
                 $roomNarrationToggle.value = room?.narrationEnabled ? 'on' : 'off';
@@ -4826,8 +4725,6 @@
                 $roomOtherInfoInput.value = room?.otherInfo || '';
                 $roomTurnModeSelect.value = room?.turnMode || 'smart';
                 $roomMaxSpeakersSelect.value = String(room?.maxSpeakers || 2);
-                roomDraftIntimacyValueAtOpen = Number(room?.intimacy?.value) || 0;
-                $initialIntimacyInput.value = String(roomDraftIntimacyValueAtOpen);
                 $roomStyleToggle.checked = room?.styleEnabled !== false;
                 $roomStylePromptInput.value = room?.stylePrompt || Rooms.STORY_STYLE_GUIDE;
                 $roomStyleExamplesInput.value = room?.styleExamples || '';
@@ -4836,8 +4733,7 @@
                 $roomBackgroundFile.value = '';
                 refreshImportAgentSelect();
                 renderRoomParticipantsEditor();
-                renderIntimacyNodesEditor();
-                updateIntimacyRulesStatus(room);
+                renderRelationshipEvents();
                 setRoomDraftType(roomDraftType);
                 const builderFields = {name:$roomNameInput, subtitle:$roomSubtitleInput, scenePrompt:$roomScenePromptInput,
                     userPersona:$roomUserPersonaInput, otherInfo:$roomOtherInfoInput};
@@ -5063,39 +4959,31 @@
                 });
             }
 
-            function renderIntimacyNodesEditor() {
-                if (roomDraftNodes.length === 0) {
-                    $intimacyNodesEditor.innerHTML = '<div class="room-form-hint">尚未添加节点，例如：40｜愿意主动分享私事。</div>';
-                    return;
-                }
-                $intimacyNodesEditor.innerHTML = roomDraftNodes.map(node => `
-                    <div class="intimacy-node-row" data-node-id="${escapeHtml(node.id)}">
-                        <label>亲密阈值<input type="number" class="node-value" min="1" max="200" value="${node.value}" aria-label="节点数值"></label>
-                        <label>节点描述<input type="text" class="node-description" value="${escapeHtml(node.description)}" placeholder="达到后可以发生什么"></label>
-                        <button type="button" class="mini-action-btn danger node-remove">删除</button>
-                        <div class="node-criteria"><label>最低信任（0—100）<input type="number" class="node-trust" min="0" max="100" value="${node.minTrust??10}"></label><label>不同有效事件数<input type="number" class="node-events" min="0" max="1000" value="${node.minEvents??2}"></label><label class="node-condition-label">需有证据满足的文字条件（可留空）<textarea class="node-condition" rows="2">${escapeHtml(node.condition||'')}</textarea></label></div>
-                    </div>`).join('');
-                $intimacyNodesEditor.querySelectorAll('.intimacy-node-row').forEach(row => {
-                    const node = roomDraftNodes.find(item => item.id === row.dataset.nodeId);
-                    row.querySelector('.node-value').addEventListener('input', event => node.value = Number(event.target.value));
-                    row.querySelector('.node-description').addEventListener('input', event => node.description = event.target.value);
-                    row.querySelector('.node-trust').addEventListener('input',event=>node.minTrust=Number(event.target.value));
-                    row.querySelector('.node-events').addEventListener('input',event=>node.minEvents=Number(event.target.value));
-                    row.querySelector('.node-condition').addEventListener('input',event=>node.condition=event.target.value);
-                    row.querySelector('.node-remove').addEventListener('click', () => {
-                        roomDraftNodes = roomDraftNodes.filter(item => item.id !== node.id);
-                        renderIntimacyNodesEditor();
+            function renderRelationshipEvents() {
+                $roomRelationshipEvents.innerHTML = roomDraftNodes.map(node => `<div class="relationship-event-editor">
+                    <div class="relationship-event-heading"><label>事件描述<input class="node-description" value="${escapeHtml(node.description)}" placeholder="例如：主动分享一件往事"></label>
+                    <button type="button" class="mini-action-btn danger node-remove">删除</button></div>
+                    <div class="node-criteria">${Object.entries(RoomEngine.RELATION_LABELS).map(([key,label]) =>
+                        `<label ${key==='desire' && !$roomDesireEnabled.checked ? 'hidden' : ''}>${label}门槛<input type="number" step="1" min="0" max="100" placeholder="不限" data-node-threshold="${key}" value="${node.thresholds[key]??''}"></label>`).join('')}
+                    <label class="node-condition-label">剧情条件（选填）<textarea class="node-condition" rows="2">${escapeHtml(node.condition)}</textarea></label></div>
+                    <p class="room-form-hint node-threshold-hint" ${Object.keys(node.thresholds).length ? 'hidden' : ''}>设置至少一项门槛后，事件才会参与解锁。</p>
+                    ${!$roomDesireEnabled.checked&&Object.hasOwn(node.thresholds,'desire') ? '<p class="room-form-hint">此事件设有性欲度门槛，启用性欲度后参与判定。</p>' : ''}</div>`).join('');
+                [...$roomRelationshipEvents.children].forEach((row,index) => {
+                    const node = roomDraftNodes[index];
+                    row.querySelector('.node-description').oninput = event => node.description = event.target.value;
+                    row.querySelector('.node-condition').oninput = event => node.condition = event.target.value;
+                    row.querySelectorAll('[data-node-threshold]').forEach(input => {
+                        input.oninput = () => {
+                            if (input.value === '') delete node.thresholds[input.dataset.nodeThreshold];
+                            else node.thresholds[input.dataset.nodeThreshold] = input.valueAsNumber;
+                            row.querySelector('.node-threshold-hint').hidden=Object.keys(node.thresholds).length>0;
+                        };
                     });
+                    row.querySelector('.node-remove').onclick = () => {
+                        roomDraftNodes.splice(index, 1);
+                        renderRelationshipEvents();
+                    };
                 });
-            }
-
-            function updateIntimacyRulesStatus(room) {
-                const ready = room?.roomType === 'double' && room?.intimacy?.rulesReady;
-                $intimacyRulesStatus.classList.toggle('ready', !!ready);
-                $intimacyRulesStatus.textContent = ready
-                    ? '✓ 人物依据已就绪。关系按真实来源核对，作者视图可编辑偏好与条件。'
-                    : '保存时使用本地人设依据，不强制额外请求；下方可按需让 AI 整理规则。';
-                $btnRegenerateIntimacyRules.hidden = !ready;
             }
 
             function collectRoomDraft(existingRoom) {
@@ -5119,31 +5007,15 @@
                     backgroundImage: roomDraftBackground,
                     participants,
                 };
-                let room;
-                if (existingRoom) {
-                    const requestedIntimacy = Number($initialIntimacyInput.value);
-                    const intimacyWasEdited = requestedIntimacy !== roomDraftIntimacyValueAtOpen;
-                    room = Rooms.normalizeRoom({
-                        ...existingRoom,
-                        ...input,
-                        intimacy: roomDraftType === 'double' ? {
-                            ...(existingRoom.intimacy || {}),
-                            value: intimacyWasEdited ? requestedIntimacy : existingRoom.intimacy?.value,
-                            initialValue: intimacyWasEdited ? requestedIntimacy : existingRoom.intimacy?.initialValue,
-                            nodes: Rooms.normalizeNodes(roomDraftNodes),
-                        } : null,
-                    }, Memory, Memory.NATURAL_STYLE_GUIDE);
-                } else {
-                    room = Rooms.createRoom({
-                        ...input,
-                        intimacy: roomDraftType === 'double' ? {
-                            value: Number($initialIntimacyInput.value),
-                            initialValue: Number($initialIntimacyInput.value),
-                            nodes: Rooms.normalizeNodes(roomDraftNodes),
-                        } : null,
-                    }, Memory, Memory.NATURAL_STYLE_GUIDE);
+                if (roomDraftType === 'double' && roomDraftNodes.some(node => node.description.trim() &&
+                    Object.values(node.thresholds).some(value => !Number.isInteger(value) || value < 0 || value > 100))) {
+                    throw new Error('关系事件的门槛须为 0–100 的整数');
                 }
-                return room;
+                input.relationshipEvents = roomDraftType === 'double' ? roomDraftNodes : [];
+                input.desireEnabled = roomDraftType === 'double' && $roomDesireEnabled.checked;
+                return existingRoom
+                    ? Rooms.normalizeRoom({...existingRoom, ...input, experience:RoomEngine.clone(RoomEngine.ensure(existingRoom))}, Memory, Memory.NATURAL_STYLE_GUIDE)
+                    : Rooms.createRoom(input, Memory, Memory.NATURAL_STYLE_GUIDE);
             }
 
             function validateRoomDraft(room) {
@@ -5153,17 +5025,6 @@
                 if (room.roomType === 'group' && room.participants.length < 2) throw new Error('多人房间至少需要两名AI角色');
                 const invalid = room.participants.find(member => !member.name || !member.personaPrompt);
                 if (invalid) throw new Error('每名角色都必须填写名称和完整人设');
-            }
-
-            async function generateIntimacyRules(room) {
-                const rules = await callDeepSeekJSON(Rooms.buildIntimacyRulesMessages(room), { maxTokens: 3000, purpose:'亲密度规则' });
-                if (!rules || !Array.isArray(rules.positive_signals) || !Array.isArray(rules.negative_signals)) {
-                    throw new Error('亲密度判定返回格式不完整，请重试');
-                }
-                room.intimacy.rules = rules;
-                room.intimacy.rulesReady = true;
-                room.intimacy.rulesSignature = getIntimacyRulesSignature(room);
-                room.intimacy.updatedAt = Date.now();
             }
 
             async function saveRoomFromModal() {
@@ -5205,12 +5066,6 @@
                         if (draftSessionId !== roomDraftSessionId) return;
                     }
                     setRoomModalLoading(true, '正在保存房间……');
-                    const signatureChanged = room.roomType === 'double'
-                        && room.intimacy.rulesSignature !== getIntimacyRulesSignature(room);
-                    if (room.roomType === 'double' && (!room.intimacy.rulesReady || signatureChanged)) {
-                        room.intimacy.rules=Rooms.fallbackIntimacyRules(room);
-                        room.intimacy.rulesReady=true;room.intimacy.rulesSignature=getIntimacyRulesSignature(room);
-                    }
                     room.updatedAt = Date.now();
                     if(existing){
                         const oldMembers=new Map(existing.participants.map(m=>[m.id,m]));
@@ -5236,10 +5091,8 @@
                     }
                     const rooms = existing ? appData.rooms.map(item=>item.id===room.id ? room : item) : [...appData.rooms,room];
                     await commitCandidate({...appData,rooms,currentRoomId:room.id,activeMode:'room'});
-                    const retryWorldBook = worldBookEditors.room?.tools.shouldRetry();
                     closeRoomModal(true);
                     worldProgress.wake();
-                    if (retryWorldBook) window.retryWorldProgress('room', room.id);
                     showChatScreen();
                     showToast(existing ? '房间设定已保存' : '房间已创建', 'success');
                 } catch (error) {
@@ -5271,10 +5124,11 @@
                 addDraftParticipant(Story.characterToRoomMember(agent, characterId));
                 $importAgentSelect.value = '';
             });
-            $btnAddIntimacyNode.addEventListener('click', () => {
-                roomDraftNodes.push({ id: Rooms.createId('node'), value: Math.min(200, (roomDraftNodes.length + 1) * 40), description: '' });
-                renderIntimacyNodesEditor();
+            document.getElementById('btnAddRelationshipEvent').addEventListener('click', () => {
+                roomDraftNodes.push({id: Rooms.createId('event'), thresholds:{}, description:'', condition:''});
+                renderRelationshipEvents();
             });
+            $roomDesireEnabled.addEventListener('change', renderRelationshipEvents);
             $roomBackgroundFile.addEventListener('change', async event => {
                 const file = event.target.files?.[0];
                 if (!file) return;
@@ -5309,34 +5163,6 @@
             $roomModalOverlay.addEventListener('click', event => {
                 if (event.target === $roomModalOverlay) closeRoomModal();
             });
-            $btnRegenerateIntimacyRules.addEventListener('click', async () => {
-                const existing = editingRoomId ? appData.rooms.find(room => room.id === editingRoomId) : null;
-                if (!existing) return;
-                const draftSessionId = roomDraftSessionId;
-                let draft;
-                try {
-                    if (roomDraftImageTasks.size > 0) {
-                        setRoomModalLoading(true, '正在处理并保存图片……');
-                        await waitForRoomDraftImages();
-                    }
-                    if (draftSessionId !== roomDraftSessionId) return;
-                    draft = collectRoomDraft(existing);
-                    validateRoomDraft(draft);
-                    setRoomModalLoading(true, '正在重新生成隐藏亲密度判定……');
-                    await generateIntimacyRules(draft);
-                    const index = appData.rooms.findIndex(room => room.id === existing.id);
-                    appData.rooms[index] = draft;
-                    saveData();
-                    await persistFullState();
-                    updateIntimacyRulesStatus(draft);
-                    showToast('判定已启用，可进行攻略', 'success');
-                } catch (error) {
-                    showToast('重新生成失败：' + error.message, 'error');
-                } finally {
-                    setRoomModalLoading(false);
-                }
-            });
-
             // ==================== Toast ====================
             function showToast(msg, type = 'info') {
                 const toast = document.createElement('div');
@@ -5492,6 +5318,9 @@
             function openWorldBookTools(mode, initial) {
                 closeWorldBookTools(mode);
                 const room = mode === 'room';
+                const id = room ? editingRoomId : editingAgentId;
+                const getWork = () => (room ? appData.rooms : appData.agents).find(item => item.id === id);
+                const editor = room ? $roomWorldBookEditor : $storyWorldBookEditor;
                 const container = document.getElementById(mode + 'WorldBookTools');
                 const tools = window.StarlightWorldBookUI.mount(container, {
                     mode, ai: window.StarlightWorldBookAI,
@@ -5501,13 +5330,46 @@
                     request: (messages, signal) => callDeepSeekJSON(messages, {
                         independent: true, purpose: '世界书建档', mode, signal,
                     }),
+                    getWork,
+                    failureLabels:StarlightWorldProgress.failureLabels,
+                    sourceLabel:key=>StarlightWorldProgress.locate(mode,getWork(),key)?.label,
+                    locate:key=>locateWorldSource(mode,getWork(),key),
+                    retry:key=>worldProgress.retry(mode,id,key),
+                    refreshProgress:()=>tools.renderProgress(editor.querySelector('.wb-progress')),
                     replaceBook(book) {
                         if (room) roomDraftWorldBook = book;
                         else storyDraftWorldBook = book;
                         renderWorldBookEditor(room ? $roomWorldBookEditor : $storyWorldBookEditor, book, room);
                     },
                 });
-                worldBookEditors[mode] = { base: JSON.parse(JSON.stringify(initial)), tools };
+                worldBookEditors[mode] = { id, base: JSON.parse(JSON.stringify(initial)), tools };
+            }
+
+            function locateWorldSource(mode, work, key) {
+                const source=StarlightWorldProgress.locate(mode,work,key);
+                if (!source) return showToast('这条来源已被撤回或替换','info');
+                if (!confirm('定位会离开设定页，未保存的修改会丢失。继续定位？')) return;
+                if (mode==='room') closeRoomModal();
+                else closeCreateModal();
+                showChatScreen();
+                jumpToMessage(source.index);
+            }
+
+            function refreshWorldProgress(work, mode) {
+                const editor=worldBookEditors[mode];
+                if (editor?.id!==work.id) return;
+                const isRoom=mode==='room';
+                const target=isRoom?$roomWorldBookEditor:$storyWorldBookEditor;
+                const draft=isRoom?roomDraftWorldBook:storyDraftWorldBook;
+                const latest=work.worldBook;
+                const needsUpdate=JSON.stringify(editor.base.progressEntries)!==JSON.stringify(latest.progressEntries);
+                if (needsUpdate && !target.contains(document.activeElement)) {
+                    const next=window.StarlightWorldBookUI.mergeDraft(editor.base,draft,latest);
+                    editor.base=RoomEngine.clone(latest);
+                    if(isRoom)roomDraftWorldBook=next;
+                    else storyDraftWorldBook=next;
+                    renderWorldBookEditor(target,next,isRoom);
+                } else editor.tools.renderProgress(target.querySelector('.wb-progress'));
             }
 
             function worldBookSectionMarkup(kind, entries, roomMode) {
@@ -5528,7 +5390,7 @@
                         : '';
                     return `<article class="worldbook-entry" data-entry-index="${entryIndex}">
                         <div class="worldbook-entry-head"><strong>${initial ? '设定' : '进展'} ${entryIndex + 1}</strong><button type="button" class="mini-action-btn danger worldbook-remove-entry" ${initial && entries.length <= 1 ? 'disabled' : ''}>− 删除条目</button></div>
-                        ${entry.origin ? `<details class="worldbook-origin"><summary>来源 · ${escapeHtml(entry.origin.sourceLabel || '世界书整理')}</summary><blockquote>${escapeHtml(entry.origin.evidence || '')}</blockquote></details>` : ''}
+                        ${entry.origin ? `<details class="worldbook-origin"><summary>来源 · ${escapeHtml(entry.origin.sourceLabel || '世界书整理')}</summary><blockquote>${escapeHtml(entry.origin.evidence || '')}</blockquote>${/^(story|room):/.test(entry.origin.sourceKey||'') ? '<button type="button" class="mini-action-btn worldbook-locate">定位原文</button>' : ''}</details>` : ''}
                         <div class="worldbook-fields">${fields}</div>
                         <button type="button" class="mini-action-btn worldbook-add-field">＋ 添加栏位</button>
                         <details class="worldbook-advanced"><summary>生效与知识范围</summary>
@@ -5545,6 +5407,7 @@
                 }).join('') : '<div class="v2-empty-note">尚未记录后续进展</div>';
                 return `<section class="worldbook-part" data-world-kind="${kind}">
                     <div class="worldbook-section-head"><div><h5>${title}</h5><p>${copy}</p></div><button type="button" class="mini-action-btn worldbook-add-entry">＋ 添加${initial ? '设定' : '进展'}</button></div>
+                    ${initial ? '' : '<div class="wb-progress" aria-live="polite" hidden></div>'}
                     <div class="worldbook-entry-list">${cards}</div>
                 </section>`;
             }
@@ -5553,6 +5416,8 @@
                 if (!container) return;
                 container.innerHTML = worldBookSectionMarkup('initial', draft.initialEntries, roomMode)
                     + worldBookSectionMarkup('progress', draft.progressEntries, roomMode);
+                const mode=roomMode?'room':'story';
+                worldBookEditors[mode]?.tools.renderProgress(container.querySelector('.wb-progress'));
                 container.querySelectorAll('.worldbook-part').forEach(section => {
                     const kind = section.dataset.worldKind;
                     const entries = kind === 'initial' ? draft.initialEntries : draft.progressEntries;
@@ -5564,6 +5429,11 @@
                     });
                     section.querySelectorAll('.worldbook-entry').forEach((card, entryIndex) => {
                         const entry = entries[entryIndex];
+                        card.querySelector('.worldbook-locate')?.addEventListener('click', () => {
+                            const id=worldBookEditors[mode]?.id;
+                            const work=(roomMode?appData.rooms:appData.agents).find(item=>item.id===id);
+                            locateWorldSource(mode,work,entry.origin.sourceKey);
+                        });
                         card.querySelectorAll('.worldbook-field').forEach((row, fieldIndex) => {
                             const field = entry.fields[fieldIndex];
                             row.querySelector('.worldbook-field-label').addEventListener('input', event => field.label = event.target.value);
@@ -5842,11 +5712,8 @@
                 updateModeUI();
                 renderMessages(); 
                 updateToolbarButtons();
-                const retryWorldBook = worldBookEditors.story?.tools.shouldRetry();
-                const savedId = editingAgentId || appData.currentAgentId;
                 closeCreateModal();
                 worldProgress.wake();
-                if (retryWorldBook) window.retryWorldProgress('story', savedId);
                 showChatScreen();
             }
 
@@ -5878,12 +5745,9 @@
                     $roomTypeBadge.textContent = room?.roomType === 'group' ? '多人房间' : '双人房间';
                     $roomTypeBadge.hidden = !room;
                     $btnEditRoom.hidden = !room;
-                    const intimacyReady = true;
-                    $messageInput.disabled = !room || !intimacyReady;
-                    $btnSend.disabled = !room || !appData.apiKey || !intimacyReady;
-                    $messageInput.placeholder = room?.roomType === 'double' && !intimacyReady
-                        ? '亲密度判定尚未启用，请打开房间设置重试'
-                        : '输入房间消息…（可使用@角色名指定发言）';
+                    $messageInput.disabled = !room;
+                    $btnSend.disabled = !room || !appData.apiKey;
+                    $messageInput.placeholder = '输入房间消息…（可使用@角色名指定发言）';
                     renderRoomContext();
                     updateToolbarButtons();
                     updateSendButton();
@@ -6012,8 +5876,7 @@
                     $btnSend.title = '发送消息';
                     if (appData.activeMode === 'room') {
                         const room = getCurrentRoom();
-                        const intimacyReady = true;
-                        $btnSend.disabled = !room || !appData.apiKey || !intimacyReady;
+                        $btnSend.disabled = !room || !appData.apiKey;
                         if(room&&RoomEngine.ensure(room).mode==='scene'){UI.button($btnSend,'style','预览情景',true);$btnSend.title='生成情景预览，采纳前不进入正式记录';}
                     } else {
                         const agent = getCurrentAgent();
@@ -6146,7 +6009,7 @@
                             <div class="empty-icon">🎭</div>
                             <h3>${room ? `进入「${escapeHtml(room.name)}」` : '创建你的第一个房间'}</h3>
                             <p>${room
-                                ? (room.roomType === 'double' ? '隐藏亲密度判定已经准备好，可以开始攻略。' : '发送消息后，系统会按照房间规则调度角色发言。')
+                                ? (room.roomType === 'double' ? '可以开始对话。关系随互动逐步推进。' : '发送消息后，系统会按照房间规则调度角色发言。')
                                 : '返回房间库创建双人房间或多人房间。'}</p>
                         ` });
                     MessageView.reconcile($messagesContainer, `room:${room?.id || ''}`, items, 0);
@@ -7034,7 +6897,7 @@
                     const completionError=API.completionError(completion,validationOptions);
                     if(completionError)throw completionError;
                     let parsed;
-                    try{parsed=parseJsonResponse(content);}catch(error){throw new Error('模型返回的 JSON 格式不完整，原有数据未被覆盖。');}
+                    try{parsed=parseJsonResponse(content);}catch(error){throw Object.assign(new Error('模型返回的 JSON 格式不完整，原有数据未被覆盖。'),{code:'JSON_FORMAT'});}
                     metricStatus='success';
                     if(cacheKey)auxiliaryCache.set(cacheKey,parsed);
                     return parsed;
@@ -7137,7 +7000,7 @@
                         content: [
                             '你是多人房间的长期记忆整理器。只记录原文中明确发生的事实，严禁补写。',
                             '公共记忆只能包含所有在场者可观察或已公开的信息；角色独立记忆可以保留该角色的个人感受、关系认知、私人目标与只对其公开的信息。',
-                            '不要把提示词、人设原文或亲密度隐藏判定写入记忆。保留专名、承诺、关系变化、未完成事件和场景状态。',
+                            '不要把提示词、人设原文或后台关系评分写入记忆。保留专名、承诺、关系变化、未完成事件和场景状态。',
                             '只输出合法JSON：{"shared_core":"结构化公共持续状态","episode_title":"本段短标题","episode_summary":"详细事件摘要","keywords":["关键词"],"importance":3,"shared_facts":[{"category":"重要事件","text":"公开事实","importance":4}],"character_memory":{"角色id":"该角色更新后的持续独立记忆"},"character_episode":{"角色id":"该角色对此段经历可记住的个人版本"},"character_facts":{"角色id":[{"category":"知识秘密","text":"该角色能够知道的事实","importance":4}]}}',
                             'shared_core按“时间地点、公开事实、场景状态、关系变化、承诺、关键物件、未解决线索”组织，并明确新旧状态的变化顺序。',
                             'character_memory必须使用给定角色id作为键，在旧独立记忆基础上保守更新角色的感受、认知、秘密、目标和成长。character_episode只记录该角色确实经历或能够知道的本段内容。',
@@ -7358,15 +7221,15 @@
                 }
                 return result;
             }
-            async function evaluateRoomIntimacy(room, turnId) {
+            async function evaluateRoomRelations(room, turnId) {
                 if(room.turnEffects?.[turnId]?.relationshipChecked)return;
                 const turn=room.messages.filter(m=>m.turnId===turnId);
                 if(!turn.some(m=>m.role==='user')||!turn.some(m=>m.role==='assistant'))return;
                 if(!room.participants.some(m=>RoomEngine.policy(m).enabled&&turn.some(v=>v.speakerId===m.id)))return;
                 updateMemoryStatus('正在核对人物偏好、旧经历与关系证据…',true);
                 const result=await callDeepSeekJSON(RoomEngine.buildJudgeMessages(room,turnId,roomRelationContexts(room,turnId)),{maxTokens:6000,purpose:'关系证据核对'});
-                RoomEngine.applyJudgements(room,turnId,result,Rooms.applyIntimacyResult);
-                room.updatedAt=Date.now();lastIntimacyDelta=null;saveData();renderRoomContext();
+                RoomEngine.applyJudgements(room,turnId,result);
+                room.updatedAt=Date.now();saveData();renderRoomContext();
             }
 
             async function sendRoomMessage(userContent, options = {}) {
@@ -7489,7 +7352,7 @@
                     }
                     if (generatedCount > 0 && !invalidCandidates.length && isGenerating && !roomTurnRead?.stopped) {
                         try {
-                            await evaluateRoomIntimacy(room, turnId);
+                            await evaluateRoomRelations(room, turnId);
                         } catch (error) {
                             RoomEngine.ensure(room).notice='关系判定未完成，保持原关系；可在作者视图手动补判。';
                             if(error.name!=='AbortError')showToast('正文已保留，关系暂未变化：'+error.message,'info');
@@ -7629,7 +7492,7 @@
                 if (!member) return;
                 // Keep the committed reply intact on disk and on screen until a full replacement exists.
                 const requestRoom={...room,messages:room.messages.slice(0,messageIndex),experience:RoomEngine.clone(RoomEngine.ensure(room)),
-                    turnEffects:RoomEngine.clone(room.turnEffects||{}),intimacy:room.intimacy?RoomEngine.clone(room.intimacy):null,
+                    turnEffects:RoomEngine.clone(room.turnEffects||{}),
                     sharedMemory:Memory.invalidateMemoryFromIndex(room.sharedMemory,messageIndex),
                     characterMemories:Object.fromEntries(Object.entries(room.characterMemories||{}).map(([id,memory])=>[id,Memory.invalidateMemoryFromIndex(memory,messageIndex)]))};
                 RoomEngine.revertRelations(requestRoom,oldMessage.turnId);
@@ -7666,7 +7529,7 @@
                             replacementSaved = true;
                             saveData();
                             commitRoomStreamingMessage(room, messageIndex, member);
-                            try{await evaluateRoomIntimacy(room,oldMessage.turnId);}catch(error){RoomEngine.ensure(room).notice='重写后原关系判定已撤销，新判定待核对。';}
+                            try{await evaluateRoomRelations(room,oldMessage.turnId);}catch(error){RoomEngine.ensure(room).notice='重写后原关系判定已撤销，新判定待核对。';}
                         } else {
                             showToast('重新生成仍未得到有效内容，已保留原回复', 'info');
                         }
@@ -7786,14 +7649,6 @@
                     } else {
                         RoomEngine.revertTurn(room,turnId);
                         room.messages = room.messages.filter(message => message.turnId !== turnId);
-                        const effect = room.turnEffects?.[turnId];
-                        if (effect && room.intimacy) {
-                            room.intimacy.value = Math.max(0, Math.min(Rooms.MAX_INTIMACY, room.intimacy.value - (Number(effect.intimacyDelta) || 0)));
-                            const deltaIndex = room.intimacy.recentDeltas.lastIndexOf(Number(effect.intimacyDelta) || 0);
-                            if (deltaIndex >= 0) room.intimacy.recentDeltas.splice(deltaIndex, 1);
-                            delete room.turnEffects[turnId];
-                            lastIntimacyDelta = null;
-                        }
                     }
                     room.sharedMemory = normalizeMemoryAfterUndo(room.sharedMemory, room.messages.length);
                     room.chapters=Workspace.normalizeChapters(room.chapters,room.messages.length);
@@ -7849,8 +7704,7 @@
                         showToast('当前房间对话已是空状态', 'info');
                         return;
                     }
-                    const intimacyText = room.roomType === 'double' ? '亲密度将回到房间设定的初始值；' : '';
-                    if (!confirm(`确定清空当前房间的全部对话和记忆吗？${intimacyText}角色与场景设定会保留。`)) return;
+                    if (!confirm(`确定清空当前房间的全部对话和记忆吗？关系进度也会重置，角色与场景设定会保留。`)) return;
                     room.messages = [];
                     updateWorldSources('room', room, [], true);
                     room.chapters=[];room.readingPosition=null;
@@ -7860,12 +7714,6 @@
                     room.participants.forEach(member => room.characterMemories[member.id] = Memory.createEmptyMemory());
                     room.turnEffects = {};
                     RoomEngine.reset(room);
-                    if (room.intimacy) {
-                        room.intimacy.value = room.intimacy.initialValue || 0;
-                        room.intimacy.recentDeltas = [];
-                        room.intimacy.lastReason = '';
-                    }
-                    lastIntimacyDelta = null;
                     roomRenderedMessageRange = null;
                     saveData();
                     renderRoomContext();
@@ -8140,7 +7988,6 @@
                 if(appData.activeMode==='room'){
                     next.experience=RoomEngine.clone(RoomEngine.ensure(target));
                     next.turnEffects=RoomEngine.clone(target.turnEffects||{});
-                    next.intimacy=target.intimacy?RoomEngine.clone(target.intimacy):null;
                     const affected=[...new Set(target.messages.slice(index).map(m=>m.turnId).filter(Boolean))].reverse();
                     for(const turnId of affected)RoomEngine.revertRelations(next,turnId);
                     delete next.messages[index].dialogue;
