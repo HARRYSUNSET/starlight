@@ -15,6 +15,8 @@
         : globalThis.StarlightStyleLab;
     const Experience = typeof module === 'object' && module.exports
         ? require('./room-engine.js') : globalThis.StarlightRoomEngine;
+    const Desire = typeof module === 'object' && module.exports
+        ? require('./room-desire.js') : globalThis.StarlightRoomDesire;
     const Voice = typeof module === 'object' && module.exports
         ? require('./voice.js') : globalThis.StarlightVoice;
 
@@ -303,6 +305,7 @@
             relationshipEvents: roomType === 'double' ? normalizeRelationshipEvents(
                 source.relationshipEvents ?? source.intimacy?.nodes) : [],
             desireEnabled: roomType === 'double' && source.desireEnabled === true,
+            ...(roomType==='double'?{desireSettings:Desire.settings(source.desireSettings)}:{}),
             createdAt: Number(source.createdAt) || Date.now(),
             updatedAt: Number(source.updatedAt) || Date.now(),
         };
@@ -437,7 +440,7 @@
             worldBookPrompt || '【世界书】\n（未单独设定）',
             '【当前场景｜已采纳进展优先于开场】\n' + ((Experience && Experience.currentScenePrompt(room)) || room.scenePrompt || '（延续最近对话）'),
         ];
-        if(Experience)dynamicSections.push(Experience.relationPrompt(room,member.id));
+        if(Experience)dynamicSections.push(Experience.relationPrompt(room,member.id),Experience.desirePrompt(room,member.id));
         const development = Growth.prompt(room,member,latestQuery);
         if (development) dynamicSections.push(development);
         if (sharedMemory) dynamicSections.push('【房间公共长期记忆】\n' + sharedMemory);

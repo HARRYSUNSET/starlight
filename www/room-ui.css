@@ -76,6 +76,14 @@
 .relationship-event-editor label { min-width:0; margin:0; font-size:.76rem; color:var(--text-secondary); }
 .relationship-event-editor :is(input,textarea) { width:100%; min-width:0; box-sizing:border-box; margin-top:6px; }
 .room-modal .room-optional-dimension { display:flex; align-items:center; gap:8px; }
+.room-desire-fields:not([hidden]) { display:grid; gap:12px; }
+.room-desire-base, .room-desire-rule .node-criteria { grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr)); }
+.room-desire-rule-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+.room-desire-rules { display:grid; gap:10px; }
+.room-desire-rule { min-width:0; display:grid; gap:10px; margin:0; padding:10px; border:1px solid var(--border); border-radius:12px; }
+.room-desire-rule legend { padding:0 5px; color:var(--text-secondary); font-size:.82rem; }
+.room-scene-desire { margin-top:14px; padding:10px; border:1px solid var(--border); border-radius:10px; }
+.room-scene-desire summary { cursor:pointer; }
 .node-criteria { display:grid; grid-template-columns:repeat(auto-fit,minmax(84px,1fr)); gap:9px; }
 .node-criteria [hidden] { display:none; }
 .node-condition-label { grid-column:1/-1; }

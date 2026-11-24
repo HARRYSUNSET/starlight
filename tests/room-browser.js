@@ -46,7 +46,10 @@ module.exports=async function roomBrowserChecks(){
         if(all.includes('房间关系证据核对器')){
             calls.push('judge');if(judgeMode==='fail')return reply(null,503);
             const payload=JSON.parse(body.messages.at(-1).content),source=payload.records.filter(m=>m.role==='user').at(-1);
-            return reply({judgements:payload.characters.map(m=>({memberId:m.id,sources:[{id:source.id,quote:source.content}],kind:'action',tag:'兑现约定',familiarity:1,trust:2,affection:1,reason:'本轮实际行动符合人物重视守约的设定。',significant:false}))});
+            const judgements=payload.characters.map(m=>({memberId:m.id,sources:[{id:source.id,quote:source.content}],kind:'action',tag:'兑现约定',familiarity:1,trust:2,affection:1,reason:'本轮实际行动符合人物重视守约的设定。',significant:false}));
+            const desireEvents=payload.desireContext&&source.content.includes('喧闹声停了')?
+                [{type:'environment',sourceId:source.id,quote:'喧闹声停了',factor:'四周安静下来',direction:'raise',strength:2}]:[];
+            return reply({judgements,desireEvents});
         }
         if(all.includes('隐藏发言调度器')){
             calls.push('director');
@@ -223,8 +226,20 @@ module.exports=async function roomBrowserChecks(){
         await delay(220);assert(JSON.stringify(await work())===roomBeforePractice,'试写和A/B对比不改变房间、场景、关系或记忆');
         await click('#btnStyleLabClose');
         await click('#btnChatSettings');
-        assert(!node('#roomDesireEnabled').checked,'第四项默认关闭');
+        assert(!node('#roomDesireEnabled').checked&&node('#roomDesireSettings .room-desire-fields').hidden,'独立性欲度默认关闭');
         await click('#roomDesireEnabled');
+        input('#roomDesireSettings [name="initialValue"]','15');
+        await click('#btnAddDesireRule');
+        input('.room-desire-rule:first-child [name="trust"]','70');
+        input('.room-desire-rule:first-child [name="hoursPerPoint"]','3');
+        await click('#btnAddDesireRule');
+        input('.room-desire-rule:nth-child(2) [name="affection"]','60');
+        input('.room-desire-rule:nth-child(2) [name="resetValue"]','21');
+        await click('#btnAddDesireRule');
+        input('.room-desire-rule:nth-child(3) [name="familiarity"]','50');
+        input('.room-desire-rule:nth-child(3) [name="resetValue"]','11');
+        await click('.room-desire-rule:nth-child(3) .desire-rule-up');
+        assert(node('.room-desire-rule:nth-child(2) [name="familiarity"]').value==='50','移动规则保留输入值');
         await click('#btnAddRelationshipEvent');
         input('.node-description','主动分享一件往事');
         input('[data-node-threshold="trust"]','40');
@@ -233,10 +248,17 @@ module.exports=async function roomBrowserChecks(){
         await wait(async()=>(await work()).relationshipEvents?.[0]?.thresholds.desire===12,'保存各维度的独立门槛');
         scorecard=node('#roomRelationshipCard');
         assert(scorecard.querySelectorAll('[data-dimension]').length===4,'启用后在同一浮卡显示第四维');
+        assert((await work()).desireSettings.rules.map(rule=>Object.keys(rule.thresholds)[0]).join(' ')==='trust familiarity affection','保存任意多条有顺序的阈值规则');
+        assert((await work()).experience.desire.value===15,'首次开启使用配置的初始值');
         assert((await work()).relationshipEvents[0].thresholds.trust===40,'保存信任门槛且保留空缺项');
         await click('#roomRelationshipCard');
         assert(node('#roomRelationContent').textContent.includes('待解锁')&&node('#roomRelationContent').textContent.includes('主动分享一件往事'),'关系档案展示事件与状态');
         await click('#roomExperienceClose');
+        const beforeDesireTurn=calls.filter(call=>call==='judge').length;
+        await send('三小时后，门外的喧闹声停了。');
+        value=await work();
+        assert(value.experience.desire.value===17.5,'同一轮累积剧中时间与环境变化');
+        assert(calls.filter(call=>call==='judge').length===beforeDesireTurn+1,'环境变化复用现有模型请求');
         return {checks,roomId:currentId};
     }finally{if(heldScene)heldScene();window.fetch=savedFetch;document.activeElement?.blur();}
 };
