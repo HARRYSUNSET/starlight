@@ -297,10 +297,30 @@ async function main() {
             await checkWorldBook();
             return;
         }
+        async function checkAssessmentLayout(width,height){
+            for(const key of ['events','desire']){
+                await click(`[data-relation-tab="${key}"]`);
+                await evaluate('document.querySelector(".room-experience-scroll").scrollTop=1e8');
+                const layout=await evaluate(`(()=>{
+                    const content=document.querySelector('.room-experience-scroll');
+                    const save=document.querySelector('#roomAssessmentSave'), box=save.getBoundingClientRect();
+                    return content.scrollWidth<=content.clientWidth+1&&
+                        save.contains(document.elementFromPoint(box.x+box.width/2,box.y+box.height/2));
+                })()`);
+                assert.equal(layout,true,'Assessment '+key+' must fit and allow saving at '+width+'x'+height);
+            }
+            if(width===390){await evaluate('document.querySelector(".room-experience-scroll").scrollTop=0');await screenshot('room-assessment-v340');}
+        }
         if(process.argv.includes('--rooms')) {
             await resize(390,844);await click('#homeStoryList [data-work-id="ui-story"]');
             await evaluate(`window.__qaReadState=async()=>{const db=await StarlightPersistence.openDatabase({name:'starlight_chat_database'});try{return await StarlightPersistence.readState(db);}finally{db.close();}};`);
             const result=await evaluate(`(${require('../tests/room-browser.js').toString()})()`);
+            for(const [width,height] of [[320,568],[844,390],[390,844]]){
+                await resize(width,height);
+                await click('#roomRelationshipCard');
+                await checkAssessmentLayout(width,height);
+                await click('#roomExperienceClose');
+            }
             assert.equal(exceptions.length,0,'Room runtime errors: '+JSON.stringify(exceptions));
             console.log('PASS focused room responses / recovery / structured previews: '+result.checks+' checks');
             return;
@@ -676,7 +696,8 @@ async function main() {
             const reachable=await evaluate('(() => {const button=document.querySelector("#roomExperienceClose"),r=button.getBoundingClientRect();return button.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2));})()');
             assert.equal(reachable,true,'Room header close is covered');
             if(width===390)await screenshot('room-experience-scene-v240');
-            await click('[data-room-tab="relations"]');
+            await click('#roomExperienceClose');
+            await click('#roomRelationshipCard');
             if(!await evaluate('document.querySelector("#roomAuthorView").checked'))await click('#roomAuthorView');
             const edit=await evaluate('(() => {const root=document.querySelector(".room-experience-page");return root.scrollWidth<=root.clientWidth+1;})()');
             assert.equal(edit,true,'Room author fields overflow '+width+'x'+height);
@@ -691,6 +712,7 @@ async function main() {
                 await evaluate('document.activeElement?.blur();Object.defineProperty(window,"visualViewport",window.__qaRoomViewport);window.dispatchEvent(new Event("resize"));');await delay(100);
             }
             if(width===390){await evaluate('document.querySelector(".room-experience-scroll").scrollTop=0');await screenshot('room-experience-relations-v240');}
+            await checkAssessmentLayout(width,height);
             await click('#roomExperienceClose');
         }
         const writingChecks=await evaluate(`(${require('../tests/writing-skill-browser.js').toString()})()`);

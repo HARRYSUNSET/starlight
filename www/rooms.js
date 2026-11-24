@@ -440,7 +440,7 @@
             worldBookPrompt || '【世界书】\n（未单独设定）',
             '【当前场景｜已采纳进展优先于开场】\n' + ((Experience && Experience.currentScenePrompt(room)) || room.scenePrompt || '（延续最近对话）'),
         ];
-        if(Experience)dynamicSections.push(Experience.relationPrompt(room,member.id),Experience.desirePrompt(room,member.id));
+        if(Experience)dynamicSections.push(Experience.relationPrompt(room,member.id));
         const development = Growth.prompt(room,member,latestQuery);
         if (development) dynamicSections.push(development);
         if (sharedMemory) dynamicSections.push('【房间公共长期记忆】\n' + sharedMemory);
@@ -451,6 +451,7 @@
                 : '（尚未达到任何自定义节点）'));
             dynamicSections.push('达到节点只表示相关互动在人物和情境允许时可以发生，并不要求立刻发生；仍须尊重人设、上下文与用户意愿。');
         }
+        if(Experience)dynamicSections.push(Experience.desirePrompt(room,member.id));
         const strategy = StyleLab?.getPromptStrategy(styleInfluencePrompt) || { priority: 0 };
         if (room.styleEnabled && room.stylePrompt && (strategy.priority < 2 || room.stylePrompt !== STORY_STYLE_GUIDE)) {
             sections.push((strategy.priority >= 2 ? '【原有文风补充｜仅采用不冲突的表达】\n' : '【自然表达规则】\n') + room.stylePrompt);
@@ -568,6 +569,7 @@
                     '你是房间场景旁白，只描写所有在场者可以观察到的环境变化、时间推进或必要动作衔接。',
                     '不得替用户行动、发言、思考或感受；不得替任何角色写台词或内心；不得泄露秘密。',
                     '只有确有必要时才写一到三句简短旁白；旁白正文写入返回 JSON 的 narration 字段，不要加标题、解释或 Markdown。',
+                    Desire.sceneCue(room),
                     asString(styleInfluencePrompt).trim(),
                 ].filter(Boolean).join('\n\n'),
             },

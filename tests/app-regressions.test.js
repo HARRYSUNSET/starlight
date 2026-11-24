@@ -68,11 +68,11 @@ test('作品卡片菜单监听器只在主页渲染器中绑定到卡片自身',
 test('应用版本号在 npm 与 Android 配置中一致', () => {
     const gradle = fs.readFileSync(path.join(root, 'android', 'app', 'build.gradle'), 'utf8');
     const lock = require('../package-lock.json');
-    assert.equal(packageJson.version, '3.3.0');
+    assert.equal(packageJson.version, '3.4.0');
     assert.equal(lock.version, packageJson.version);
     assert.equal(lock.packages[''].version, packageJson.version);
-    assert.match(gradle, /versionCode\s+28/);
-    assert.match(gradle, /versionName\s+"3\.3\.0"/);
+    assert.match(gradle, /versionCode\s+29/);
+    assert.match(gradle, /versionName\s+"3\.4\.0"/);
     assert.ok(html.includes('星陽之语 ' + packageJson.version));
 });
 

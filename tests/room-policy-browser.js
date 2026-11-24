@@ -60,7 +60,7 @@ module.exports = async function roomPolicyBrowser() {
         check(room.participants.every(member => member.relationshipPolicy.preferences === (mode === 'valid' ? '重视归还借书' : '')), '档案完整写入或完整放弃 ' + mode);
         if (mode === 'valid') {
             check(received.at(-1).members[0].persona.includes('借书期限') && received.at(-1).userPersona.includes('店员'), '请求使用当前角色与用户的设定');
-            await click('#btnRoomJournal');
+            await click('#roomRelationshipCard');
             if (!$('#roomAuthorView').checked) await click('#roomAuthorView');
             check($('#roomRelationPreferences').value === '重视归还借书' && $('#roomRelationBaseline').value === '认识多年的邻居', '作者视图可查看自动形成的关系资料');
             edit($('#roomRelationBoundaries'),'借书前先登记');

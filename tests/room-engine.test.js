@@ -179,11 +179,79 @@ test('多个个性化规则按优先顺序匹配，空缺字段沿用基础值',
         {thresholds:{affection:0},resetValue:25},
     ]}});
     E.calibrate(value,'a',{familiarity:50,trust:65});
-    assert.deepEqual(Desire.effective(value.desireSettings,E.ensure(value).relations.a),{hoursPerPoint:3,resetValue:8});
+    assert.deepEqual(Desire.effective(value.desireSettings,E.ensure(value).relations.a),{hoursPerPoint:3,growthPoints:1,resetValue:8});
     E.calibrate(value,'a',{trust:95});
-    assert.deepEqual(Desire.effective(value.desireSettings,E.ensure(value).relations.a),{hoursPerPoint:4,resetValue:22});
+    assert.deepEqual(Desire.effective(value.desireSettings,E.ensure(value).relations.a),{hoursPerPoint:4,growthPoints:1,resetValue:22});
     E.ensure(value).relations.a.knownDimensions=[];
-    assert.deepEqual(Desire.effective(value.desireSettings,E.ensure(value).relations.a),{hoursPerPoint:6,resetValue:8});
+    assert.deepEqual(Desire.effective(value.desireSettings,E.ensure(value).relations.a),{hoursPerPoint:6,growthPoints:1,resetValue:8});
+});
+
+test('增长量可独立覆盖，旧设置默认每段增加 1 分',()=>{
+    const value=room({desireEnabled:true,desireSettings:{growthPoints:4,rules:[{thresholds:{trust:70},growthPoints:10}]}});
+    assert.equal(Desire.settings({hoursPerPoint:2}).growthPoints,1);
+    turn(value,'三小时后，来到窗边。','first');
+    E.applyDesireTime(value,'first');
+    assert.equal(score(value),2);
+    E.calibrate(value,'a',{trust:75});
+    turn(value,'三小时后，走到门边。','second');
+    E.applyDesireTime(value,'second');
+    assert.equal(score(value),7);
+    E.revertTurn(value,'second');
+    assert.equal(score(value),2);
+});
+
+test('欲望时刻只在三维全满后开启，冻结评分，关闭后从原分继续',()=>{
+    const value=room({desireEnabled:true,desireSettings:{initialValue:27,rules:[{thresholds:{trust:100},growthPoints:4}]},
+        relationshipEvents:[{description:'可选节点',thresholds:{desire:100}}]});
+    const exp=E.ensure(value);
+    E.calibrate(value,'a',{familiarity:100,affection:100,trust:99});
+    assert.throws(()=>Desire.setPeak(value,exp,true),/达到 100/);
+    E.calibrate(value,'a',{trust:100});
+    Desire.setPeak(value,exp,true);
+    assert.equal(Desire.displayedValue(value),100);
+    assert.equal(E.availableNodes(value).length,1);
+    turn(value,'六小时后，门外安静了。','paused');
+    value.messages.forEach(message=>message.createdAt=10);
+    E.applyDesireTime(value,'paused');
+    E.applyJudgements(value,'paused',{...judgement('paused','门外安静了'),desireEvents:[environment('paused-u','门外安静了')]});
+    assert.equal(score(value),27);
+    assert.deepEqual(exp.desire.history,[]);
+    assert.doesNotMatch(JSON.stringify(E.buildJudgeMessages(value,'paused')),/"type":"release"|desireContext/);
+    assert.match(JSON.stringify(E.buildJudgeMessages(value,'paused')),/desireStep/);
+    E.calibrate(value,'a',{trust:99});
+    assert.equal(Desire.displayedValue(value),100);
+    const revived=Rooms.normalizeRoom(JSON.parse(JSON.stringify(value)),Memory);
+    assert.equal(Desire.displayedValue(revived),100);
+    Desire.setPeak(value,exp,false,20);
+    assert.equal(Desire.displayedValue(value),27);
+    assert.equal(E.availableNodes(value).length,0);
+    turn(value,'六小时后，她到了门口。','resumed');
+    value.messages.slice(-2).forEach(message=>message.createdAt=30);
+    E.applyDesireTime(value,'resumed');
+    assert.equal(score(value),28);
+});
+
+test('两种满分状态都提示角色主动行动，情景可承接，低分和关闭时不提示',()=>{
+    const value=room({desireEnabled:true,desireSettings:{initialValue:89,peakBehavior:'角色的私有安排'}});
+    const dialogue=()=>Rooms.buildCharacterMessages(value,'a',{},100,Memory).map(message=>message.content).join('\n');
+    const narration=()=>Rooms.buildNarrationMessages(value,'自然推进')[0].content;
+    assert.doesNotMatch(dialogue(),/峰值时的角色行动/);
+    assert.doesNotMatch(narration(),/峰值后的情景衔接/);
+    const experience=E.ensure(value);
+    Desire.calibrate(experience.desire,100);
+    assert.match(dialogue(),/本轮给当前角色一个具体、可感知的主动步骤/);
+    assert.equal(value.desireSettings.steps[1].action,'角色的私有安排');
+    assert.match(narration(),/峰值后的情景衔接/);
+    assert.doesNotMatch(narration(),/角色的私有安排/);
+
+    value.desireEnabled=false;
+    assert.doesNotMatch(dialogue(),/峰值时的角色行动/);
+    assert.doesNotMatch(narration(),/峰值后的情景衔接/);
+    E.calibrate(value,'a',{familiarity:100,trust:100,affection:100});
+    Desire.setPeak(value,experience,true);
+    assert.match(dialogue(),/欲望时刻已开启/);
+    assert.match(dialogue(),/本轮给当前角色一个具体、可感知的主动步骤/);
+    assert.match(narration(),/峰值后的情景衔接/);
 });
 
 test('环境与完成事件从正式记录独立结算，同一变化不重复叠加',()=>{
@@ -191,7 +259,7 @@ test('环境与完成事件从正式记录独立结算，同一变化不重复�
     value.participants[0].relationshipPolicy.enabled=false;
     turn(value,'关门后，房间终于安静下来。','quiet');
     const reply={judgements:[],desireEvents:[environment('quiet-u','房间终于安静下来')]};
-    assert.equal(E.canJudgeDesire(value,'quiet'),true);
+    assert.equal(Desire.canJudge(value,'quiet'),true);
     assert.match(JSON.stringify(E.buildJudgeMessages(value,'quiet')),/desireContext/);
     E.applyJudgements(value,'quiet',reply);
     E.applyJudgements(value,'quiet',reply);
@@ -252,7 +320,75 @@ test('旧房间继承启用状态、已有性欲度与事件门槛，关闭暂�
     assert.equal(score(restored),18);
     assert.equal(E.availableNodes(restored)[0].id,'optional');
     E.ensure(restored).desire.enabledSince=Date.now()+1000;
-    assert.equal(E.canJudgeDesire(restored,'disabled'),false);
+    assert.equal(Desire.canJudge(restored,'disabled'),false);
     E.applyDesireTime(restored,'disabled');
     assert.equal(score(restored),18);
+});
+
+test('有实质新了解的对话只许可熟悉度增加，零分与实计原因都可回查',()=>{
+    const value=room();
+    E.calibrate(value,'a',{policy:{criteria:{familiarity:{increase:'在日常交谈中了解新习惯'}}}});
+    const quote='我每天傍晚去河边散步';
+    turn(value,quote,'new-info');
+    E.applyJudgements(value,'new-info',judgement('new-info',quote,{kind:'conversation',reasons:{familiarity:'首次了解日常习惯'}}));
+    const audit=value.turnEffects['new-info'].relationshipAudit.records[0];
+    assert.equal(audit.applied.familiarity,1);
+    assert.equal(audit.requested.trust,2);
+    assert.equal(audit.applied.trust,0);
+    assert.equal(audit.causes.trust,'criteria');
+    assert.equal(audit.reasons.familiarity,'首次了解日常习惯');
+    assert.match(JSON.stringify(E.buildJudgeMessages(value,'new-info')),/在日常交谈中了解新习惯/);
+    turn(value,'好的','neutral');
+    E.applyJudgements(value,'neutral',{judgements:[{memberId:'a',sources:[],familiarity:0,trust:0,affection:0}]});
+    assert.equal(value.turnEffects.neutral.relationshipAudit.records[0].applied.affection,0);
+    assert.equal(value.turnEffects.neutral.relationshipAudit.records[0].causes.affection,'steady');
+});
+
+test('达到准备阈值后逐步确认，满分不跳过未完成准备，撤回可回退阶段',()=>{
+    const value=room({desireEnabled:true,desireSettings:{initialValue:89,prepareAt:90}});
+    assert.equal(Desire.stage(value).ready,false);
+    turn(value,'六小时后，外面安静了。','tick');
+    E.applyDesireTime(value,'tick');
+    assert.equal(score(value),90);
+    assert.equal(Desire.stage(value).next.id,'prepare');
+    assert.match(E.desirePrompt(value,'a'),/进入准备阶段/);
+    Desire.calibrate(E.ensure(value).desire,100);
+    turn(value,'继续对话。','prep');
+    value.messages.at(-1).content='让我独处一会儿，然后我们再接着聊。';
+    const result=judgement('prep','继续对话。',{familiarity:0,trust:0,affection:0});
+    result.desireEvents=[{type:'step',stepId:'act',sourceId:'prep-a',quote:'让我独处一会儿'}];
+    E.applyJudgements(value,'prep',result);
+    assert.equal(Desire.stage(value).next.id,'prepare');
+    result.desireEvents[0].stepId='prepare';
+    const trust=E.ensure(value).relations.a.trust;
+    E.applyJudgements(value,'prep',result);
+    assert.equal(Desire.stage(value).next.id,'act');
+    assert.equal(E.ensure(value).relations.a.trust,trust);
+    E.revertTurn(value,'prep');
+    assert.equal(Desire.stage(value).next.id,'prepare');
+});
+
+test('三维格式失败仍可按有效来源回落，漏报可手动确认且不会重复结算',()=>{
+    const build=()=>room({desireEnabled:true,desireSettings:{initialValue:100,resetValue:18}});
+    const first=build();
+    turn(first,'继续。','done');
+    first.messages.at(-1).content='她确认已完成了纾解。';
+    E.applyJudgements(first,'done',{judgements:[],desireEvents:[release('done-a','已完成了纾解')]});
+    assert.equal(first.turnEffects.done.relationshipAudit.status,'failed');
+    assert.equal(first.turnEffects.done.desireReview,'settled');
+    assert.equal(score(first),18);
+
+    const second=build();
+    turn(second,'继续。','manual');
+    const message=second.messages.at(-1);
+    message.content='她确认已完成了纾解。';
+    E.applyJudgements(second,'manual',{judgements:[{memberId:'a',sources:[],familiarity:0,trust:0,affection:0}],desireEvents:[]});
+    assert.equal(second.turnEffects.manual.desireReview,'unconfirmed');
+    assert.equal(E.canRecheck(second,'manual'),true);
+    Desire.confirmMessage(second,E.ensure(second),message,'release');
+    assert.equal(score(second),18);
+    assert.equal(second.turnEffects.manual.desireReview,'settled');
+    assert.throws(()=>Desire.confirmMessage(second,E.ensure(second),message,'release'),/重复确认/);
+    E.revertRelations(second,'manual');
+    assert.equal(score(second),100);
 });

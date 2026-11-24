@@ -20,6 +20,11 @@
 .room-experience-header p { font-size:.73rem; color:var(--text-secondary); margin:4px 0 0; }
 .room-experience-header button { flex-shrink:0; }
 .room-experience-tabs { display:flex; padding:7px max(10px,var(--ui-safe-inline)); background:var(--card-bg); gap:6px; border-bottom:1px solid var(--border); }
+.room-experience-tabs[hidden] { display:none; }
+.room-experience-page > .room-experience-header { grid-row:1; }
+.room-experience-page > .room-experience-tabs { grid-row:2; }
+.room-experience-page > .room-experience-scroll { grid-row:3; }
+.room-experience-page > .room-experience-actions { grid-row:4; }
 .room-experience-tabs button { flex:1; min-width:0; min-height:38px; padding:7px 4px; border:0; border-radius:10px; background:var(--bg); color:var(--text-secondary); font-size:.8rem; }
 .room-experience-tabs button.active { background:color-mix(in srgb,var(--accent) 14%,var(--card-bg)); color:var(--accent); }
 .room-experience-scroll { min-height:0; overflow:auto; overscroll-behavior:contain; padding:18px max(16px,calc((100vw - 850px)/2),var(--ui-safe-inline)) 28px; }
@@ -77,13 +82,68 @@
 .relationship-event-editor :is(input,textarea) { width:100%; min-width:0; box-sizing:border-box; margin-top:6px; }
 .room-modal .room-optional-dimension { display:flex; align-items:center; gap:8px; }
 .room-desire-fields:not([hidden]) { display:grid; gap:12px; }
-.room-desire-base, .room-desire-rule .node-criteria { grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr)); }
+.room-assessment-route .room-desire-base, .room-desire-rule .node-criteria { grid-template-columns:repeat(auto-fit,minmax(min(132px,100%),1fr)); }
 .room-desire-rule-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
 .room-desire-rules { display:grid; gap:10px; }
 .room-desire-rule { min-width:0; display:grid; gap:10px; margin:0; padding:10px; border:1px solid var(--border); border-radius:12px; }
 .room-desire-rule legend { padding:0 5px; color:var(--text-secondary); font-size:.82rem; }
 .room-scene-desire { margin-top:14px; padding:10px; border:1px solid var(--border); border-radius:10px; }
 .room-scene-desire summary { cursor:pointer; }
+.room-assessment-route .room-experience-header {
+    padding-inline:max(16px,calc((100% - 760px)/2),var(--ui-safe-inline));
+}
+.room-assessment-route .room-experience-scroll {
+    padding-inline:max(12px,calc((100% - 740px)/2),var(--ui-safe-inline));
+    background:color-mix(in srgb,var(--accent) 3%,var(--bg));
+}
+.room-assessment-route .room-experience-scroll label[hidden] { display:none; }
+.room-assessment-tabs { padding:0 max(12px,calc((100% - 740px)/2),var(--ui-safe-inline)); gap:16px; }
+.room-assessment-tabs button { position:relative; min-height:44px; border-radius:0; background:transparent; }
+.room-assessment-tabs button.active { background:transparent; font-weight:700; }
+.room-assessment-tabs button::after {
+    content:""; position:absolute; inset:auto 15% 0; height:3px; border-radius:3px 3px 0 0;
+    background:var(--accent); opacity:0; transform:scaleX(.55); transition:opacity .16s ease,transform .18s ease;
+}
+.room-assessment-tabs button.active::after { opacity:1; transform:scaleX(1); }
+.room-assessment-pane:not([hidden]) { animation:assessment-in .17s ease-out both; }
+@keyframes assessment-in { from { opacity:.6; transform:translateY(4px); } }
+.room-assessment-block {
+    margin-bottom:10px; padding:12px 14px; background:var(--card-bg);
+    border:1px solid var(--border); border-radius:16px;
+}
+.room-assessment-route .assessment-switch {
+    display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:12px; margin:0;
+    min-height:42px; font-weight:700; color:var(--text-primary);
+}
+.assessment-switch span { display:grid; gap:3px; }
+.assessment-switch small { color:var(--text-secondary); font-size:.73rem; font-weight:400; }
+.assessment-switch input { appearance:none; width:44px; height:26px; border:1px solid var(--border); margin:0; border-radius:20px; background:var(--bg); cursor:pointer; }
+.assessment-switch input::after {
+    display:block; content:""; width:18px; height:18px; margin:3px; border-radius:50%;
+    background:var(--text-secondary); transition:transform .16s ease;
+}
+.assessment-switch input:checked { background:var(--accent); border-color:transparent; }
+.assessment-switch input:checked::after { transform:translateX(18px); background:white; }
+.assessment-switch input:disabled { cursor:default; opacity:.5; }
+.room-assessment-route .room-desire-base label, .room-assessment-route .room-desire-rule label { margin:0; }
+.room-assessment-route .relationship-event-editor { background:var(--card-bg); }
+.room-assessment-route .relationship-event-heading label { margin:0; }
+.room-assessment-route input[aria-invalid="true"], .room-assessment-route textarea[aria-invalid="true"] { border-color:var(--danger); }
+.assessment-field-error { display:block; color:var(--danger); margin-top:4px; }
+.room-review-card { margin:10px 0; padding:12px 14px; background:var(--card-bg); border:1px solid var(--border); border-radius:12px; }
+.room-review-card summary { cursor:pointer; font-weight:650; }
+.room-review-card p { margin:8px 0; line-height:1.5; }
+.room-standard { margin-top:12px; }
+.room-standard small { color:var(--text-secondary); font-weight:400; }
+.room-review-dimensions { display:grid; gap:5px; padding-inline-start:20px; margin-block:8px; font-size:.79rem; }
+.room-review-dimensions span { margin-inline-start:8px; color:var(--text-secondary); }
+.room-effective-instruction { margin:6px 0; padding:8px; background:var(--bg); border-radius:8px; font:inherit; font-size:.78rem; white-space:pre-wrap; overflow-wrap:anywhere; }
+[data-add-step] { margin-top:8px; }
+.room-relationship-card.relationship-peak { border-color:color-mix(in srgb,#a56cdf 55%,var(--border)); }
+@media(prefers-reduced-motion:reduce) {
+    .room-assessment-pane:not([hidden]) { animation:none; }
+    .room-assessment-tabs button::after, .assessment-switch input::after { transition:none; }
+}
 .node-criteria { display:grid; grid-template-columns:repeat(auto-fit,minmax(84px,1fr)); gap:9px; }
 .node-criteria [hidden] { display:none; }
 .node-condition-label { grid-column:1/-1; }
