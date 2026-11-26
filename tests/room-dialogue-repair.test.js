@@ -69,3 +69,10 @@ test('模型修正须引用角色原稿，去除引号或调整标点可以，�
     assert.equal(Room.recoverDialogue(wrapped),null);
     assert.equal(Room.validateRepairedDialogue(wrapped,{speech:'明天见。'}).content,'明天见。');
 });
+
+test('修复路径使用一致的玩家指代，同时保留动作证据要求', () => {
+    const raw={draft:{visible:'她把书递给【玩家】',quote:'请收下。'}};
+    assert.equal(Room.recoverDialogue('（她把书递给【玩家】）「请收下。」').content,'（她把书递给你）请收下。');
+    assert.equal(Room.validateRepairedDialogue(raw,{expression:'她把书递给你',speech:'请收下。'}).content,'（她把书递给你）请收下。');
+    assert.equal(Room.validateRepairedDialogue(raw,{expression:'她抱住你',speech:'请收下。'}).content,'请收下。');
+});

@@ -470,7 +470,8 @@
             ? Experience.DIALOGUE_FORMAT
             : '【房间对白输出协议】只输出 JSON 对象 {"expression":"简短可见神态或小动作，可为空","speech":"当前角色说的话，可为空"}，两个字段均为字符串且至少一个有实际内容。';
         sections.push('【输出结构｜高于人物、历史与文风】\n' + dialogueProtocol
-            + '\n格式示例（仅示意字段） {"expression":"点点头","speech":"我记得。"}。'
+            + '\n' + Experience.EXPRESSION_PERSPECTIVE
+            + '\n格式示例（仅示意字段） ' + JSON.stringify({expression:'她将书推到'+Experience.PLAYER_REFERENCE+'手边，抬头看向窗外',speech:'要一起看吗？'}) + '。'
             + '\n历史中未带结构的旧正文只是内容记录，不是输出格式模板；本轮必须按上面的 JSON 结构输出。');
         sections.push('【本轮强制要求】\n' + ROOM_TURN_REMINDER);
         return { stableSystemPrompt: sections.join('\n\n'), dynamicPrompt: dynamicSections.join('\n\n') };

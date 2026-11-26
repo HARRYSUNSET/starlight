@@ -66,6 +66,20 @@ test('逐字 JSON 流不显示原始字段或内心，正确处理中文、转�
     assert.equal(E.partialDialogue(raw),'（眨眼）“好呀。”\n明天见 😀');
 });
 
+test('房间动作将玩家标记渲染成第二人称，保留角色人称和直接对白',()=>{
+    const expression='她看了阿岚一眼，把书放在【玩家】手边，窗外的灯映在【玩家】的杯沿';
+    const speech='阿岚说你可以借走。';
+    const raw=JSON.stringify({expression,speech});
+    const expected='（她看了阿岚一眼，把书放在你手边，窗外的灯映在你的杯沿）'+speech;
+    for(let i=0;i<raw.length;i++)assert.doesNotMatch(E.partialDialogue(raw.slice(0,i)),/【|玩家/);
+    assert.equal(E.partialDialogue(raw),expected);
+    assert.equal(E.parseDialogue(raw).content,expected);
+    assert.equal(E.parseDialogue(raw).speech,speech);
+    assert.equal(E.parseDialogue({expression:'她点点头，他在门口等着'}).expression,'她点点头，他在门口等着');
+    assert.equal(E.parseDialogue({expression:'抬手【'}).content,'（抬手【）');
+    assert.equal(E.partialDialogue('{"expression":"抬手【"}'),'（抬手【）');
+});
+
 test('角色可以只以简短动作回应，协议、流式展示和最终校验保持一致',()=>{
     const raw=JSON.stringify({speech:'',expression:'轻轻点头'});
     assert.equal(E.parseDialogue(raw).content,'（轻轻点头）');

@@ -22,7 +22,7 @@ module.exports=async function roomBrowserChecks(){
         if(body.stream){
             calls.push('dialogue');
             if(dialogueMode==='fail')throw new Error('模拟重写网络失败');
-            const raw=dialogueMode==='recover'?(body.response_format?'   ':'“我记得。”'):dialogueMode==='malformed'?'旁白：她心里想着已经攻略成功。':dialogueMode==='whitespace'?'   \n  ':['empty','reasoning-only'].includes(dialogueMode)?'':JSON.stringify({expression:'抬眼看你',speech:dialogueMode==='action'?'':'我记得你说过这件事。 回复'+calls.length});
+            const raw=dialogueMode==='recover'?(body.response_format?'   ':'“我记得。”'):dialogueMode==='malformed'?'旁白：她心里想着已经攻略成功。':dialogueMode==='whitespace'?'   \n  ':['empty','reasoning-only'].includes(dialogueMode)?'':JSON.stringify({expression:'她抬眼看向【玩家】',speech:dialogueMode==='action'?'':'我记得你说过这件事。 回复'+calls.length});
             const encoder=new TextEncoder();
             return new Response(new ReadableStream({start(controller){
                 controller.enqueue(encoder.encode('data: '+JSON.stringify({choices:[{delta:{content:raw}}]})+'\n\n'));
@@ -125,6 +125,8 @@ module.exports=async function roomBrowserChecks(){
         await send('（按约归还借来的书）');value=await work();const a=value.participants[0].id;
         assert(value.experience.relations[a].trust===22,'依据用户真实行动增加信任');assert(value.messages.filter(m=>m.role==='assistant').length===1,'对白正式落盘');assert(value.messages.at(-1).dialogue.speech.includes('我记得'),'正文结构化但界面不显示 JSON');
         assert(requestBodies.at(-1).messages.at(-1).content.includes('首次分享一个真实日常习惯'),'作者标准进入模型核对');
+        assert(value.messages.at(-1).dialogue.expression==='她抬眼看向你' && !node('#messagesContainer').textContent.includes('【玩家】'),'房间保存和气泡显示都采用第二人称');
+        assert(requestBodies.findLast(body=>body.stream).messages[0].content.includes('用第二人称指代当前用户所扮演的角色'),'正式对白请求带有动作视角规则');
         assert(value.experience.relationHistory.filter(e=>e.kind!=='author')[0].sources[0].quote.includes('归还'),'关系变化可追溯原文');
         await send('（按约归还借来的书）');assert((await work()).experience.relations[a].trust===22,'重复事件不刷分');
         await send('（按照约定把伞交回去）');value=await work();assert(value.experience.relations[a].trust===24,'不同真实事件可以增长');
@@ -185,7 +187,7 @@ module.exports=async function roomBrowserChecks(){
         assert(!document.body.textContent.includes('PRIVATE_TEST_REASONING'),'思考原文不会显示在界面或诊断中');
         assert((await read()).roomMemorySettings.thinkingMode==='enabled','失败后仍保留用户的深度思考设置');
         dialogueMode='action';await send('（安静地等对方回应）');value=await work();
-        assert(value.messages.at(-1).dialogue.speech===''&&value.messages.at(-1).content==='（抬眼看你）','仅动作回应正常保存并展示');
+        assert(value.messages.at(-1).dialogue.speech===''&&value.messages.at(-1).content==='（她抬眼看向你）','仅动作回应正常保存并展示');
 
         await click('#btnRoomState');input('#roomSceneInstruction','延续教室内的情景，不改变地点。');sceneMode='normal';await click('#roomSceneGenerate');
         await wait(async()=>Boolean((await work()).experience.sceneDraft),'有效情景预览');
