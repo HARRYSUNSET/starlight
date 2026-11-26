@@ -373,6 +373,7 @@ function peakTurn(value,id,{expression='',speech=''}={}){
     reply.dialogue=E.parseDialogue({expression,speech});
     reply.content=reply.dialogue.content;
     E.recordStateMessage(value,reply);
+    State.markCue(value,experience,id,State.turnSnapshot(value,experience,id));
     return reply.id;
 }
 const finishPeak=(sourceId)=>({completed:true,reason:'角色已进入安全区，并把门关好。',conditions:[
@@ -398,32 +399,39 @@ test('规则首个匹配、未知关系不命中，同一轮和历史记录保�
     assert.equal(custom(restored).records[0].snapshot.rule.name,'信任优先');
 });
 
-test('临界向正文提供反应，回合中才到顶时只核对剧情分',()=>{
-    const value=withState({...peakConfig,initialValue:99,interval:1,points:1});
-    E.recordStateMessage(value,{role:'user',kind:'dialogue',turnId:'t'});
-    const frozen=State.turnSnapshot(value,E.ensure(value),'t');
-    assert.match(E.statePrompt(value,frozen),/观察出口/);
+test('临界向正文提供反应，本轮中才到顶也能进入核对',()=>{
+    const near=withState({...peakConfig,initialValue:99,interval:10,points:1});
+    E.recordStateMessage(near,{role:'user',kind:'dialogue',turnId:'n'});
+    const frozen=State.turnSnapshot(near,E.ensure(near),'n');
     assert.equal(frozen.stage,'near');
+    assert.match(E.statePrompt(near,frozen),/观察出口/);
+    assert.match(E.statePrompt(near,frozen),/本轮行为要求/);
+    const value=withState({...peakConfig,initialValue:99,interval:1,points:1});
     peakTurn(value,'t',{expression:'她退进安全区并把门关好'});
     const context=State.judgeContext(value,E.ensure(value),'t');
-    assert.equal(context.peakCheck,undefined);
+    assert.equal(context.peakCheck.conditions.length,2);
     assert.equal(custom(value).value,100);
+    assert.match(E.statePrompt(value),/优先撤往安全区/);
 });
 
-test('峰值拒绝台词和不完整证据，补判只需缺失项，回落目标锁定且可以撤回',()=>{
+test('峰值证据放宽到台词和用户叙述，拒绝不完整证据，回落目标锁定且可以撤回',()=>{
+    const speech=withState(peakConfig);
+    const talk=peakTurn(speech,'talk',{speech:'退进安全区，把门关好。'});
+    E.applyJudgements(speech,'talk',{customState:{delta:0},peakOutcome:finishPeak(talk)},true);
+    assert.equal(custom(speech).value,40);
+
+    const player=withState(peakConfig);
+    turn(player,'我退进安全区并把门关好','u');
+    for(const message of player.messages.slice(-2))E.recordStateMessage(player,message);
+    State.markCue(player,E.ensure(player),'u',State.turnSnapshot(player,E.ensure(player),'u'));
+    E.applyJudgements(player,'u',{customState:{delta:0},peakOutcome:{completed:true,reason:'用户已写明完成',
+        conditions:[{id:1,sourceId:'u-u',quote:'退进安全区'},{id:2,sourceId:'u-u',quote:'把门关好'}]}},true);
+    assert.equal(custom(player).value,40);
+
     const value=withState(peakConfig);
-    const talk=peakTurn(value,'talk',{speech:'退进安全区，把门关好。'});
-    E.applyJudgements(value,'talk',{customState:{delta:0},peakOutcome:finishPeak(talk)},true);
-    assert.equal(custom(value).value,100);
-    const payload=JSON.parse(E.buildJudgeMessages(value,'talk',{},true)[1].content);
-    assert.equal(payload.customStateContext.reviewPlot,false);
-    assert.equal(payload.customStateContext.peakCheck.conditions.length,2);
-    E.applyJudgements(value,'talk',{peakOutcome:{completed:false,reason:'只是说了动作。'}},true);
-    assert.equal(State.canReview(value,E.ensure(value),'talk'),false);
-    assert.equal(custom(value).peak.plan.fallback,40);
-    State.configure(value,E.ensure(value),true,State.settings({...value.customStateSettings,
-        peak:{...value.customStateSettings.peak,fallback:10}}));
     const action=peakTurn(value,'action',{expression:'她退进安全区并把门关好'});
+    const payload=JSON.parse(E.buildJudgeMessages(value,'action',{},true)[1].content);
+    assert.equal(payload.customStateContext.peakCheck.conditions.length,2);
     const incomplete=finishPeak(action);
     incomplete.conditions.pop();
     E.applyJudgements(value,'action',{customState:{delta:0},peakOutcome:incomplete},true);
@@ -437,7 +445,17 @@ test('峰值拒绝台词和不完整证据，补判只需缺失项，回落目�
     assert.equal(custom(restored).records.at(-1).sources.length,2);
     E.revertTurn(value,'action');
     assert.equal(custom(value).value,100);
-    assert.equal(custom(value).peak.plan.fallback,40);
+});
+
+test('一次下降不取消待确认峰值，后续补确认仍能回落',()=>{
+    const value=withState(peakConfig);
+    const id=peakTurn(value,'one',{expression:'她退进安全区并把门关好'});
+    E.applyJudgements(value,'one',{customState:{delta:-3,reason:'紧张已经释放',sourceId:id,quote:'把门关好'},
+        peakOutcome:{completed:false,reason:'还需要确认'}},true);
+    assert.equal(custom(value).value,97);
+    assert.ok(custom(value).peak,'单次下降不能清掉待确认峰值');
+    E.applyJudgements(value,'one',{peakOutcome:finishPeak(id)},true);
+    assert.equal(custom(value).value,40);
 });
 
 test('自定义状态可单独补判更早回合，沿用原阶段并重新结算历史',()=>{
@@ -445,7 +463,7 @@ test('自定义状态可单独补判更早回合，沿用原阶段并重新结�
     const first=peakTurn(value,'first',{expression:'她退进安全区并把门关好'});
     peakTurn(value,'second',{expression:'她停留在门边'});
     E.applyJudgements(value,'second',{customState:{delta:0},peakOutcome:{completed:false,reason:'没有新变化'}},true);
-    assert.deepEqual(State.pendingTurns(value,E.ensure(value)).map(item=>item.turnId),['first']);
+    assert.deepEqual(State.pendingTurns(value,E.ensure(value)).map(item=>item.turnId),['second','first']);
     const prompt=E.buildJudgeMessages(value,'first',{},true);
     assert.match(prompt[0].content,/自定义状态证据核对器/);
     assert.doesNotMatch(prompt[1].content,/停留在门边/);

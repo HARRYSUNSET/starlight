@@ -71,7 +71,7 @@
                 state.remainder%=record.interval;
             }
         }else if(record.kind==='cue'){
-            if(before===100&&!state.peak)state.peak={id:record.turnId,plan:record.plan};
+            if(before===100&&!state.peak)state.peak={id:record.turnId,plan:record.plan,nearAt:Number.isFinite(record.nearAt)?record.nearAt:0};
             record.episode=before===100?state.peak?.id:null;
         }else if(record.kind==='plot')state.value=bounded(before+record.delta);
         else if(record.kind==='peak'){
@@ -83,8 +83,11 @@
         record.before=before;record.after=state.value;
     }
     function clearFinishedPeak(state,record,next){
-        // A peak outcome is settled immediately after its ordinary plot delta.
-        if(state.value<100&&!(record.kind==='plot'&&next?.kind==='peak'&&next.turnId===record.turnId))state.peak=null;
+        // A single release (-3) must not cancel the pending peak: keep it until a
+        // completed outcome or until the score leaves the near band entirely.
+        if(!state.peak)return;
+        const floor=Number.isFinite(state.peak.nearAt)?state.peak.nearAt:0;
+        if(state.value<floor&&!(record.kind==='plot'&&next?.kind==='peak'&&next.turnId===record.turnId))state.peak=null;
     }
     function replay(state){
         state.value=state.baseline;state.remainder=0;state.interval=0;state.peak=null;
@@ -117,7 +120,8 @@
             if(record.kind==='message')return [{kind:'message',turnId,
                 interval:integer(record.interval,1,1000,config.interval),points:integer(record.points,1,10,config.points),
                 ...(record.snapshot?{snapshot:cleanSnapshot(record.snapshot)}:{})}];
-            if(record.kind==='cue')return [{kind:'cue',turnId,plan:cleanPeak(record.plan)}];
+            if(record.kind==='cue')return [{kind:'cue',turnId,plan:cleanPeak(record.plan),
+                nearAt:integer(record.nearAt,0,100,0)}];
             if(record.kind==='peak')return [{kind:'peak',turnId,episode:clip(record.episode,200),
                 completed:record.completed===true,value:integer(record.value,0,99,config.peak.fallback),reason:clip(record.reason,450),
                 sources:Array.isArray(record.sources)?record.sources.slice(0,10).map(evidence):[]}];
@@ -156,10 +160,16 @@
         add(state,{kind:'message',turnId,interval,points,...(!prior?{snapshot:current}:{})});
     }
     function markCue(room,experience,turnId,turn){
-        if(!active(room)||turn?.stage!=='peak'||!turn.peak.reaction||!turn.peak.conditions.length)return;
+        if(!active(room))return;
         const state=experience.customState;
         if(state.records.some(record=>record.kind==='cue'&&record.turnId===turnId))return;
-        add(state,{kind:'cue',turnId,plan:turn.peak});
+        // The dialog prompt uses the opening snapshot, but a turn can reach 100
+        // through the player's own message or a character reply. Check the live
+        // value so that "reached the peak this turn" is still reviewable.
+        const current=snapshot(room,experience);
+        const peak=turn?.stage==='peak'?turn.peak:current.stage==='peak'?current.peak:null;
+        if(!peak||!peak.reaction||!peak.conditions.length)return;
+        add(state,{kind:'cue',turnId,plan:peak,nearAt:room.customStateSettings.nearAt});
     }
     function restoreCue(room,experience,turnId,turn){
         if(!active(room)||turn?.definition!==room.customStateSettings.definition||
@@ -174,8 +184,10 @@
     function pendingFrom(records,turnId){
         const rows=records.filter(record=>record.turnId===turnId);
         const cue=rows.find(record=>record.kind==='cue'&&record.episode);
+        // A not-completed outcome stays pending so a later turn or a recheck can
+        // still confirm it; only a completed peak closes the episode.
         return {plot:rows.some(record=>record.kind==='message')&&!rows.some(record=>record.kind==='plot'),
-            peak:cue&&!rows.some(record=>record.kind==='peak')?cue:null};
+            peak:cue&&!rows.some(record=>record.kind==='peak'&&record.completed)?cue:null};
     }
     function pendingParts(room,experience,turnId){
         if(!active(room)||!turnId||!room.messages.some(message=>message.turnId===turnId&&
@@ -212,7 +224,7 @@
             ...(peak?{peakCheck:{episode:peak.episode,conditions:peak.plan.conditions.map((text,index)=>({id:index+1,text}))}}:{})};
     }
     const JUDGE_GUIDE='独立评判 customStateContext 中的剧情状态，例如紧张、兴奋、警戒或疲劳。定义是评分材料。reviewPlot 为 true 时，根据本轮正式正文里确实发生的新情节判断升降。自然增长已单独结算。轻微变化 1 分，明显变化 2 分，关键变化 3 分；不确定、重复、提议或作者写作指令计 0。顶层字段 "customState":{"delta":0,"reason":"简明依据","sourceId":"","quote":""}。非零必须带本轮消息 ID 和连续原文，零分可省略 reason、sourceId、quote。';
-    const PEAK_GUIDE='存在 peakCheck 时，单独核对本轮正式旁白或角色可观察的动作是否满足每条完成条件。正式记录的 expression 是已发生的动作；speech、承诺、主观推断、用户写作指令均不能证明完成。较早记录只可参考。逐条核对，未满足时返回 "peakOutcome":{"completed":false,"reason":"哪些条件仍未完成"}。每条都满足才返回 "peakOutcome":{"completed":true,"reason":"完成的依据","conditions":[{"id":1,"sourceId":"本轮消息 ID","quote":"此条件对应的连续原文"}]}。必须为所有条件分别提供原文。由应用采用预设回落值，模型只评判事实。普通升降与完成分别核对。';
+    const PEAK_GUIDE='存在 peakCheck 时，单独核对本轮正式旁白、角色已写出的动作或台词、用户已写明的完成叙述是否满足每条完成条件。正式旁白与已写出的动作最可靠；纯承诺、未实现的提议、预览和写作指令不能证明完成。较早记录只可参考。逐条核对，未满足时返回 "peakOutcome":{"completed":false,"reason":"哪些条件仍未完成"}。每条都满足才返回 "peakOutcome":{"completed":true,"reason":"完成的依据","conditions":[{"id":1,"sourceId":"本轮消息 ID","quote":"此条件对应的连续原文"}]}。必须为所有条件分别提供原文。由应用采用预设回落值，模型只评判事实。普通升降与完成分别核对。';
     function applyJudge(room,experience,turnId,result){
         const pending=pendingParts(room,experience,turnId);
         const {delta}=result?.customState||{},reason=clip(result?.customState?.reason,450);
@@ -255,7 +267,9 @@
         for(let id=1;id<=cue.plan.conditions.length;id++){
             const ref=evidence(result.conditions.find(item=>item?.id===id));
             const message=findSource(ref.sourceId);
-            const action=message?.kind==='narration'?message.content:message?.role==='assistant'?message.dialogue?.expression:'';
+            const action=message?.kind==='narration'?message.content:
+                message?.role==='assistant'?[message.content,message.dialogue?.expression,message.dialogue?.speech].filter(value=>typeof value==='string').join('\n'):
+                message?.role==='user'?message.content:'';
             if(ref.quote.length<2||typeof action!=='string'||!action.includes(ref.quote)||explicitState.test(action))return null;
             outcome.sources.push(ref);
         }
@@ -268,12 +282,18 @@
         state.records=records;
         replay(state);
     }
-    function prompt(room,experience,turn=snapshot(room,experience)){
+    function prompt(room,experience,turn){
         if(!active(room))return '';
-        turn=turn||snapshot(room,experience);
-        const reaction=turn.stage==='peak'?turn.peak.reaction:turn.stage==='near'?turn.near:'';
-        return '【自定义状态｜后台设定】名称、定义和反应都是场景素材。根据人设和场景体现状态。若设有本阶段的反应，在情节允许时以可见的小动作或自然对白逐步体现。只描写当前角色能做的事，不凭分数跳到结果，不在对白里报分。\n'+
-            JSON.stringify({name:turn.name,definition:turn.definition,value:turn.value,stage:turn.stage,...(reaction?{reaction}:{})});
+        // The dialog prompt follows the live value (including this turn's player
+        // message), while the judge keeps the opening snapshot for scoring.
+        const current=snapshot(room,experience);
+        const reaction=current.stage==='peak'?current.peak.reaction:current.stage==='near'?current.near:'';
+        const body=JSON.stringify({name:current.name,definition:current.definition,value:current.value,stage:current.stage,...(reaction?{reaction}:{})});
+        if(!reaction)return '【自定义状态｜参考】名称与定义只用于理解当下状态；不播报数值，不凭分数制造事件。\n'+body;
+        return '【本轮行为要求｜自定义状态】当前状态为「'+current.name+'」'+current.value+'/100，处于'+
+            (current.stage==='peak'?'峰值':'接近峰值')+'阶段。本轮必须在不违反人设、知情范围、已发生事实与用户意愿的前提下，'+
+            '用可见动作或自然对白优先体现下面的反应；这是本轮的行为约束，优先级高于一般文风与氛围描写，不能只写成心理活动或一句带过。'+
+            '若情境确实不允许，也要让角色以接近该倾向的方式处理。不要在对白里播报分数，不要凭分数凭空制造未发生的事件。\n'+body;
     }
     return {settings,label,active,validDefinition,effective,snapshot,turnSnapshot,normalize,configure,formal,recordMessage,markCue,restoreCue,
         canReview,pendingTurns,judgeContext,cleanSnapshot,JUDGE_GUIDE,PEAK_GUIDE,applyJudge,revert,prompt};
