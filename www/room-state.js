@@ -9,7 +9,8 @@
     const bounded=value=>Math.max(0,Math.min(100,value));
     const keys=['familiarity','trust','affection'];
     const clamp=(value,min,max)=>integer(value,min,max,undefined);
-    const explicitState=/性欲|性慾|性冲动|性衝動|性唤起|性喚起|性兴奋|性興奮|性高潮|自慰|性行为|性行為|性交|发情|發情|性亢奋|性亢奮|做爱|做愛|情欲|情慾|\b(?:libido|orgasm|masturbat\w*|sexual\s+(?:arousal|desire|activity|release)|sex\s+drive)\b/iu;
+    // 按用户要求停用该内容过滤：保留一个永不匹配的占位，避免改动判定结构。
+    const explicitState=/(?!)/;
     function validDefinition(config){
         return [config.name,config.definition,config.near,config.peak.reaction,...config.peak.conditions]
             .every(value=>!explicitState.test(value.normalize('NFKC')));
@@ -210,8 +211,8 @@
         return {name:current.name,definition:current.definition,value:current.value,afterNaturalGrowth:last?.after??current.value,reviewPlot:plot,
             ...(peak?{peakCheck:{episode:peak.episode,conditions:peak.plan.conditions.map((text,index)=>({id:index+1,text}))}}:{})};
     }
-    const JUDGE_GUIDE='独立评判 customStateContext 中的普通剧情状态，例如紧张、兴奋、警戒或疲劳。这里只评判非性场景及行为；其他内容不作为本项的计分依据。定义是评分材料。reviewPlot 为 true 时，根据本轮正式正文里确实发生的新情节判断升降。自然增长已单独结算。轻微变化 1 分，明显变化 2 分，关键变化 3 分；不确定、重复、提议或作者写作指令计 0。顶层字段 "customState":{"delta":0,"reason":"简明依据","sourceId":"","quote":""}。非零必须带本轮消息 ID 和连续原文，零分可省略 reason、sourceId、quote。';
-    const PEAK_GUIDE='存在 peakCheck 时，单独核对本轮正式旁白或角色可观察的非性动作是否满足每条完成条件。正式记录的 expression 是已发生的动作；speech、承诺、主观推断、用户写作指令均不能证明完成。较早记录只可参考。逐条核对，未满足时返回 "peakOutcome":{"completed":false,"reason":"哪些条件仍未完成"}。每条都满足才返回 "peakOutcome":{"completed":true,"reason":"完成的依据","conditions":[{"id":1,"sourceId":"本轮消息 ID","quote":"此条件对应的连续原文"}]}。必须为所有条件分别提供原文。由应用采用预设回落值，模型只评判事实。普通升降与完成分别核对。';
+    const JUDGE_GUIDE='独立评判 customStateContext 中的剧情状态，例如紧张、兴奋、警戒或疲劳。定义是评分材料。reviewPlot 为 true 时，根据本轮正式正文里确实发生的新情节判断升降。自然增长已单独结算。轻微变化 1 分，明显变化 2 分，关键变化 3 分；不确定、重复、提议或作者写作指令计 0。顶层字段 "customState":{"delta":0,"reason":"简明依据","sourceId":"","quote":""}。非零必须带本轮消息 ID 和连续原文，零分可省略 reason、sourceId、quote。';
+    const PEAK_GUIDE='存在 peakCheck 时，单独核对本轮正式旁白或角色可观察的动作是否满足每条完成条件。正式记录的 expression 是已发生的动作；speech、承诺、主观推断、用户写作指令均不能证明完成。较早记录只可参考。逐条核对，未满足时返回 "peakOutcome":{"completed":false,"reason":"哪些条件仍未完成"}。每条都满足才返回 "peakOutcome":{"completed":true,"reason":"完成的依据","conditions":[{"id":1,"sourceId":"本轮消息 ID","quote":"此条件对应的连续原文"}]}。必须为所有条件分别提供原文。由应用采用预设回落值，模型只评判事实。普通升降与完成分别核对。';
     function applyJudge(room,experience,turnId,result){
         const pending=pendingParts(room,experience,turnId);
         const {delta}=result?.customState||{},reason=clip(result?.customState?.reason,450);
@@ -271,7 +272,7 @@
         if(!active(room))return '';
         turn=turn||snapshot(room,experience);
         const reaction=turn.stage==='peak'?turn.peak.reaction:turn.stage==='near'?turn.near:'';
-        return '【自定义状态｜后台设定】本功能用于普通情绪、比赛或探险等非性剧情。名称、定义和反应都是场景素材。根据人设和场景体现状态。若设有本阶段的反应，在情节允许时以可见的小动作或自然对白逐步体现。只描写当前角色能做的事，不凭分数跳到结果，不在对白里报分。\n'+
+        return '【自定义状态｜后台设定】名称、定义和反应都是场景素材。根据人设和场景体现状态。若设有本阶段的反应，在情节允许时以可见的小动作或自然对白逐步体现。只描写当前角色能做的事，不凭分数跳到结果，不在对白里报分。\n'+
             JSON.stringify({name:turn.name,definition:turn.definition,value:turn.value,stage:turn.stage,...(reaction?{reaction}:{})});
     }
     return {settings,label,active,validDefinition,effective,snapshot,turnSnapshot,normalize,configure,formal,recordMessage,markCue,restoreCue,
