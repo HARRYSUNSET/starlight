@@ -15,8 +15,8 @@
         : globalThis.StarlightStyleLab;
     const Experience = typeof module === 'object' && module.exports
         ? require('./room-engine.js') : globalThis.StarlightRoomEngine;
-    const Desire = typeof module === 'object' && module.exports
-        ? require('./room-desire.js') : globalThis.StarlightRoomDesire;
+    const State = typeof module === 'object' && module.exports
+        ? require('./room-state.js') : globalThis.StarlightRoomState;
     const Voice = typeof module === 'object' && module.exports
         ? require('./voice.js') : globalThis.StarlightVoice;
 
@@ -190,7 +190,7 @@
             if (seen.has(id)) return [];
             seen.add(id);
             const thresholds = {};
-            for (const key of Object.keys(Experience.RELATION_LABELS)) {
+            for (const key of [...Object.keys(Experience.RELATION_LABELS), 'customState', 'desire']) {
                 const value = event.thresholds?.[key];
                 if (typeof value === 'number' && Number.isFinite(value)) thresholds[key] = finiteInt(value, 0, 0, 100);
             }
@@ -304,8 +304,10 @@
             experience: source.experience,
             relationshipEvents: roomType === 'double' ? normalizeRelationshipEvents(
                 source.relationshipEvents ?? source.intimacy?.nodes) : [],
-            desireEnabled: roomType === 'double' && source.desireEnabled === true,
-            ...(roomType==='double'?{desireSettings:Desire.settings(source.desireSettings)}:{}),
+            customStateEnabled: roomType === 'double' && source.customStateEnabled === true,
+            customStateSettings: State.settings(source.customStateSettings),
+            ...(source.desireEnabled!==undefined?{desireEnabled:source.desireEnabled===true}:{}),
+            ...(source.desireSettings?{desireSettings:source.desireSettings}:{}),
             createdAt: Number(source.createdAt) || Date.now(),
             updatedAt: Number(source.updatedAt) || Date.now(),
         };
@@ -410,7 +412,7 @@
         return lines.length ? lines.join('\n') : '（没有其他在场角色）';
     }
 
-    function buildCharacterPromptParts(room, member, contexts = {}, styleInfluencePrompt) {
+    function buildCharacterPromptParts(room, member, contexts = {}, styleInfluencePrompt, stateSnapshot) {
         const availableNodes = Experience.availableNodes(room);
         const characterMemory = asString(contexts.characterMemory).trim();
         const sharedMemory = asString(contexts.sharedMemory).trim();
@@ -451,7 +453,7 @@
                 : '（尚未达到任何自定义节点）'));
             dynamicSections.push('达到节点只表示相关互动在人物和情境允许时可以发生，并不要求立刻发生；仍须尊重人设、上下文与用户意愿。');
         }
-        if(Experience)dynamicSections.push(Experience.desirePrompt(room,member.id));
+        if(Experience)dynamicSections.push(Experience.statePrompt(room,stateSnapshot));
         const strategy = StyleLab?.getPromptStrategy(styleInfluencePrompt) || { priority: 0 };
         if (room.styleEnabled && room.stylePrompt && (strategy.priority < 2 || room.stylePrompt !== STORY_STYLE_GUIDE)) {
             sections.push((strategy.priority >= 2 ? '【原有文风补充｜仅采用不冲突的表达】\n' : '【自然表达规则】\n') + room.stylePrompt);
@@ -482,7 +484,7 @@
         return [parts.stableSystemPrompt, parts.dynamicPrompt].join('\n\n');
     }
 
-    function buildCharacterMessages(room, memberId, contexts, recentLimit, memoryApi, styleInfluencePrompt) {
+    function buildCharacterMessages(room, memberId, contexts, recentLimit, memoryApi, styleInfluencePrompt, stateSnapshot) {
         const member = getMember(room, memberId);
         if (!member) throw new Error('找不到待发言角色');
         const summarizedUntil = Number(room.sharedMemory?.summarizedUntil) || 0;
@@ -504,7 +506,7 @@
         const voiceBlock = Voice
             ? Voice.turnBlock({ lastUserText: latestInput?.content || '', turnIndex: (room.messages || []).length, seed: asString(room.id), room: true })
             : '';
-        const parts = buildCharacterPromptParts(room, member, contexts || {}, styleInfluencePrompt);
+        const parts = buildCharacterPromptParts(room, member, contexts || {}, styleInfluencePrompt, stateSnapshot);
         return [
             { role: 'system', content: parts.stableSystemPrompt },
             { role: 'system', content: parts.dynamicPrompt + `\n\n【本轮节奏】\n${pacing}` + (voiceBlock ? `\n\n${voiceBlock}` : '') },
@@ -557,7 +559,7 @@
         ];
     }
 
-    function buildNarrationMessages(room, hint, styleInfluencePrompt) {
+    function buildNarrationMessages(room, hint, styleInfluencePrompt, stateSnapshot) {
         const recent = room.messages.slice(-18).map(message => {
             if (message.role === 'assistant') return `${getMember(room, message.speakerId)?.name || '角色'}：${message.content}`;
             if (message.role === 'user') return `用户：${message.content}`;
@@ -570,7 +572,7 @@
                     '你是房间场景旁白，只描写所有在场者可以观察到的环境变化、时间推进或必要动作衔接。',
                     '不得替用户行动、发言、思考或感受；不得替任何角色写台词或内心；不得泄露秘密。',
                     '只有确有必要时才写一到三句简短旁白；旁白正文写入返回 JSON 的 narration 字段，不要加标题、解释或 Markdown。',
-                    Desire.sceneCue(room),
+                    Experience.statePrompt(room,stateSnapshot),
                     asString(styleInfluencePrompt).trim(),
                 ].filter(Boolean).join('\n\n'),
             },

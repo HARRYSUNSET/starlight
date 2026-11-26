@@ -90,7 +90,7 @@ async function main() {
         await send('Emulation.setTouchEmulationEnabled', { enabled:true, maxTouchPoints:1 });
         const evaluate = async expression => {
             const response = await send('Runtime.evaluate', { expression, returnByValue:true, awaitPromise:true });
-            if (response.exceptionDetails) throw new Error(JSON.stringify(response.exceptionDetails));
+            if (response.exceptionDetails) throw new Error(JSON.stringify([response.exceptionDetails,...exceptions]));
             return response.result.value;
         };
         const conversations = Array.from({ length:236 }, (_, index) => ({
@@ -298,7 +298,7 @@ async function main() {
             return;
         }
         async function checkAssessmentLayout(width,height){
-            for(const key of ['events','desire']){
+            for(const key of ['events','customState']){
                 await click(`[data-relation-tab="${key}"]`);
                 await evaluate('document.querySelector(".room-experience-scroll").scrollTop=1e8');
                 const layout=await evaluate(`(()=>{
@@ -309,7 +309,7 @@ async function main() {
                 })()`);
                 assert.equal(layout,true,'Assessment '+key+' must fit and allow saving at '+width+'x'+height);
             }
-            if(width===390){await evaluate('document.querySelector(".room-experience-scroll").scrollTop=0');await screenshot('room-assessment-v340');}
+            if(width===390){await evaluate('document.querySelector(".room-experience-scroll").scrollTop=0');await screenshot('room-assessment-v350');}
         }
         if(process.argv.includes('--rooms')) {
             await resize(390,844);await click('#homeStoryList [data-work-id="ui-story"]');

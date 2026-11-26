@@ -1,7 +1,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const E=require('../www/room-engine.js');
-const Desire=require('../www/room-desire.js');
+const State=require('../www/room-state.js');
 const Rooms=require('../www/rooms.js');
 const Memory=require('../www/memory.js');
 function room(input={}){return Rooms.normalizeRoom({id:'test-room',roomType:'double',scenePrompt:'午后的教室',participants:[{id:'a',name:'小夏',personaPrompt:'重视守约，不因一句夸奖就恋爱。'}],messages:[],...input},Memory);}
@@ -162,188 +162,12 @@ test('已知维度门槛均达标才开放事件，换剧情条件需要重新�
     assert.deepEqual(E.availableNodes(value).map(event=>event.id),['known']);
 });
 
-const score=value=>E.ensure(value).desire.value;
-const environment=(sourceId,quote,direction='raise',factor='周围恢复安静',strength=2)=>
-    ({type:'environment',sourceId,quote,direction,factor,strength});
-const release=(sourceId,quote)=>({type:'release',sourceId,quote});
-
-test('基础时钟累积小数，预约、静止对话和普通转场不结算',()=>{
-    const value=room({desireEnabled:true,desireSettings:{initialValue:10}});
-    turn(value,'三小时后见。','appointment');
-    E.applyDesireTime(value,'appointment');
-    assert.equal(score(value),10);
-    turn(value,'三小时后，街上才重新安静下来。','first');
-    E.applyDesireTime(value,'first');
-    E.applyDesireTime(value,'first');
-    assert.equal(score(value),10.5);
-    turn(value,'（半小时后）回到了休息室。','second');
-    E.applyJudgements(value,'second',judgement('second','回到了休息室'));
-    assert.ok(Math.abs(score(value)-(10.5+1/12))<1e-7);
-    const before=score(value);
-    E.acceptScene(value,E.sceneCandidate(value,{narration:'她挪到了窗边。',state:{place:'窗边'}},'',E.stamp(value)));
-    assert.equal(score(value),before);
-    assert.deepEqual(E.ensure(value).desire.history.map(entry=>entry.kind),['time','time']);
-});
-
-test('多个个性化规则按优先顺序匹配，空缺字段沿用基础值',()=>{
-    const value=room({desireEnabled:true,desireSettings:{initialValue:50,hoursPerPoint:6,resetValue:8,rules:[
-        {thresholds:{trust:90},hoursPerPoint:4,resetValue:22},
-        {thresholds:{trust:60,familiarity:50},hoursPerPoint:3},
-        {thresholds:{trust:60},resetValue:16},
-        {thresholds:{affection:0},resetValue:25},
-    ]}});
-    E.calibrate(value,'a',{familiarity:50,trust:65});
-    assert.deepEqual(Desire.effective(value.desireSettings,E.ensure(value).relations.a),{hoursPerPoint:3,growthPoints:1,resetValue:8});
-    E.calibrate(value,'a',{trust:95});
-    assert.deepEqual(Desire.effective(value.desireSettings,E.ensure(value).relations.a),{hoursPerPoint:4,growthPoints:1,resetValue:22});
-    E.ensure(value).relations.a.knownDimensions=[];
-    assert.deepEqual(Desire.effective(value.desireSettings,E.ensure(value).relations.a),{hoursPerPoint:6,growthPoints:1,resetValue:8});
-});
-
-test('增长量可独立覆盖，旧设置默认每段增加 1 分',()=>{
-    const value=room({desireEnabled:true,desireSettings:{growthPoints:4,rules:[{thresholds:{trust:70},growthPoints:10}]}});
-    assert.equal(Desire.settings({hoursPerPoint:2}).growthPoints,1);
-    turn(value,'三小时后，来到窗边。','first');
-    E.applyDesireTime(value,'first');
-    assert.equal(score(value),2);
-    E.calibrate(value,'a',{trust:75});
-    turn(value,'三小时后，走到门边。','second');
-    E.applyDesireTime(value,'second');
-    assert.equal(score(value),7);
-    E.revertTurn(value,'second');
-    assert.equal(score(value),2);
-});
-
-test('欲望时刻只在三维全满后开启，冻结评分，关闭后从原分继续',()=>{
-    const value=room({desireEnabled:true,desireSettings:{initialValue:27,rules:[{thresholds:{trust:100},growthPoints:4}]},
-        relationshipEvents:[{description:'可选节点',thresholds:{desire:100}}]});
-    const exp=E.ensure(value);
-    E.calibrate(value,'a',{familiarity:100,affection:100,trust:99});
-    assert.throws(()=>Desire.setPeak(value,exp,true),/达到 100/);
-    E.calibrate(value,'a',{trust:100});
-    Desire.setPeak(value,exp,true);
-    assert.equal(Desire.displayedValue(value),100);
-    assert.equal(E.availableNodes(value).length,1);
-    turn(value,'六小时后，门外安静了。','paused');
-    value.messages.forEach(message=>message.createdAt=10);
-    E.applyDesireTime(value,'paused');
-    E.applyJudgements(value,'paused',{...judgement('paused','门外安静了'),desireEvents:[environment('paused-u','门外安静了')]});
-    assert.equal(score(value),27);
-    assert.deepEqual(exp.desire.history,[]);
-    assert.doesNotMatch(JSON.stringify(E.buildJudgeMessages(value,'paused')),/"type":"release"|desireContext/);
-    assert.match(JSON.stringify(E.buildJudgeMessages(value,'paused')),/desireStep/);
-    E.calibrate(value,'a',{trust:99});
-    assert.equal(Desire.displayedValue(value),100);
-    const revived=Rooms.normalizeRoom(JSON.parse(JSON.stringify(value)),Memory);
-    assert.equal(Desire.displayedValue(revived),100);
-    Desire.setPeak(value,exp,false,20);
-    assert.equal(Desire.displayedValue(value),27);
-    assert.equal(E.availableNodes(value).length,0);
-    turn(value,'六小时后，她到了门口。','resumed');
-    value.messages.slice(-2).forEach(message=>message.createdAt=30);
-    E.applyDesireTime(value,'resumed');
-    assert.equal(score(value),28);
-});
-
-test('两种满分状态都提示角色主动行动，情景可承接，低分和关闭时不提示',()=>{
-    const value=room({desireEnabled:true,desireSettings:{initialValue:89,peakBehavior:'角色的私有安排'}});
-    const dialogue=()=>Rooms.buildCharacterMessages(value,'a',{},100,Memory).map(message=>message.content).join('\n');
-    const narration=()=>Rooms.buildNarrationMessages(value,'自然推进')[0].content;
-    assert.doesNotMatch(dialogue(),/峰值时的角色行动/);
-    assert.doesNotMatch(narration(),/峰值后的情景衔接/);
-    const experience=E.ensure(value);
-    Desire.calibrate(experience.desire,100);
-    assert.match(dialogue(),/本轮给当前角色一个具体、可感知的主动步骤/);
-    assert.equal(value.desireSettings.steps[1].action,'角色的私有安排');
-    assert.match(narration(),/峰值后的情景衔接/);
-    assert.doesNotMatch(narration(),/角色的私有安排/);
-
-    value.desireEnabled=false;
-    assert.doesNotMatch(dialogue(),/峰值时的角色行动/);
-    assert.doesNotMatch(narration(),/峰值后的情景衔接/);
-    E.calibrate(value,'a',{familiarity:100,trust:100,affection:100});
-    Desire.setPeak(value,experience,true);
-    assert.match(dialogue(),/欲望时刻已开启/);
-    assert.match(dialogue(),/本轮给当前角色一个具体、可感知的主动步骤/);
-    assert.match(narration(),/峰值后的情景衔接/);
-});
-
-test('环境与完成事件从正式记录独立结算，同一变化不重复叠加',()=>{
-    const value=room({desireEnabled:true,desireSettings:{initialValue:97,resetValue:11,sensitivity:150}});
-    value.participants[0].relationshipPolicy.enabled=false;
-    turn(value,'关门后，房间终于安静下来。','quiet');
-    const reply={judgements:[],desireEvents:[environment('quiet-u','房间终于安静下来')]};
-    assert.equal(Desire.canJudge(value,'quiet'),true);
-    assert.match(JSON.stringify(E.buildJudgeMessages(value,'quiet')),/desireContext/);
-    E.applyJudgements(value,'quiet',reply);
-    E.applyJudgements(value,'quiet',reply);
-    assert.equal(score(value),100);
-    assert.equal(E.ensure(value).relations.a.trust,0);
-    assert.match(E.desirePrompt(value,'a'),/峰值/);
-    turn(value,'房间仍然安静。','quiet2');
-    E.applyJudgements(value,'quiet2',{judgements:[],desireEvents:[environment('quiet2-u','房间仍然安静')]});
-    assert.equal(E.ensure(value).desire.history.length,1);
-    turn(value,'门外突然传来巨响。','noise');
-    E.applyJudgements(value,'noise',{judgements:[],desireEvents:[environment('noise-u','传来巨响','lower','门外巨响')]});
-    assert.equal(score(value),97);
-    turn(value,'她想要找时间独处。','pending');
-    E.applyJudgements(value,'pending',{judgements:[],desireEvents:[release('pending-u','想要找时间独处'),release('pending-a','正文不存在')]});
-    assert.equal(score(value),97);
-    turn(value,'继续。','done');
-    value.messages.at(-1).content='（她确认已经完成了纾解。）';
-    E.applyJudgements(value,'done',{judgements:[],desireEvents:[release('done-a','已经完成了纾解')]});
-    assert.equal(score(value),11);
-    E.revertTurn(value,'done');
-    assert.equal(score(value),97);
-});
-
-test('只在采纳后写入情景变化，修改过的正文要求重新确认，撤回恢复时钟',()=>{
-    const value=room({desireEnabled:true,desireSettings:{initialValue:24,hoursPerPoint:6,resetValue:5}});
-    const narration='六小时后，房间暖了起来。';
-    const result={narration,state:{time:'傍晚'},desireEvents:[environment('','房间暖了起来')]};
-    let candidate=E.sceneCandidate(value,result,'',E.stamp(value));
-    assert.equal(score(value),24);
-    E.acceptScene(value,candidate);
-    assert.equal(score(value),27);
-    const turnId=value.messages.at(-1).turnId;
-    E.revertTurn(value,turnId);
-    value.messages.pop();
-    assert.equal(score(value),24);
-    candidate=E.sceneCandidate(value,result,'',E.stamp(value));
-    candidate.content='她只是走到房间的另一头。';
-    candidate.elapsedMinutes=180;
-    candidate.environmentOverride=-1;
-    E.acceptScene(value,candidate);
-    assert.equal(score(value),23.5);
-});
-
-test('旧房间继承启用状态、已有性欲度与事件门槛，关闭暂停且再次开启延续数值',()=>{
-    const value=room({desireEnabled:true,experience:{version:1,relations:{a:{known:true,knownDimensions:['desire','trust'],desire:18,trust:22}}},
-        relationshipEvents:[{id:'optional',description:'可选事件',thresholds:{desire:12}}]});
-    assert.equal(score(value),18);
-    assert.equal(E.ensure(value).relations.a.desire,undefined);
-    assert.equal(E.availableNodes(value)[0].id,'optional');
-    value.desireEnabled=false;
-    turn(value,'六小时后，两人又见面了。','disabled');
-    E.applyDesireTime(value,'disabled');
-    assert.equal(score(value),18);
-    assert.deepEqual(E.availableNodes(value),[]);
-    assert.doesNotMatch(JSON.stringify(E.buildJudgeMessages(value,'disabled')),/desireEvents|性欲度/);
-    value.desireEnabled=true;
-    const restored=Rooms.normalizeRoom(JSON.parse(JSON.stringify(value)),Memory);
-    assert.equal(score(restored),18);
-    assert.equal(E.availableNodes(restored)[0].id,'optional');
-    E.ensure(restored).desire.enabledSince=Date.now()+1000;
-    assert.equal(Desire.canJudge(restored,'disabled'),false);
-    E.applyDesireTime(restored,'disabled');
-    assert.equal(score(restored),18);
-});
-
 test('有实质新了解的对话只许可熟悉度增加，零分与实计原因都可回查',()=>{
     const value=room();
     E.calibrate(value,'a',{policy:{criteria:{familiarity:{increase:'在日常交谈中了解新习惯'}}}});
     const quote='我每天傍晚去河边散步';
     turn(value,quote,'new-info');
+    assert.match(JSON.stringify(E.buildJudgeMessages(value,'new-info')),/在日常交谈中了解新习惯/);
     E.applyJudgements(value,'new-info',judgement('new-info',quote,{kind:'conversation',reasons:{familiarity:'首次了解日常习惯'}}));
     const audit=value.turnEffects['new-info'].relationshipAudit.records[0];
     assert.equal(audit.applied.familiarity,1);
@@ -351,58 +175,246 @@ test('有实质新了解的对话只许可熟悉度增加，零分与实计原�
     assert.equal(audit.applied.trust,0);
     assert.equal(audit.causes.trust,'criteria');
     assert.equal(audit.reasons.familiarity,'首次了解日常习惯');
-    assert.match(JSON.stringify(E.buildJudgeMessages(value,'new-info')),/在日常交谈中了解新习惯/);
     turn(value,'好的','neutral');
     E.applyJudgements(value,'neutral',{judgements:[{memberId:'a',sources:[],familiarity:0,trust:0,affection:0}]});
     assert.equal(value.turnEffects.neutral.relationshipAudit.records[0].applied.affection,0);
     assert.equal(value.turnEffects.neutral.relationshipAudit.records[0].causes.affection,'steady');
 });
 
-test('达到准备阈值后逐步确认，满分不跳过未完成准备，撤回可回退阶段',()=>{
-    const value=room({desireEnabled:true,desireSettings:{initialValue:89,prepareAt:90}});
-    assert.equal(Desire.stage(value).ready,false);
-    turn(value,'六小时后，外面安静了。','tick');
-    E.applyDesireTime(value,'tick');
-    assert.equal(score(value),90);
-    assert.equal(Desire.stage(value).next.id,'prepare');
-    assert.match(E.desirePrompt(value,'a'),/进入准备阶段/);
-    Desire.calibrate(E.ensure(value).desire,100);
-    turn(value,'继续对话。','prep');
-    value.messages.at(-1).content='让我独处一会儿，然后我们再接着聊。';
-    const result=judgement('prep','继续对话。',{familiarity:0,trust:0,affection:0});
-    result.desireEvents=[{type:'step',stepId:'act',sourceId:'prep-a',quote:'让我独处一会儿'}];
-    E.applyJudgements(value,'prep',result);
-    assert.equal(Desire.stage(value).next.id,'prepare');
-    result.desireEvents[0].stepId='prepare';
-    const trust=E.ensure(value).relations.a.trust;
-    E.applyJudgements(value,'prep',result);
-    assert.equal(Desire.stage(value).next.id,'act');
-    assert.equal(E.ensure(value).relations.a.trust,trust);
-    E.revertTurn(value,'prep');
-    assert.equal(Desire.stage(value).next.id,'prepare');
+function withState(config={},extra={}){
+    return room({customStateEnabled:true,customStateSettings:{name:'紧张度',definition:'未知危险提高紧张，确认安全降低紧张。',
+        initialValue:15,interval:3,points:4,...config},...extra});
+}
+const custom=value=>E.ensure(value).customState;
+function scoredTurn(value,content,turnId){
+    turn(value,content,turnId);
+    for(const message of value.messages.slice(-2))E.recordStateMessage(value,message);
+}
+const change=(turnId,quote,delta)=>({delta,reason:'现场出现明确变化。',sourceId:turnId+'-u',quote});
+
+test('自定义状态按正式消息分段累计，重新加载与撤回保留跨轮进度',()=>{
+    const value=withState();
+    scoredTurn(value,'查看窗外','one');
+    E.recordStateMessage(value,{role:'system',kind:'control',turnId:'one'});
+    assert.equal(custom(value).value,15);
+    assert.equal(custom(value).remainder,2);
+    const restored=room(JSON.parse(JSON.stringify(value)));
+    scoredTurn(restored,'确认走廊安全','two');
+    assert.equal(custom(restored).value,19);
+    assert.equal(custom(restored).remainder,1);
+    E.revertTurn(restored,'two');
+    assert.equal(custom(restored).value,15);
+    assert.equal(custom(restored).remainder,2);
 });
 
-test('三维格式失败仍可按有效来源回落，漏报可手动确认且不会重复结算',()=>{
-    const build=()=>room({desireEnabled:true,desireSettings:{initialValue:100,resetValue:18}});
-    const first=build();
-    turn(first,'继续。','done');
-    first.messages.at(-1).content='她确认已完成了纾解。';
-    E.applyJudgements(first,'done',{judgements:[],desireEvents:[release('done-a','已完成了纾解')]});
-    assert.equal(first.turnEffects.done.relationshipAudit.status,'failed');
-    assert.equal(first.turnEffects.done.desireReview,'settled');
-    assert.equal(score(first),18);
+test('剧情与三维独立核对，可凭本轮正文加减分并且只结算一次',()=>{
+    const value=withState();
+    scoredTurn(value,'门外突然传来巨响','danger');
+    const prompt=E.buildJudgeMessages(value,'danger');
+    assert.equal(JSON.parse(prompt[1].content).customStateContext.name,'紧张度');
+    E.applyJudgements(value,'danger',{...judgement('danger','门外突然传来巨响'),customState:change('danger','突然传来巨响',3)});
+    E.applyJudgements(value,'danger',{judgements:[],customState:change('danger','突然传来巨响',3)});
+    assert.equal(custom(value).value,18);
+    assert.equal(E.ensure(value).relations.a.trust,2);
+    assert.equal(E.canRecheck(value,'danger'),false);
+    scoredTurn(value,'调查后确认安全','safe');
+    E.applyJudgements(value,'safe',{customState:change('safe','确认安全',-2)});
+    assert.equal(custom(value).value,20);
+    assert.equal(E.canRecheck(value,'safe'),true);
+    assert.equal(custom(value).records.at(-1).quote,'确认安全');
+});
 
-    const second=build();
-    turn(second,'继续。','manual');
-    const message=second.messages.at(-1);
-    message.content='她确认已完成了纾解。';
-    E.applyJudgements(second,'manual',{judgements:[{memberId:'a',sources:[],familiarity:0,trust:0,affection:0}],desireEvents:[]});
-    assert.equal(second.turnEffects.manual.desireReview,'unconfirmed');
-    assert.equal(E.canRecheck(second,'manual'),true);
-    Desire.confirmMessage(second,E.ensure(second),message,'release');
-    assert.equal(score(second),18);
-    assert.equal(second.turnEffects.manual.desireReview,'settled');
-    assert.throws(()=>Desire.confirmMessage(second,E.ensure(second),message,'release'),/重复确认/);
-    E.revertRelations(second,'manual');
-    assert.equal(score(second),100);
+test('拒绝伪造引文和越界分值，补判不重复累计消息或改动已核对的三维',()=>{
+    const value=withState({interval:2,initialValue:99});
+    scoredTurn(value,'窗外传来巨响','t');
+    E.applyJudgements(value,'t',{...judgement('t','窗外传来巨响'),customState:change('t','从未出现',3)});
+    E.applyJudgements(value,'t',{customState:change('t','窗外传来巨响',9)});
+    assert.equal(custom(value).value,100);
+    assert.equal(E.canRecheck(value,'t'),true);
+    const cleared=change('t','窗外传来巨响',-2);
+    E.applyJudgements(value,'t',{customState:cleared});
+    assert.equal(custom(value).value,98);
+    assert.equal(E.ensure(value).relations.a.trust,2);
+    assert.equal(E.canRecheck(value,'t'),false);
+});
+
+test('情景预览不计分，采纳编辑后的正文才计一条并可核对剧情',()=>{
+    const value=withState({interval:1,points:2});
+    const draft=E.sceneCandidate(value,{narration:'雷声响了。',state:{time:'晚上'}},'',E.stamp(value));
+    assert.equal(custom(value).records.length,0);
+    draft.content='暴雨停了。';
+    const sourceId=E.acceptScene(value,draft),turnId=E.latestReviewTurn(value);
+    assert.equal(custom(value).value,17);
+    assert.equal(E.canRecheck(value,turnId),true);
+    E.applyJudgements(value,turnId,{customState:{sourceId,quote:'暴雨停了',reason:'环境平静下来',delta:-2}});
+    assert.equal(custom(value).value,15);
+    E.revertTurn(value,turnId);
+    assert.equal(custom(value).records.length,0);
+});
+
+test('修改正文保留条数，撤销旧剧情分并重新核对；作者校准优先于早先回合',()=>{
+    const value=withState({interval:2});
+    scoredTurn(value,'听到响动','t');
+    E.applyJudgements(value,'t',{...judgement('t','听到响动'),customState:change('t','听到响动',3)});
+    E.revertRelations(value,'t');
+    assert.equal(custom(value).value,19);
+    assert.equal(custom(value).records.length,2);
+    State.configure(value,E.ensure(value),true,value.customStateSettings,45);
+    E.applyJudgements(value,'t',{...judgement('t','听到响动'),customState:change('t','听到响动',2)});
+    assert.equal(custom(value).value,45);
+    E.revertTurn(value,'t');
+    assert.equal(custom(value).value,45);
+});
+
+test('旧第四项与门槛保留在归档，不自动启用或继承为自定义状态',()=>{
+    const old=room({desireEnabled:true,desireSettings:{initialValue:20},experience:{desire:{value:99}},
+        relationshipEvents:[{id:'old',description:'旧事件',thresholds:{desire:10}}]});
+    assert.deepEqual(E.dimensions(old),['familiarity','trust','affection']);
+    assert.equal(old.experience.desire.value,99);
+    assert.doesNotMatch(JSON.stringify(Rooms.buildCharacterMessages(old,'a',{},100,Memory)),/自定义状态/);
+    State.configure(old,E.ensure(old),true,State.settings({name:'警戒',definition:'对风险的注意程度',initialValue:20}));
+    assert.equal(custom(old).value,20);
+    assert.deepEqual(E.availableNodes(old),[]);
+    old.relationshipEvents[0].thresholds={customState:10};
+    assert.equal(E.availableNodes(old)[0].id,'old');
+    const group=withState({}, {roomType:'group'});
+    assert.equal(State.active(group),false);
+    assert.equal(E.statePrompt(group),'');
+});
+
+test('仅重命名保留分数，改含义从初始值重新开始，关闭时暂停累加',()=>{
+    const value=withState({interval:2});
+    scoredTurn(value,'查看窗外','a');
+    const config={...value.customStateSettings,name:'危险感'};
+    State.configure(value,E.ensure(value),false,config);
+    scoredTurn(value,'暂停期间的消息','b');
+    State.configure(value,E.ensure(value),true,config);
+    assert.equal(custom(value).value,19);
+    assert.equal(State.canReview(value,E.ensure(value),'b'),false);
+    State.configure(value,E.ensure(value),true,{...config,definition:'体力消耗程度',initialValue:30});
+    assert.equal(custom(value).value,30);
+    assert.equal(custom(value).records.length,0);
+});
+
+test('单房间备份保留自定义定义、累计余量与剧情依据',()=>{
+    const Archive=require('../www/archive.js');
+    const value=withState();
+    scoredTurn(value,'发现门锁已被撬开','clue');
+    E.applyJudgements(value,'clue',{...judgement('clue','门锁已被撬开'),customState:change('clue','门锁已被撬开',2)});
+    const backup=Archive.createBackup({rooms:[value]},{mode:'room',id:value.id});
+    const restored=room(Archive.parseBackup(JSON.stringify(backup)).state.rooms[0]);
+    assert.deepEqual(restored.customStateSettings,value.customStateSettings);
+    assert.equal(custom(restored).value,17);
+    assert.equal(custom(restored).remainder,2);
+    assert.equal(custom(restored).records.at(-1).quote,'门锁已被撬开');
+});
+
+const peakConfig={initialValue:100,near:'观察出口',peak:{
+    reaction:'优先撤往安全区',conditions:['角色已退进安全区','安全区的门已经关上'],fallback:40,
+}};
+function peakTurn(value,id,{expression='',speech=''}={}){
+    turn(value,'检查周边情况',id);
+    const [player,reply]=value.messages.slice(-2);
+    const experience=E.ensure(value);
+    E.recordStateMessage(value,player);
+    State.markCue(value,experience,id,State.turnSnapshot(value,experience,id));
+    reply.dialogue=E.parseDialogue({expression,speech});
+    reply.content=reply.dialogue.content;
+    E.recordStateMessage(value,reply);
+    return reply.id;
+}
+const finishPeak=(sourceId)=>({completed:true,reason:'角色已进入安全区，并把门关好。',conditions:[
+    {id:1,sourceId,quote:'退进安全区'},{id:2,sourceId,quote:'把门关好'},
+]});
+
+test('规则首个匹配、未知关系不命中，同一轮和历史记录保留规则参数',()=>{
+    const value=withState({interval:3,rules:[
+        {name:'需要两项已知',thresholds:{trust:70,affection:0},interval:1,points:8},
+        {name:'信任优先',thresholds:{trust:50},interval:2,points:4},
+    ]});
+    E.calibrate(value,'a',{trust:75});
+    assert.equal(State.effective(value,E.ensure(value)).name,'信任优先');
+    turn(value,'先观察','one');
+    E.recordStateMessage(value,value.messages.at(-2));
+    E.calibrate(value,'a',{affection:0});
+    E.recordStateMessage(value,value.messages.at(-1));
+    assert.equal(custom(value).value,19);
+    scoredTurn(value,'换到新地点','two');
+    assert.equal(custom(value).value,35);
+    const restored=room(JSON.parse(JSON.stringify(value)));
+    assert.equal(custom(restored).value,35);
+    assert.equal(custom(restored).records[0].snapshot.rule.name,'信任优先');
+});
+
+test('临界向正文提供反应，回合中才到顶时只核对剧情分',()=>{
+    const value=withState({...peakConfig,initialValue:99,interval:1,points:1});
+    E.recordStateMessage(value,{role:'user',kind:'dialogue',turnId:'t'});
+    const frozen=State.turnSnapshot(value,E.ensure(value),'t');
+    assert.match(E.statePrompt(value,frozen),/观察出口/);
+    assert.equal(frozen.stage,'near');
+    peakTurn(value,'t',{expression:'她退进安全区并把门关好'});
+    const context=State.judgeContext(value,E.ensure(value),'t');
+    assert.equal(context.peakCheck,undefined);
+    assert.equal(custom(value).value,100);
+});
+
+test('峰值拒绝台词和不完整证据，补判只需缺失项，回落目标锁定且可以撤回',()=>{
+    const value=withState(peakConfig);
+    const talk=peakTurn(value,'talk',{speech:'退进安全区，把门关好。'});
+    E.applyJudgements(value,'talk',{customState:{delta:0},peakOutcome:finishPeak(talk)},true);
+    assert.equal(custom(value).value,100);
+    const payload=JSON.parse(E.buildJudgeMessages(value,'talk',{},true)[1].content);
+    assert.equal(payload.customStateContext.reviewPlot,false);
+    assert.equal(payload.customStateContext.peakCheck.conditions.length,2);
+    E.applyJudgements(value,'talk',{peakOutcome:{completed:false,reason:'只是说了动作。'}},true);
+    assert.equal(State.canReview(value,E.ensure(value),'talk'),false);
+    assert.equal(custom(value).peak.plan.fallback,40);
+    State.configure(value,E.ensure(value),true,State.settings({...value.customStateSettings,
+        peak:{...value.customStateSettings.peak,fallback:10}}));
+    const action=peakTurn(value,'action',{expression:'她退进安全区并把门关好'});
+    const incomplete=finishPeak(action);
+    incomplete.conditions.pop();
+    E.applyJudgements(value,'action',{customState:{delta:0},peakOutcome:incomplete},true);
+    assert.equal(custom(value).value,100);
+    E.applyJudgements(value,'action',{peakOutcome:finishPeak(action)},true);
+    assert.equal(custom(value).value,40);
+    E.applyJudgements(value,'action',{peakOutcome:finishPeak(action)},true);
+    assert.equal(custom(value).records.filter(record=>record.kind==='peak'&&record.completed).length,1);
+    const restored=room(JSON.parse(JSON.stringify(value)));
+    assert.equal(custom(restored).value,40);
+    assert.equal(custom(restored).records.at(-1).sources.length,2);
+    E.revertTurn(value,'action');
+    assert.equal(custom(value).value,100);
+    assert.equal(custom(value).peak.plan.fallback,40);
+});
+
+test('自定义状态可单独补判更早回合，沿用原阶段并重新结算历史',()=>{
+    const value=withState(peakConfig,{participants:[{id:'a',name:'小夏',relationshipPolicy:{enabled:false}}]});
+    const first=peakTurn(value,'first',{expression:'她退进安全区并把门关好'});
+    peakTurn(value,'second',{expression:'她停留在门边'});
+    E.applyJudgements(value,'second',{customState:{delta:0},peakOutcome:{completed:false,reason:'没有新变化'}},true);
+    assert.deepEqual(State.pendingTurns(value,E.ensure(value)).map(item=>item.turnId),['first']);
+    const prompt=E.buildJudgeMessages(value,'first',{},true);
+    assert.match(prompt[0].content,/自定义状态证据核对器/);
+    assert.doesNotMatch(prompt[1].content,/停留在门边/);
+    E.applyJudgements(value,'first',{customState:{delta:-2,reason:'危险已过去',sourceId:first,quote:'把门关好'},
+        peakOutcome:finishPeak(first)},true);
+    assert.equal(custom(value).value,44);
+    assert.equal(custom(value).peak,null);
+});
+
+test('改写后的正文重新核对峰值，保持原来的消息累计',()=>{
+    const value=withState(peakConfig);
+    const source=peakTurn(value,'one',{expression:'她退进安全区并把门关好'});
+    E.applyJudgements(value,'one',{customState:{delta:0},peakOutcome:finishPeak(source)},true);
+    E.revertRelations(value,'one');
+    const snapshot=State.turnSnapshot(value,E.ensure(value),'one');
+    State.restoreCue(value,E.ensure(value),'one',snapshot);
+    const message=value.messages.at(-1);
+    message.dialogue=E.parseDialogue({expression:'她站在原地'});
+    message.content=message.dialogue.content;
+    E.applyJudgements(value,'one',{customState:{delta:0},peakOutcome:finishPeak(source)},true);
+    assert.equal(custom(value).value,100);
+    assert.equal(custom(value).remainder,2);
+    assert.equal(State.canReview(value,E.ensure(value),'one'),true);
 });

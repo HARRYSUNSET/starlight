@@ -11,169 +11,123 @@
         error.field=input;
         throw error;
     }
-    function mountDesireSettings(section, engine, desire) {
-        const toggle=section.querySelector('#roomDesireEnabled');
-        const fields=section.querySelector('.room-desire-fields');
-        const ruleList=section.querySelector('.room-desire-rules');
-        const stepLists={normal:section.querySelector('#roomNormalDesireSteps'),peak:section.querySelector('#roomPeakDesireSteps')};
-        const separate=section.querySelector('#roomSeparatePeakSteps');
-        let stepSequence=0;
-        let savedConfig=desire.settings();
-        let locked=false;
-        const field=(name,label,[min,max],value='',step='any',placeholder='')=>
-            `<label>${label}<input type="number" name="${name}" min="${min}" max="${max}" step="${step}" value="${value}" placeholder="${placeholder}" data-label="${label}"></label>`;
-        function readField(owner,name,required=false) {
-            const input=owner.querySelector('[name="'+name+'"]');
-            if(!input.validity.valid||(!input.value&&required)){
-                invalidField(input,(owner.querySelector('legend')?.textContent?owner.querySelector('legend').textContent+' · ':'')+
-                    input.dataset.label+'须填写 '+input.min+'–'+input.max+(input.step==='1'?' 的整数':' 之间的数值'));
-            }
-            return input.value===''?undefined:input.valueAsNumber;
-        }
-        function updateOrder(busy=false) {
-            const rules=[...ruleList.children];
-            rules.forEach((rule,index)=>{
-                rule.querySelector('legend').textContent='规则 '+(index+1);
-                rule.querySelector('.desire-rule-up').disabled=busy||index===0;
-                rule.querySelector('.desire-rule-down').disabled=busy||index===rules.length-1;
-            });
-        }
-        function addRule(rule={}) {
-            const row=section.ownerDocument.createElement('fieldset');
-            row.className='room-desire-rule';
-            row.innerHTML=`<legend></legend>
-                <div class="node-criteria">${desire.RELATION_KEYS.map(key=>field(key,engine.RELATION_LABELS[key]+'门槛',
-                    [0,100],rule.thresholds?.[key]??'','1','不限')).join('')}</div>
-                <div class="node-criteria">${field('hoursPerPoint','间隔（剧情小时）',desire.LIMITS.hoursPerPoint,rule.hoursPerPoint??'','any','用基础值')}
-                ${field('growthPoints','每次增加（分）',desire.LIMITS.growthPoints,rule.growthPoints??'','1','用基础值')}
-                ${field('resetValue','事后回到（分）',desire.LIMITS.resetValue,rule.resetValue??'','1','用基础值')}</div>
-                <div class="room-inline">
-                    <button type="button" class="mini-action-btn desire-rule-up" aria-label="上移规则">↑ 上移</button>
-                    <button type="button" class="mini-action-btn desire-rule-down" aria-label="下移规则">↓ 下移</button>
-                    <button type="button" class="mini-action-btn danger desire-rule-remove">删除规则</button>
-                </div>`;
-            row.querySelector('.desire-rule-up').onclick=()=>{row.previousElementSibling?.before(row);updateOrder();};
-            row.querySelector('.desire-rule-down').onclick=()=>{row.nextElementSibling?.after(row);updateOrder();};
-            row.querySelector('.desire-rule-remove').onclick=()=>{row.remove();updateOrder();};
-            ruleList.append(row);
-            updateOrder();
-        }
-        function orderSteps(list,busy=false){
-            [...list.children].forEach((row,index)=>{
-                row.querySelector('legend').textContent='步骤 '+(index+1);
-                row.querySelector('[data-step-up]').disabled=busy||index===0;
-                row.querySelector('[data-step-down]').disabled=busy||index===list.children.length-1;
-            });
-        }
-        function addStep(list,step={}){
-            const row=section.ownerDocument.createElement('fieldset');
-            row.className='room-desire-rule';
-            row.dataset.stepId=step.id||'step_'+Date.now()+'_'+(++stepSequence);
-            row.innerHTML=`<legend></legend>
-                <div class="node-criteria"><label>阶段名称<input data-step="name" maxlength="80" value="${escape(step.name)}"></label>
-                <label>进入时机<select data-step="at"><option value="near">接近满分</option><option value="peak">达到满分</option></select></label></div>
-                <label>角色会做什么<textarea data-step="action" rows="2" maxlength="1500">${escape(step.action)}</textarea></label>
-                <label>什么情况下适合推进<textarea data-step="when" rows="2" maxlength="1000">${escape(step.when)}</textarea></label>
-                <label>怎样算这一步已发生<textarea data-step="evidence" rows="2" maxlength="1000">${escape(step.evidence)}</textarea></label>
-                <div class="room-inline"><button type="button" class="mini-action-btn" data-step-up>上移步骤</button>
-                <button type="button" class="mini-action-btn" data-step-down>下移步骤</button>
-                <button type="button" class="mini-action-btn danger" data-step-remove>删除步骤</button></div>`;
-            row.querySelector('[data-step="at"]').value=step.at==='near'?'near':'peak';
-            row.querySelector('[data-step-up]').onclick=()=>{row.previousElementSibling?.before(row);orderSteps(list);};
-            row.querySelector('[data-step-down]').onclick=()=>{row.nextElementSibling?.after(row);orderSteps(list);};
-            row.querySelector('[data-step-remove]').onclick=()=>{row.remove();orderSteps(list);};
-            list.append(row);
-            orderSteps(list);
-        }
-        function readSteps(list,validate=true){
-            return [...list.children].flatMap(row=>{
-                const input=key=>row.querySelector('[data-step="'+key+'"]'), get=key=>input(key).value.trim();
-                const step={id:row.dataset.stepId,name:get('name'),at:get('at'),action:get('action'),when:get('when'),evidence:get('evidence')};
-                if(!step.name&&!step.action&&!step.when&&!step.evidence)return [];
-                if(!step.name||!step.action){
-                    if(validate)invalidField(input(step.name?'action':'name'),'请填写阶段名称和角色动作');
-                    return [];
-                }
-                return [step];
-            });
-        }
-        function open(room) {
-            const config=desire.settings(room?.desireSettings);
-            savedConfig=config;
-            const present=room&&engine.ensure(room).desire;
-            toggle.checked=desire.active(room);
-            fields.hidden=!toggle.checked;
-            section.querySelector('.room-desire-base').innerHTML=
-                field('initialValue','初始值（分）',desire.LIMITS.initialValue,config.initialValue,'1')+
-                field('hoursPerPoint','间隔（剧情小时）',desire.LIMITS.hoursPerPoint,config.hoursPerPoint)+
-                field('growthPoints','每次增加（分）',desire.LIMITS.growthPoints,config.growthPoints,'1')+
-                field('sensitivity','环境敏感度（%）',desire.LIMITS.sensitivity,config.sensitivity,'1')+
-                field('resetValue','事后回到（分）',desire.LIMITS.resetValue,config.resetValue,'1')+
-                (present?.initialized?field('currentValue','校准当前值',[0,100],'','1','当前 '+Math.floor(present.value)):'');
-            ruleList.replaceChildren();
-            config.rules.forEach(addRule);
-            section.querySelector('#roomDesireNearField').innerHTML=field('prepareAt','进入准备阶段（分）',[1,100],config.prepareAt,'1');
-            separate.checked=config.peakSteps!==null;
-            section.querySelector('#roomPeakStepsPanel').hidden=!separate.checked;
-            stepLists.normal.replaceChildren();
-            stepLists.peak.replaceChildren();
-            config.steps.forEach(step=>addStep(stepLists.normal,step));
-            (config.peakSteps||[]).forEach(step=>addStep(stepLists.peak,step));
-        }
-        section.querySelector('#btnAddDesireRule').onclick=()=>addRule();
-        for(const button of section.querySelectorAll('[data-add-step]'))button.onclick=()=>addStep(stepLists[button.dataset.addStep],{at:stepLists[button.dataset.addStep].children.length?'peak':'near'});
-        separate.onchange=()=>{
-            if(separate.checked&&!stepLists.peak.children.length)readSteps(stepLists.normal,false).forEach(step=>addStep(stepLists.peak,step));
-            section.querySelector('#roomPeakStepsPanel').hidden=!separate.checked;
+    function mountStateSettings(section,engine,state){
+        const toggle=section.querySelector('#roomCustomStateEnabled');
+        const fields=section.querySelector('#roomCustomStateFields');
+        const conditions=section.querySelector('#roomStateConditions');
+        const rules=section.querySelector('#roomStateRules');
+        const field=name=>fields.querySelector('[name="'+name+'"]');
+        const readText=(name,label)=>{
+            const input=field(name),value=input.value.trim();
+            if(toggle.checked&&!value)invalidField(input,'请填写'+label);
+            return value;
         };
-        toggle.onchange=()=>{fields.hidden=!toggle.checked;};
-        function read(){
-            const plan={prepareAt:readField(section.querySelector('#roomDesireNearField'),'prepareAt',true),
-                steps:readSteps(stepLists.normal),peakSteps:separate.checked?readSteps(stepLists.peak):null};
-            if(!toggle.checked)return {config:desire.settings({...savedConfig,...plan})};
-            const base=section.querySelector('.room-desire-base');
-            const input=Object.fromEntries(Object.keys(desire.LIMITS).map(key=>[key,readField(base,key,true)]));
-            const rules=[...ruleList.children].flatMap((row,index)=>{
-                const thresholds=Object.fromEntries(desire.RELATION_KEYS.flatMap(key=>{
-                    const value=readField(row,key);
-                    return value===undefined?[]:[[key,value]];
-                }));
-                const hoursPerPoint=readField(row,'hoursPerPoint'),growthPoints=readField(row,'growthPoints'),resetValue=readField(row,'resetValue');
-                const hasThreshold=Object.keys(thresholds).length>0;
-                const hasSetting=hoursPerPoint!==undefined||growthPoints!==undefined||resetValue!==undefined;
-                if(!hasThreshold&&!hasSetting)return [];
-                if(!hasThreshold||!hasSetting)invalidField(row.querySelector(hasThreshold?'[name="hoursPerPoint"]':'[name="familiarity"]'),
-                    '规则 '+(index+1)+' 需要至少一项关系门槛和一项覆盖设置');
-                return [{thresholds,hoursPerPoint,growthPoints,resetValue}];
-            });
-            return {config:desire.settings({...savedConfig,...input,...plan,rules}),
-                enabled:true,current:!locked&&base.querySelector('[name="currentValue"]')?readField(base,'currentValue'):undefined};
+        const readNumber=(input,optional=false)=>{
+            if(optional&&input.value===''&&!input.validity.badInput)return undefined;
+            if(!input.validity.valid||!Number.isInteger(input.valueAsNumber)){
+                invalidField(input,input.dataset.label+'须为 '+input.min+'–'+input.max+' 的整数');
+            }
+            return input.valueAsNumber;
+        };
+        const numberField=(name,label,min,max,value)=>`<label>${label}<input name="${name}" data-label="${label}" type="number" min="${min}" max="${max}" step="1" value="${escape(value)}" placeholder="沿用基础值"></label>`;
+        function addCondition(value=''){
+            const row=section.ownerDocument.createElement('div');
+            row.className='state-condition-row';
+            row.innerHTML=`<label>完成条件<input name="condition" maxlength="500" value="${escape(value)}" placeholder="例如：角色已经进入安全区"></label>
+                <button type="button" class="mini-action-btn danger" data-state-remove>删除</button>`;
+            conditions.append(row);
         }
-        return {open,read,refresh(room,busy){
-            locked=desire.peakMode(room);
-            const current=section.querySelector('[name="currentValue"]');
-            if(current)current.disabled=locked||busy;
-            updateOrder(busy);
-            for(const list of Object.values(stepLists))orderSteps(list,busy);
-        }};
+        function addRule(rule={thresholds:{}}){
+            const row=section.ownerDocument.createElement('article');
+            row.className='relationship-event-editor';
+            row.innerHTML=`<label>规则名称（选填）<input name="ruleName" maxlength="48" value="${escape(rule.name)}"></label>
+                <div class="node-criteria">${Object.entries(engine.RELATION_LABELS).map(([key,label])=>
+                    numberField(key,label+'门槛',0,100,rule.thresholds[key])).join('')}</div>
+                <div class="node-criteria">${numberField('ruleInterval','每几条',1,1000,rule.interval)}
+                    ${numberField('rulePoints','增加几分',1,10,rule.points)}${numberField('ruleFallback','回落至几分',0,99,rule.fallback)}</div>
+                <div class="room-inline"><button type="button" class="mini-action-btn" data-state-up>上移</button>
+                    <button type="button" class="mini-action-btn" data-state-down>下移</button>
+                    <button type="button" class="mini-action-btn danger" data-state-remove>删除</button></div>`;
+            rules.append(row);
+        }
+        section.addEventListener('click',event=>{
+            const button=event.target.closest('button');
+            if(!button)return;
+            const row=button.closest('.state-condition-row,.relationship-event-editor');
+            if(button.id==='btnAddStateCondition'&&conditions.children.length<10)addCondition();
+            if(button.id==='btnAddStateRule')addRule();
+            if(button.hasAttribute('data-state-up'))row.previousElementSibling?.before(row);
+            if(button.hasAttribute('data-state-down'))row.nextElementSibling?.after(row);
+            if(button.hasAttribute('data-state-remove'))row.remove();
+        });
+        const refresh=()=>{fields.hidden=!toggle.checked;};
+        toggle.addEventListener('change',refresh);
+        return {
+            open(room){
+                const config=state.settings(room.customStateSettings);
+                toggle.checked=state.active(room);
+                section.querySelectorAll('[aria-invalid]').forEach(input=>input.removeAttribute('aria-invalid'));
+                section.querySelectorAll('.assessment-field-error').forEach(note=>note.remove());
+                for(const name of ['name','definition','initialValue','interval','points','nearAt','near'])field(name).value=config[name];
+                field('peakReaction').value=config.peak.reaction;
+                field('fallback').value=config.peak.fallback;
+                conditions.replaceChildren();
+                config.peak.conditions.forEach(addCondition);
+                rules.replaceChildren();
+                config.rules.forEach(addRule);
+                field('currentValue').value='';
+                field('currentValue').placeholder=String(engine.ensure(room).customState.value);
+                refresh();
+            },
+            read(room){
+                if(!toggle.checked)return {enabled:false,config:state.settings(room.customStateSettings)};
+                const name=readText('name','状态名称'),definition=readText('definition','状态含义');
+                const reaction=field('peakReaction').value.trim();
+                const entries=[...conditions.querySelectorAll('input')].map(input=>{
+                    if(!input.value.trim())invalidField(input,'请填写完成条件或删除空白项');
+                    return input.value.trim();
+                });
+                if(entries.length&&!reaction)invalidField(field('peakReaction'),'请填写满分时的角色反应');
+                const ruleList=[...rules.children].map(row=>{
+                    const get=key=>row.querySelector('[name="'+key+'"]');
+                    const thresholds=Object.fromEntries(Object.keys(engine.RELATION_LABELS).flatMap(key=>{
+                        const min=readNumber(get(key),true);
+                        return min===undefined?[]:[[key,min]];
+                    }));
+                    if(!Object.keys(thresholds).length)invalidField(get('familiarity'),'每条规则至少需要一个三维门槛');
+                    const interval=readNumber(get('ruleInterval'),true),points=readNumber(get('rulePoints'),true);
+                    const fallback=readNumber(get('ruleFallback'),true);
+                    if([interval,points,fallback].every(value=>value===undefined))invalidField(get('ruleInterval'),'至少填写一项要覆盖的数值');
+                    return {name:get('ruleName').value,thresholds,interval,points,fallback};
+                });
+                return {enabled:true,config:state.settings({
+                    name,definition,initialValue:readNumber(field('initialValue')),interval:readNumber(field('interval')),
+                    points:readNumber(field('points')),nearAt:readNumber(field('nearAt')),near:field('near').value,
+                    peak:{reaction,conditions:entries,fallback:readNumber(field('fallback'))},rules:ruleList,
+                }),current:readNumber(field('currentValue'),true)};
+            },
+        };
     }
 
     function mountEvents(section,engine,rooms) {
         const list=section.querySelector('#roomRelationshipEvents');
+        let room;
         function append(event={id:rooms.createId('event'),description:'',thresholds:{},condition:''}) {
             const row=section.ownerDocument.createElement('article');
             row.className='relationship-event-editor';
             row.dataset.eventId=event.id;
             row.innerHTML=`<div class="relationship-event-heading"><label>事件描述<input class="node-description" value="${escape(event.description)}" placeholder="例如：主动分享一件往事"></label>
                 <button type="button" class="mini-action-btn danger node-remove">删除</button></div>
-                <div class="node-criteria">${Object.entries(engine.RELATION_LABELS).map(([key,label])=>
-                    `<label>${label}门槛<input type="number" step="1" min="0" max="100" placeholder="不限" data-node-threshold="${key}" value="${event.thresholds[key]??''}"></label>`).join('')}
-                <label class="node-condition-label">剧情条件（选填）<textarea class="node-condition" rows="2">${escape(event.condition)}</textarea></label></div>`;
+                <div class="node-criteria">${[...Object.keys(engine.RELATION_LABELS),...(engine.dimensions(room).includes('customState')||Object.hasOwn(event.thresholds,'customState')?['customState']:[])].map(key=>
+                    `<label>${escape(engine.dimensionLabel(room,key))}门槛<input type="number" step="1" min="0" max="100" placeholder="不限" data-node-threshold="${key}" value="${event.thresholds[key]??''}"></label>`).join('')}
+                <label class="node-condition-label">剧情条件（选填）<textarea class="node-condition" rows="2">${escape(event.condition)}</textarea></label></div>
+                ${Object.hasOwn(event.thresholds,'desire')?`<label class="room-check"><input type="checkbox" class="node-remove-legacy" data-threshold="${escape(event.thresholds.desire)}">移除旧第四项门槛，按上方门槛重新启用</label>`:''}`;
             row.querySelector('.node-remove').onclick=()=>row.remove();
             list.append(row);
         }
         section.querySelector('#btnAddRelationshipEvent').onclick=()=>append();
-        function open(room){
+        function open(value){
+            room=value;
             list.replaceChildren();
             for(const event of room.relationshipEvents||[])append(event);
         }
@@ -182,8 +136,10 @@
                 const description=row.querySelector('.node-description');
                 const condition=row.querySelector('.node-condition').value;
                 const thresholds={};
+                const legacy=row.querySelector('.node-remove-legacy');
+                if(legacy&&!legacy.checked)thresholds.desire=Number(legacy.dataset.threshold);
                 for(const input of row.querySelectorAll('[data-node-threshold]')){
-                    if(!input.validity.valid)invalidField(input,'事件 '+(index+1)+' 的 '+engine.RELATION_LABELS[input.dataset.nodeThreshold]+'门槛须为 0–100 的整数');
+                    if(!input.validity.valid)invalidField(input,'事件 '+(index+1)+' 的 '+engine.dimensionLabel(room,input.dataset.nodeThreshold)+'门槛须为 0–100 的整数');
                     if(input.value!=='')thresholds[input.dataset.nodeThreshold]=input.valueAsNumber;
                 }
                 if(!description.value.trim()&&(Object.keys(thresholds).length||condition.trim()))invalidField(description,'请填写事件 '+(index+1)+' 的描述');
@@ -198,9 +154,9 @@
         if(card.hidden){card.replaceChildren();return;}
         const experience=engine.ensure(room),relation=experience.relations[room.participants[0]?.id];
         const scores=engine.dimensions(room).map(key=>{
-            if(key==='desire'){
-                const value=experience.desire.peakMode?100:experience.desire.value;
-                return {key,label:engine.RELATION_LABELS[key],known:true,value,readout:String(Math.floor(value))};
+            if(key==='customState'){
+                const value=experience.customState.value;
+                return {key,label:engine.dimensionLabel(room,key),known:true,value,readout:String(value)};
             }
             const label=engine.RELATION_LABELS[key], known=relation?.knownDimensions.includes(key);
             const value=known?relation[key]:0;
@@ -208,15 +164,14 @@
         });
         card.setAttribute('aria-label','关系与评判，'+scores.map(x=>x.label+(x.known?x.readout+' 分':'待评估')).join('，'));
         card.title='打开关系与评判';
-        card.classList.toggle('relationship-peak',experience.desire.peakMode);
         const html=scores.map(({key,label,value,readout})=>`<span class="relationship-score" data-dimension="${key}">
-            <span class="relationship-score-label">${label}<strong>${readout}</strong></span>
+            <span class="relationship-score-label"><span>${escape(label)}</span><strong>${readout}</strong></span>
             <span class="relationship-track"><span style="width:${value}%"></span></span></span>`).join('');
         if(card.innerHTML!==html)card.innerHTML=html;
     }
 
     function create(options){
-        const {document:doc,engine:E,desire:Desire,rooms:Rooms,motion:M,ui:UI}=options;
+        const {document:doc,engine:E,state:State,rooms:Rooms,motion:M,ui:UI}=options;
         const overlay=doc.createElement('div');overlay.id='roomExperienceOverlay';overlay.className='modal-overlay room-experience-overlay';overlay.style.display='none';
         overlay.innerHTML=`<section class="room-experience-page" aria-label="房间情景与关系"><header class="room-experience-header"><div><h3 id="roomExperienceTitle">房间现场</h3><p>预览与正式记录分开</p></div><button type="button" class="mini-action-btn" id="roomExperienceClose">关闭</button></header><nav class="room-experience-tabs" aria-label="房间工具"><button type="button" data-room-tab="scene">情景预览</button><button type="button" data-room-tab="relations">关系档案</button><button type="button" data-room-tab="drafts">待修正回复</button></nav><div class="room-experience-scroll"><p id="roomExperienceNotice" role="status" hidden></p><section id="roomScenePage"><p class="room-note">这里的内容采纳前不进入正式对话、记忆或关系评分。不会自动切换场景，也不会代替用户作选择。</p><label>本次情景要求<textarea id="roomSceneInstruction" rows="3" placeholder="例如：推进到放学后，仍留在教室，不加入新冲突"></textarea></label><div class="room-inline"><button type="button" id="roomSceneGenerate" class="btn-confirm">生成预览</button><button type="button" id="roomSceneManual" class="mini-action-btn">手动写情景</button><button type="button" id="roomSceneCancel" class="mini-action-btn" hidden>取消生成</button></div><section id="roomSceneCandidate" hidden><div class="room-section-heading"><h4>待采纳情景 · 可直接修改</h4><span id="roomSceneStale"></span></div><label>正式旁白正文<textarea id="roomSceneText" rows="6"></textarea></label><div class="room-field-grid"><label>时间<input id="roomSceneTime" maxlength="200"></label><label>地点<input id="roomScenePlace" maxlength="300"></label></div><label>当前场景摘要<textarea id="roomSceneSummary" rows="3" maxlength="5000"></textarea></label><label>相关物件<textarea id="roomSceneObjects" rows="2" maxlength="3000"></textarea></label><label>未完成事项<textarea id="roomScenePending" rows="2" maxlength="3000"></textarea></label><fieldset class="room-present"><legend>采纳后在场的角色</legend><div id="roomScenePresent"></div></fieldset></section></section><section id="roomRelationsPage" hidden><label class="room-check"><input type="checkbox" id="roomAuthorView">作者视图：校准关系与编辑判定规则</label><p class="room-note">每名角色独立判断。信任、好感与当下情绪分开；不靠聊天轮数自动攻略。作者校准不会被当作角色亲历事件。</p><label>查看角色<select id="roomRelationMember"></select></label><div id="roomRelationContent"></div></section><section id="roomDialogueDraftsPage" hidden><p class="room-note">可以手动编辑后采纳，也可以直接修复并采纳原稿。自动修复优先使用本地整理，需要时会调用一次模型。</p><div id="roomDialogueDraftList"></div></section></div><footer class="room-experience-actions"><span id="roomExperienceFootnote">正式记录不受未采纳预览影响</span><button type="button" class="btn-confirm" id="roomSceneAccept">采纳情景并回到对话</button></footer></section>`;
         const roomTabs=overlay.querySelector('.room-experience-tabs');
@@ -224,59 +179,63 @@
         roomTabs.insertAdjacentHTML('afterend',`<nav class="room-experience-tabs room-assessment-tabs" aria-label="关系与评判" hidden>
             <button type="button" data-relation-tab="profile">关系档案</button>
             <button type="button" data-relation-tab="events">事件门槛</button>
-            <button type="button" data-relation-tab="desire">性欲度</button>
+            <button type="button" data-relation-tab="customState">自定义状态</button>
         </nav>`);
         const evaluation=doc.createElement('section');
         evaluation.id='roomAssessmentPage';
         evaluation.hidden=true;
         evaluation.innerHTML=`<div id="roomAssessmentEvents" class="room-assessment-pane" hidden>
             <div class="room-section-heading"><h4>关系事件</h4><button type="button" class="mini-action-btn" id="btnAddRelationshipEvent">＋ 添加事件</button></div>
-            <p class="room-note">填写的门槛需同时达到。留空的维度不限；性欲度门槛在该进度条启用时生效。</p>
+            <p class="room-note">填写的门槛需同时达到。留空的维度不限。设有自定义状态门槛的事件，需要先在本房间启用该状态。</p>
             <div id="roomRelationshipEvents"></div>
-        </div><section id="roomDesireSettings" class="room-assessment-pane" hidden>
+        </div><section id="roomCustomStateSettings" class="room-assessment-pane" hidden>
             <div class="room-assessment-block">
-                <label class="assessment-switch"><span>欲望时刻 <small id="roomPeakHelp"></small></span><input id="roomPeakMode" type="checkbox" role="switch" aria-describedby="roomPeakHelp"></label>
+                <label class="assessment-switch"><span>启用自定义状态</span><input id="roomCustomStateEnabled" type="checkbox" role="switch"></label>
             </div>
-            <div class="room-assessment-block">
-                <label class="assessment-switch"><span>常规性欲度评判</span><input id="roomDesireEnabled" type="checkbox" role="switch"></label>
-                <div class="room-desire-fields" hidden>
-                    <p class="room-note">设定每段剧情时间增加多少分。间隔可填 0.25–720 小时，每次增加 1–10 分，部分间隔按比例累计。</p>
-                    <div class="node-criteria room-desire-base"></div>
-                    <div class="room-desire-rule-heading">
-                        <h4>个性化阈值规则</h4>
-                        <button type="button" class="mini-action-btn" id="btnAddDesireRule">＋ 添加规则</button>
+            <div id="roomCustomStateFields" hidden>
+                <section class="room-assessment-block">
+                    <h4>状态定义</h4>
+                    <label>名称<input name="name" maxlength="24" placeholder="例如：紧张度"></label>
+                    <label>含义与升降依据<textarea name="definition" rows="4" maxlength="1200" placeholder="例如：角色感受到的危险程度。发现异常声音时上升，确认安全并放松时下降。"></textarea></label>
+                    <div class="node-criteria room-state-values">
+                        <label>初始分数<input name="initialValue" data-label="初始分数" type="number" min="0" max="100" step="1"></label>
+                        <label>调整当前分数（选填）<input name="currentValue" data-label="当前分数" type="number" min="0" max="100" step="1"></label>
                     </div>
-                    <p class="room-note">按顺序使用第一条达标的规则。留空的设置沿用基础值。</p>
-                    <div class="room-desire-rules"></div>
-                </div>
+                    <p class="room-note">修改含义会按初始分数重新开始。要保留指定分数，可同时填写当前分数。</p>
+                </section>
+                <section class="room-assessment-block">
+                    <h4>计分方式</h4>
+                    <div class="node-criteria room-state-values">
+                        <label>每几条正式消息<input name="interval" data-label="消息间隔" type="number" min="1" max="1000" step="1"></label>
+                        <label>累加几分<input name="points" data-label="累加分数" type="number" min="1" max="10" step="1"></label>
+                    </div>
+                    <p class="room-note">你的消息、角色对白和已采纳旁白各计一条。AI 根据已发生情节独立判断升降，每回合最多加或减 3 分。</p>
+                </section>
+                <section class="room-assessment-block">
+                    <h4>临界与峰值反应</h4>
+                    <p class="room-note">适用于紧张、比赛兴奋、警戒等普通剧情状态。反应提示会随正式对白生成发送给模型。</p>
+                    <label>接近峰值的起点<input name="nearAt" data-label="临界分数" type="number" min="1" max="99" step="1"></label>
+                    <label>接近峰值时的反应<textarea name="near" rows="2" maxlength="1200" placeholder="例如：先停下观察，确认出口"></textarea></label>
+                    <label>达到 100 分时的反应<textarea name="peakReaction" rows="2" maxlength="1200" placeholder="例如：优先向安全区域撤离"></textarea></label>
+                    <label>完成后回落至<input name="fallback" data-label="回落分数" type="number" min="0" max="99" step="1"></label>
+                    <div class="room-section-heading"><h4>回落条件</h4><button id="btnAddStateCondition" type="button" class="mini-action-btn">＋ 添加条件</button></div>
+                    <p class="room-note">留空时只提示角色反应。填写后，AI 从正式旁白或角色可见动作核实所有条件，确认后才回落。</p>
+                    <div id="roomStateConditions"></div>
+                </section>
+                <section class="room-assessment-block">
+                    <div class="room-section-heading"><h4>三维门槛规则</h4><button id="btnAddStateRule" type="button" class="mini-action-btn">＋ 添加规则</button></div>
+                    <p class="room-note">每条规则的所填门槛须同时达标。按从上到下的顺序使用第一条符合的规则，留空的数值沿用基础设置。规则影响后续增长与回落。</p>
+                    <div id="roomStateRules"></div>
+                </section>
             </div>
-            <div class="room-assessment-block">
-                <h4>接近满分后的行为步骤</h4><div id="roomDesireNearField"></div>
-                <p class="room-note">按步骤推进。只有正式对白或采纳的情景证实了当前步骤，才进入下一步。</p>
-                <div id="roomNormalDesireSteps" class="room-desire-rules"></div>
-                <button type="button" class="mini-action-btn" data-add-step="normal">＋ 添加步骤</button>
-                <label class="room-check"><input type="checkbox" id="roomSeparatePeakSteps">为「欲望时刻」另写一套步骤</label>
-                <div id="roomPeakStepsPanel" hidden>
-                    <div id="roomPeakDesireSteps" class="room-desire-rules"></div>
-                    <button type="button" class="mini-action-btn" data-add-step="peak">＋ 添加步骤</button>
-                </div>
-            </div>
+            <div id="roomCustomStateHistory"></div>
         </section>`;
-        evaluation.prepend(overlay.querySelector('#roomRelationsPage'));
         overlay.querySelector('.room-experience-scroll').append(evaluation);
         overlay.querySelector('.room-experience-actions').insertAdjacentHTML('afterend',
             '<footer id="roomAssessmentFooter" class="room-experience-actions" hidden><button type="button" class="btn-confirm" id="roomAssessmentSave">保存</button></footer>');
-        overlay.querySelector('#roomSceneCandidate').insertAdjacentHTML('beforeend',`<details id="roomSceneDesire" class="room-scene-desire" hidden>
-            <summary>确认本段时间与性欲度变化</summary>
-            <label>剧情经过分钟（可留空）<input type="number" min="0" step="any" id="roomSceneElapsed"></label>
-            <label>环境变化<select id="roomSceneEnvironment"><option value="">按已生成的正文判定</option>
-                <option value="3">明显升高</option><option value="2">升高</option><option value="1">稍升</option><option value="0">无变化</option>
-                <option value="-1">稍降</option><option value="-2">降低</option><option value="-3">明显降低</option></select></label>
-            <label class="room-check"><input type="checkbox" id="roomSceneRelease">确认角色在本段已经完成纾解</label>
-        </details>`);
         doc.body.appendChild(overlay);
         const el=id=>overlay.querySelector('#'+id);
-        const desireEditor=mountDesireSettings(el('roomDesireSettings'),E,Desire);
+        const stateEditor=mountStateSettings(el('roomCustomStateSettings'),E,State);
         const eventsEditor=mountEvents(el('roomAssessmentEvents'),E,Rooms);
         let ownerId=null,tab='scene',active=null,committing=false,memberId=null,historyCount=30;
         let assessmentTab='profile',returnFocus=null;
@@ -309,13 +268,13 @@
         }
         function close(){
             if(committing){options.notify('正在保存，请稍候');return false;}
-            if(tab==='relations'&&editedSettings.size&&!doc.defaultView.confirm('事件或性欲度设置尚未保存，要放弃这些修改吗？'))return false;
+            if(tab==='relations'&&editedSettings.size&&!doc.defaultView.confirm('事件或自定义状态尚未保存，要放弃这些修改吗？'))return false;
             if(active){const previous=active;active=null;previous.controller.abort();}
             UI.blurEditorWithin?.(overlay);M.setVisible(overlay,false);renderBusy();
             returnFocus?.focus({preventScroll:true});
             return true;
         }
-        function open(which='scene'){
+        function open(which='scene',section='profile'){
             const value=options.getRoom();if(!value)return;
             if(options.isBusy()||committing)return options.notify('请先等待当前生成或保存完成');
             if(ownerId!==value.id){if(active){active.controller.abort();active=null;}ownerId=value.id;memberId=value.participants[0]?.id;}
@@ -323,9 +282,9 @@
             UI.blurEditorWithin?.(doc.getElementById('inputArea'));
             tab=which;historyCount=30;message('');
             if(tab==='relations'){
-                assessmentTab='profile';
+                assessmentTab=section;
                 editedSettings.clear();
-                desireEditor.open(value);
+                stateEditor.open(value);
                 eventsEditor.open(value);
             }
             render();overlay.querySelector('.room-experience-scroll').scrollTop=0;M.setVisible(overlay,true,{kind:'page'});
@@ -337,14 +296,6 @@
             for(const input of overlay.querySelectorAll('input,textarea,select'))input.disabled=busy;
             el('roomExperienceClose').disabled=committing;el('roomSceneCancel').hidden=!active;el('roomSceneCancel').disabled=committing;
             const value=room(),candidate=value&&E.ensure(value).sceneDraft;
-            if(tab==='relations'&&value){
-                const peak=Desire.peakMode(value), eligible=Desire.canEnablePeak(E.ensure(value).relations[value.participants[0]?.id]);
-                el('roomPeakMode').checked=peak;
-                el('roomPeakMode').disabled=busy||(!peak&&!eligible);
-                el('roomPeakHelp').textContent=peak?'当前固定为 100。关闭后继续原来的进度。':
-                    eligible?'开启后固定为 100，暂停常规评判。':'熟悉、信任和好感均达到 100 后可开启。';
-                desireEditor.refresh(value,busy);
-            }
             if (tab === 'drafts') {
                 for (const card of el('roomDialogueDraftList').querySelectorAll('[data-room-draft]')) {
                     const repairing = active?.kind === 'repair' && active.id === card.dataset.roomDraft;
@@ -357,13 +308,18 @@
                 }
             }
             el('roomSceneAccept').disabled=busy||!candidate||!candidate.content?.trim()||candidate.stamp!==E.stamp(value);
-            const recheck=el('roomRelationRecheck');
-            if(recheck&&value&&!busy){
-                const turnId=[...value.messages].reverse().find(m=>m.role==='user'&&m.turnId)?.turnId;
+            for(const recheck of [el('roomRelationRecheck'),el('roomCustomStateRecheck')].filter(Boolean)){
+                if(!value||busy)continue;
+                if(recheck.id==='roomCustomStateRecheck'){
+                    const turnId=recheck.dataset.turnId;
+                    recheck.disabled=!turnId||E.ensure(value).candidates.some(d=>d.turnId===turnId);
+                    continue;
+                }
+                const turnId=E.latestReviewTurn(value);
                 const pending=turnId&&E.ensure(value).candidates.some(d=>d.turnId===turnId);
                 const enabled=E.canRecheck(value,turnId);
                 recheck.disabled=!enabled||pending;
-                recheck.textContent=pending?'请先处理本轮待修正回复':enabled?'核对上一轮关系（一次请求）':'没有待核对的项目';
+                recheck.textContent=pending?'请先处理本轮待修正回复':enabled?'补判最近一轮':'没有待核对的项目';
             }
             refreshComposer();
         }
@@ -389,9 +345,10 @@
                 }
                 el('roomRelationsPage').hidden=assessmentTab!=='profile';
                 el('roomAssessmentEvents').hidden=assessmentTab!=='events';
-                el('roomDesireSettings').hidden=assessmentTab!=='desire';
-                el('roomAssessmentSave').textContent=assessmentTab==='events'?'保存事件':'保存性欲度设置';
+                el('roomCustomStateSettings').hidden=assessmentTab!=='customState';
+                el('roomAssessmentSave').textContent=assessmentTab==='events'?'保存事件':'保存自定义状态';
                 if(assessmentTab==='profile')renderRelations(value);
+                if(assessmentTab==='customState')renderStateHistory(value);
             }else if(tab==='scene')renderScene(value);
             else renderDrafts(value);
             el('roomAssessmentFooter').hidden=!assessment||assessmentTab==='profile';
@@ -404,10 +361,6 @@
             if(!candidate){el('roomSceneStale').textContent='';return;}
             el('roomSceneText').value=candidate.content||'';
             for(const field of ['Time','Place','Summary','Objects','Pending'])el('roomScene'+field).value=candidate.state[field.toLowerCase()]||'';
-            el('roomSceneDesire').hidden=!Desire.scoring(value);
-            el('roomSceneElapsed').value=candidate.elapsedMinutes??'';
-            el('roomSceneEnvironment').value=candidate.environmentOverride??'';
-            el('roomSceneRelease').checked=candidate.releaseOverride===true;
             el('roomScenePresent').innerHTML=value.participants.map(m=>`<label class="room-check"><input type="checkbox" value="${escape(m.id)}" ${candidate.state.presentIds.includes(m.id)?'checked':''}>${escape(m.name)}${m.enabled===false?'（设定中未启用）':''}</label>`).join('');
             el('roomSceneStale').textContent=candidate.stamp!==E.stamp(value)?'来源已变化，请重新生成或手动重建':'';
         }
@@ -415,12 +368,6 @@
             const value=room(),candidate=value&&E.ensure(value).sceneDraft;if(!candidate)return;
             candidate.content=el('roomSceneText').value;
             for(const field of ['Time','Place','Summary','Objects','Pending'])candidate.state[field.toLowerCase()]=el('roomScene'+field).value;
-            if(Desire.scoring(value)){
-                const elapsed=el('roomSceneElapsed'),environment=el('roomSceneEnvironment').value;
-                candidate.elapsedMinutes=elapsed.validity.valid&&elapsed.value!==''?elapsed.valueAsNumber:undefined;
-                candidate.environmentOverride=environment===''?undefined:Number(environment);
-                candidate.releaseOverride=el('roomSceneRelease').checked;
-            }
             candidate.state.presentIds=[...el('roomScenePresent').querySelectorAll('input:checked')].map(input=>input.value);
             persist();renderBusy();
         }
@@ -429,25 +376,23 @@
             const e=E.ensure(value);e.instruction=el('roomSceneInstruction').value;persist();
             const sourceStamp=E.stamp(value),token={controller:new AbortController(),ownerId:value.id};active=token;message('正在生成独立情景预览，旧预览仍保留。');renderBusy();
             try{
-                const result=await options.generateScene(value,e.instruction||'让当前场景自然推进一小步，不替用户作选择。',token.controller.signal);
+                const stateSnapshot=State.snapshot(value,e);
+                const result=await options.generateScene(value,e.instruction||'让当前场景自然推进一小步，不替用户作选择。',token.controller.signal,stateSnapshot);
                 if(active!==token||room()!==value)return;
                 if(E.stamp(value)!==sourceStamp)throw new Error('生成期间房间来源已变化，结果未覆盖旧预览');
-                e.sceneDraft=E.sceneCandidate(value,result,e.instruction,sourceStamp);persist();message('预览已生成，请核对正文、场景和在场角色后采纳。');renderScene(value);
+                e.sceneDraft=E.sceneCandidate(value,result,e.instruction,sourceStamp,stateSnapshot);persist();message('预览已生成，请核对正文、场景和在场角色后采纳。');renderScene(value);
             }catch(error){if(active===token)message(error.name==='AbortError'?'已取消，原预览保留。':'生成失败：'+error.message,true);}
             finally{if(active===token){active=null;renderBusy();}}
         }
         async function commit(action,after){
             const value=room();if(!value||active||committing||options.isBusy())return;
             committing=true;renderBusy();
-            try{await options.commit(value,action);message('已保存。');after?.();}
-            catch(error){message('保存失败：'+error.message,true);}
+            try{await options.commit(value,action);message('已保存。');after?.();return true;}
+            catch(error){message('保存失败：'+error.message,true);return false;}
             finally{committing=false;render();options.refresh();}
         }
         const resultLabels={steady:'本轮无变化',source:'原文依据不匹配',duplicate:'该证据已计入',criteria:'未满足加分条件',
             bound:'受 0–100 数值边界限制',limit:'按单轮限幅结算',applied:'已计入'};
-        const desireReviewLabels={settled:'完成已确认，已按设置回落',unconfirmed:'本轮未确认完成事件',
-            sourceMismatch:'模型报告了完成，但引文未通过核对',failed:'请求或核对未完成',locked:'欲望时刻锁定 100，保留本轮步骤记录',
-            previewChanged:'预览正文已修改，原完成判定需重新确认'};
         const formatDelta=value=>value>0?'+'+value:String(value??0);
         const sourceLink=(id,caption)=>id?`<button type="button" class="room-source" data-room-source="${escape(id)}">${escape(caption)}</button>`:'';
         function relationshipDiagnostics(value,member){
@@ -479,26 +424,63 @@
             return '<details class="room-review-card" open><summary>最近回合的三维结算</summary><div class="room-evidence-list">'+cards[0]+'</div>'+
                 (cards.length>1?'<details><summary>较早回合（'+(cards.length-1)+' 条）</summary><div class="room-evidence-list">'+cards.slice(1).join('')+'</div></details>':'')+'</details>';
         }
-        function desireDiagnostics(value){
-            if(!Desire.visible(value))return '';
-            const experience=E.ensure(value),progress=Desire.stage(value);
-            const record=value.messages.findLast(message=>message.turnId&&(message.role==='assistant'||message.kind==='narration'));
-            const effect=record&&value.turnEffects[record.turnId];
-            const release=experience.desire.history.findLast(item=>item.kind==='release');
-            const reset=Desire.effective(value.desireSettings,experience.relations[value.participants[0]?.id]).resetValue;
-            const status=progress?.ready?'待推进 · '+progress.next.name:
-                progress?.next?'等待达到 '+progress.threshold+' 分 · '+progress.next.name:
-                progress?.steps.length?'本段步骤已完成':'尚未配置行为步骤';
-            const instruction=Desire.prompt(value,experience);
-            const steps=progress?.steps.map(step=>`<li><strong>${escape(step.name)}</strong> · ${progress.completed.includes(step.id)?'已确认':
-                step===progress.next&&progress.ready?'待推进':'待触发'}</li>`).join('');
-            return `<details class="room-review-card" open><summary>性欲度进度与生效指令</summary>
-                <p>${escape(status)}</p>
-                <p>${escape(desireReviewLabels[effect?.desireReview]||'暂无完成事件核对记录。')}${record?' '+sourceLink(record.id,'定位核对回合'):''}</p>
-                <p>${Desire.peakMode(value)?'欲望时刻锁定 100。':'当前适用回落值 '+escape(reset)+' 分。'}
-                ${release?' 上次采用 '+escape(release.target??release.after)+' 分。'+sourceLink(release.source?.id,'定位上次结算'):''}</p>
-                ${steps?'<ol class="room-review-dimensions">'+steps+'</ol>':''}
-                ${instruction?`<pre class="room-effective-instruction">${escape(instruction)}</pre>`:''}</details>`;
+        function renderStateHistory(value){
+            const body=el('roomCustomStateHistory');
+            body.replaceChildren();
+            if(!State.active(value))return;
+            const experience=E.ensure(value),state=experience.customState;
+            const current=State.snapshot(value,experience);
+            const pending=State.pendingTurns(value,experience);
+            const latest=pending[0];
+            const entries=state.records.filter(record=>record.kind==='peak'?record.before!==record.after:
+                record.kind!=='cue'&&(record.kind!=='message'||record.before!==record.after)).slice(-8).reverse();
+            const labels={message:'消息累计',author:'手动调整',plot:'剧情评判',peak:'峰值回落'};
+            body.innerHTML=`<section class="room-assessment-block"><h4>${escape(State.label(value))} · ${state.value}/100</h4>
+                <p class="room-note">${{peak:'峰值',near:'接近峰值',normal:'常态'}[current.stage]} · ${escape(current.rule.name)} · 每 ${current.rule.interval} 条加 ${current.rule.points} 分，已累计 ${state.remainder} 条</p>
+                ${state.peak?`<p class="room-note">待确认完成条件，核验后回落到 ${state.peak.plan.fallback} 分。</p>`:''}
+                <button type="button" class="mini-action-btn" id="roomCustomStateRecheck" data-turn-id="${escape(latest?.turnId)}">${latest?'补判最近一条待判记录':'没有待核对的项目'}</button>
+                ${pending.length?`<details class="room-review-card"><summary>待补判回合（${pending.length}）</summary><div class="room-evidence-list">${pending.map(item=>`<article>
+                    <p>${escape(item.message.content.slice(0,100))}</p>
+                    ${sourceLink(item.message.id,'定位正式记录')}
+                    <button type="button" class="mini-action-btn" data-state-review="${escape(item.turnId)}">补判${item.plot?'剧情分':''}${item.plot&&item.peak?'与':''}${item.peak?'回落':''}</button>
+                </article>`).join('')}</div></details>`:''}
+                <div class="room-evidence-list">${entries.map(item=>`<article>
+                    <strong>${labels[item.kind]} · ${item.before} → ${item.after}</strong>
+                    ${item.reason?`<p>${escape(item.reason)}</p>`:''}
+                    ${sourceLink(item.sourceId,item.quote)}
+                    ${(item.sources||[]).map(source=>sourceLink(source.sourceId,source.quote)).join('')}
+                </article>`).join('')||'<p class="room-note">还没有分数变化或剧情评判记录。</p>'}</div></section>`;
+            el('roomCustomStateRecheck').onclick=()=>recheck(value,latest.turnId,latest.turnId!==E.latestReviewTurn(value));
+            body.querySelectorAll('[data-state-review]').forEach(button=>{
+                button.onclick=()=>recheck(value,button.dataset.stateReview,button.dataset.stateReview!==E.latestReviewTurn(value));
+            });
+            body.querySelectorAll('[data-room-source]').forEach(button=>button.onclick=()=>{if(close())options.locate(button.dataset.roomSource);});
+        }
+        async function recheck(value,turnId=E.latestReviewTurn(value),stateOnly=false){
+            if(active||committing||options.isBusy())return;
+            const source=E.stamp(value),token={controller:new AbortController(),kind:'relations'};
+            active=token;message('正在核对本轮记录…');renderBusy();
+            try{
+                const result=await options.recheckRelations(value,turnId,token.controller.signal,stateOnly);
+                if(active!==token||room()!==value)return;
+                if(E.stamp(value)!==source)throw new Error('来源已变化，请重新核对');
+                active=null;
+                if(await commit(current=>options.applyRecheck(current,result))){
+                    const current=room();
+                    if(current&&State.canReview(current,E.ensure(current),turnId)){
+                        message('模型仍有未返回或无法核实的项目，可稍后补判。',true);
+                    }
+                }
+            }catch(error){if(active===token)message(error.name==='AbortError'?'已取消核对。':error.message,true);}
+            finally{if(active===token){active=null;renderBusy();}}
+        }
+        function reviewAccepted(turnId){
+            const value=room();
+            if(!value)return;
+            const experience=E.ensure(value);
+            if(State.canReview(value,experience,turnId)&&!experience.candidates.some(item=>item.turnId===turnId)){
+                return recheck(value,turnId);
+            }
         }
         const criteriaLabels={increase:'增加',decrease:'降低',steady:'保持'};
         function standardsMarkup(values,editable){
@@ -525,19 +507,19 @@
             const pending=e.profileDrafts[memberId];
             const r={...e.relations[memberId],...pending},p={...E.policy(member),...pending?.policy};
             const visibleKeys=E.dimensions(value);
-            const keys=visibleKeys.filter(key=>key!=='desire');
+            const keys=Object.keys(E.RELATION_LABELS);
             const events=value.roomType==='double'?(value.relationshipEvents||[]):[];
             const available=new Set(E.availableNodes(value).map(node=>node.id));
             const eventList=events.length ? '<h4>关系事件</h4><div class="room-evidence-list">'+events.map(node=>{
-                const thresholds=visibleKeys.filter(key=>Object.hasOwn(node.thresholds,key)).map(key=>E.RELATION_LABELS[key]+' ≥ '+node.thresholds[key]);
-                const state=available.has(node.id)?'可用':Object.hasOwn(node.thresholds,'desire')&&!Desire.visible(value)?'性欲度未启用':thresholds.length?'待解锁':'待设置门槛';
+                const thresholds=visibleKeys.filter(key=>Object.hasOwn(node.thresholds,key)).map(key=>E.dimensionLabel(value,key)+' ≥ '+node.thresholds[key]);
+                const state=available.has(node.id)?'可用':Object.hasOwn(node.thresholds,'desire')?'旧第四项门槛待调整':Object.hasOwn(node.thresholds,'customState')&&!State.active(value)?'自定义状态未启用':thresholds.length?'待解锁':'待设置门槛';
                 const criteria=[...thresholds,node.condition].filter(Boolean).join(' · ');
                 return '<article><strong>'+escape(state)+'</strong><p>'+escape(node.description)+'</p><small>'+escape(criteria)+'</small></article>';
             }).join('')+'</div>' : '';
             const last=e.relationHistory.findLast(event=>event.memberId===memberId&&event.kind!=='desire-scene');
             const overview='<p class="room-note">'+(r.known?'进度依据正式互动更新。':'关系分数待评估；已确立的关系继续有效。')+'</p>'+
                 (last?.reason?'<p class="room-note">最近一次核对 · '+escape(last.reason)+'</p>':'');
-            const diagnostics=relationshipDiagnostics(value,member)+desireDiagnostics(value)+standardsMarkup(p.criteria,e.authorView);
+            const diagnostics=relationshipDiagnostics(value,member)+standardsMarkup(p.criteria,e.authorView);
             if(!e.authorView){
                 body.innerHTML=overview+diagnostics+eventList;
                 body.querySelectorAll('[data-room-source]').forEach(button=>button.onclick=()=>{if(close())options.locate(button.dataset.roomSource);});
@@ -546,23 +528,8 @@
             const history=e.relationHistory.filter(v=>v.memberId===memberId&&v.kind!=='desire-scene').slice().reverse().map(event=>({...event,
                 sources:Array.isArray(event.sources)?event.sources.filter(s=>s&&typeof s.id==='string'&&typeof s.quote==='string').map(s=>({id:s.id,quote:s.quote.slice(0,2000)})):[],
                 delta:event.delta&&typeof event.delta==='object'?Object.fromEntries(Object.entries(event.delta).filter(([key])=>keys.includes(key)).map(([key,n])=>[key,Number.isFinite(Number(n))?Number(n):0])):null}));
-            body.innerHTML=overview+diagnostics+eventList+`<button type="button" class="mini-action-btn" id="roomRelationRecheck">核对上一轮关系（一次请求）</button><div class="room-field-grid room-stats">${keys.map(key=>`<label>${E.RELATION_LABELS[key]}（0–100）<input type="number" min="0" max="100" placeholder="待评估" data-relation-value="${key}" value="${escape(Object.hasOwn(pending||{},key)?pending[key]:r.knownDimensions.includes(key)?r[key]:'')}"></label>`).join('')}</div><label>当前情绪<input id="roomRelationEmotion" value="${escape(r.emotion)}" maxlength="200"></label><label>既有关系／作者确认的基线<textarea id="roomRelationBaseline" rows="3">${escape(r.baseline||p.baseline)}</textarea></label><label>这个人物重视什么<textarea id="roomRelationPreferences" rows="3">${escape(p.preferences)}</textarea></label><label>这个人物的界限／顾虑<textarea id="roomRelationBoundaries" rows="3">${escape(p.boundaries)}</textarea></label><label>关键关系转折需要什么经历<textarea id="roomRelationConditions" rows="3">${escape(p.conditions)}</textarea></label><label class="room-check"><input id="roomRelationEnabled" type="checkbox" ${p.enabled?'checked':''}>为此角色核对关系证据</label><button type="button" class="btn-confirm" id="roomRelationSave">保存作者校准与规则</button><p class="room-note">手动校准会留在关系档案中，不编造成剧情事件。既有自定义关系节点仍在房间设定中编辑。</p><h4>关系依据与来源</h4><div class="room-evidence-list">${history.slice(0,historyCount).map(event=>`<article><strong>${escape(event.kind==='author'?'作者校准':event.tag||'本轮判定')}</strong><p>${escape(event.reason||'无额外说明')}</p>${keys.includes('desire')&&event.desireReason?`<p>${escape(event.desireReason)}</p>`:''}${event.delta?`<small>${Object.entries(event.delta).map(([key,n])=>`${E.RELATION_LABELS[key]} ${n>0?'+':''}${n}`).join(' · ')}</small>`:''}${(event.sources||[]).map(ref=>`<button type="button" class="room-source" data-room-source="${escape(ref.id)}">${escape(ref.quote)}</button>`).join('')}</article>`).join('')||'<p class="room-note">还没有来源判定。普通交流可以保持原关系；API 判定失败不会凭空改变状态。</p>'}</div>${history.length>historyCount?'<button type="button" id="roomRelationMore" class="mini-action-btn">查看更多依据</button>':''}`;
-            if(value.desireEnabled&&e.desire.history.length){
-                const title={time:'剧情时间',environment:'环境变化',release:'事后回落',step:'行为步骤'};
-                const records=e.desire.history.slice(-historyCount).reverse().map(item=>`<article>
-                    <strong>${escape(item.stepName||title[item.kind]||'状态变化')} · ${escape(Math.round(item.before*100)/100)} → ${escape(Math.round(item.after*100)/100)}</strong>
-                    ${item.source?.id?`<button type="button" class="room-source" data-room-source="${escape(item.source.id)}">${escape(item.source.quote)}</button>`:''}</article>`).join('');
-                body.insertAdjacentHTML('beforeend','<details class="room-scene-desire"><summary>性欲度记录</summary><div class="room-evidence-list">'+records+'</div></details>');
-            }
-            el('roomRelationRecheck').onclick=async()=>{
-                if(active||committing||options.isBusy())return;
-                const source=E.stamp(value),token={controller:new AbortController(),kind:'relations'};active=token;message('正在核对；关闭页面可取消，本轮不重复计分。');renderBusy();
-                try{const result=await options.recheckRelations(value,token.controller.signal);if(active!==token||room()!==value)return;
-                    if(E.stamp(value)!==source)throw new Error('房间来源已变化，未采纳旧判定');
-                    active=null;await commit(current=>options.applyRecheck(current,result));
-                }catch(error){if(active===token)message(error.name==='AbortError'?'已取消，原关系保留。':error.message,true);}
-                finally{if(active===token){active=null;renderBusy();}}
-            };
+            body.innerHTML=overview+diagnostics+eventList+`<button type="button" class="mini-action-btn" id="roomRelationRecheck">核对上一轮关系（一次请求）</button><div class="room-field-grid room-stats">${keys.map(key=>`<label>${E.RELATION_LABELS[key]}（0–100）<input type="number" min="0" max="100" placeholder="待评估" data-relation-value="${key}" value="${escape(Object.hasOwn(pending||{},key)?pending[key]:r.knownDimensions.includes(key)?r[key]:'')}"></label>`).join('')}</div><label>当前情绪<input id="roomRelationEmotion" value="${escape(r.emotion)}" maxlength="200"></label><label>既有关系／作者确认的基线<textarea id="roomRelationBaseline" rows="3">${escape(r.baseline||p.baseline)}</textarea></label><label>这个人物重视什么<textarea id="roomRelationPreferences" rows="3">${escape(p.preferences)}</textarea></label><label>这个人物的界限／顾虑<textarea id="roomRelationBoundaries" rows="3">${escape(p.boundaries)}</textarea></label><label>关键关系转折需要什么经历<textarea id="roomRelationConditions" rows="3">${escape(p.conditions)}</textarea></label><label class="room-check"><input id="roomRelationEnabled" type="checkbox" ${p.enabled?'checked':''}>为此角色核对关系证据</label><button type="button" class="btn-confirm" id="roomRelationSave">保存作者校准与规则</button><p class="room-note">手动校准会留在关系档案中，不编造成剧情事件。既有自定义关系节点仍在房间设定中编辑。</p><h4>关系依据与来源</h4><div class="room-evidence-list">${history.slice(0,historyCount).map(event=>`<article><strong>${escape(event.kind==='author'?'作者校准':event.tag||'本轮判定')}</strong><p>${escape(event.reason||'无额外说明')}</p>${event.delta?`<small>${Object.entries(event.delta).map(([key,n])=>`${E.RELATION_LABELS[key]} ${n>0?'+':''}${n}`).join(' · ')}</small>`:''}${(event.sources||[]).map(ref=>`<button type="button" class="room-source" data-room-source="${escape(ref.id)}">${escape(ref.quote)}</button>`).join('')}</article>`).join('')||'<p class="room-note">还没有来源判定。普通交流可以保持原关系；API 判定失败不会凭空改变状态。</p>'}</div>${history.length>historyCount?'<button type="button" id="roomRelationMore" class="mini-action-btn">查看更多依据</button>':''}`;
+            el('roomRelationRecheck').onclick=()=>recheck(value);
             el('roomRelationSave').onclick=()=>{
                 const values={emotion:el('roomRelationEmotion').value,policy:{enabled:el('roomRelationEnabled').checked,baseline:el('roomRelationBaseline').value,preferences:el('roomRelationPreferences').value,boundaries:el('roomRelationBoundaries').value,conditions:el('roomRelationConditions').value,criteria:readCriteria(body)}};
                 for(const input of body.querySelectorAll('[data-relation-value]')){
@@ -596,7 +563,7 @@
                 if (!current()) throw new Error('修复期间原对话已变化，原稿已保留。');
                 const parsed = E.parseDialogue(dialogue);
                 active = null;
-                await commit(target => options.adoptDialogue(target,candidate,parsed));
+                if(await commit(target=>options.adoptDialogue(target,candidate,parsed)))await reviewAccepted(candidate.turnId);
             } catch (error) {
                 if (active === token) message('修复未完成，原稿已保留。' + error.message,true);
             } finally {
@@ -635,9 +602,9 @@
                     actions.before(note);
                 }
                 card.querySelector('[data-draft-delete]').onclick=()=>commit(current=>{E.ensure(current).candidates=E.ensure(current).candidates.filter(d=>d.id!==candidate.id);});
-                card.querySelector('[data-draft-accept]').onclick=()=>{
+                card.querySelector('[data-draft-accept]').onclick=async()=>{
                     let parsed;try{parsed=E.parseDialogue({speech:card.querySelector('[data-draft-speech]').value,expression:card.querySelector('[data-draft-expression]').value});}catch(error){return message(error.message,true);}
-                    commit(current=>options.adoptDialogue(current,candidate,parsed));
+                    if(await commit(current=>options.adoptDialogue(current,candidate,parsed)))await reviewAccepted(candidate.turnId);
                 };
             });
         }
@@ -657,15 +624,14 @@
             render();
             overlay.querySelector('.room-experience-scroll').scrollTop=0;
         });
-        for(const [key,pane] of [['events',el('roomAssessmentEvents')],['desire',el('roomDesireSettings')]]){
+        for(const [key,pane] of [['events',el('roomAssessmentEvents')],['customState',el('roomCustomStateSettings')]]){
             pane.addEventListener('input',event=>{
-                if(event.target.id==='roomPeakMode')return;
                 editedSettings.add(key);
                 event.target.removeAttribute('aria-invalid');
                 event.target.parentElement.querySelector('.assessment-field-error')?.remove();
             });
             pane.addEventListener('click',event=>{
-                if(event.target.closest('#btnAddDesireRule, #btnAddRelationshipEvent, .desire-rule-up, .desire-rule-down, .desire-rule-remove, .node-remove, [data-add-step], [data-step-up], [data-step-down], [data-step-remove]')){
+                if(event.target.closest('#btnAddRelationshipEvent, .node-remove, #btnAddStateRule, #btnAddStateCondition, [data-state-remove], [data-state-up], [data-state-down]')){
                     editedSettings.add(key);
                 }
             });
@@ -684,20 +650,22 @@
                         editedSettings.delete(key);
                         eventsEditor.open(room());
                     });
-                }else if(key==='desire'){
-                    const draft=desireEditor.read();
+                }else if(key==='customState'){
+                    const draft=stateEditor.read(room());
+                    if(draft.enabled&&!State.validDefinition(draft.config)){
+                        throw new Error('自定义状态支持紧张、警戒、比赛兴奋等普通剧情，请调整状态定义、阶段反应或回落条件。');
+                    }
+                    if(draft.enabled&&draft.config.definition!==room().customStateSettings.definition&&
+                        E.ensure(room()).customState.records.length&&
+                        !doc.defaultView.confirm('修改状态含义会从初始分数重新开始。保存新定义吗？'))return;
                     await commit(current=>{
                         current.revisionHistory=options.settingsHistory(current);
-                        const wasEnabled=current.desireEnabled;
-                        current.desireEnabled=draft.enabled===true;
-                        current.desireSettings=draft.config;
-                        const state=E.ensure(current).desire;
-                        if(current.desireEnabled&&!wasEnabled&&current.messages.length)state.enabledSince=Date.now();
-                        if(Desire.scoring(current)&&draft.current!==undefined)Desire.calibrate(state,draft.current);
+                        State.configure(current,E.ensure(current),draft.enabled,draft.config,draft.current);
                         current.updatedAt=Date.now();
                     },()=>{
                         editedSettings.delete(key);
-                        desireEditor.open(room());
+                        stateEditor.open(room());
+                        if(!editedSettings.has('events'))eventsEditor.open(room());
                     });
                 }
             }catch(error){
@@ -708,10 +676,6 @@
                 }
             }
         };
-        el('roomPeakMode').onchange=()=>{
-            const enabled=el('roomPeakMode').checked;
-            commit(current=>{Desire.setPeak(current,E.ensure(current),enabled);current.updatedAt=Date.now();});
-        };
         el('roomSceneInstruction').oninput=()=>{const value=room();if(value){E.ensure(value).instruction=el('roomSceneInstruction').value;if(E.ensure(value).mode==='scene')options.setComposer(E.ensure(value).instruction);persist();}};
         for(const control of overlay.querySelectorAll('#roomSceneCandidate textarea,#roomSceneCandidate input'))control.addEventListener('input',readCandidate);
         el('roomScenePresent').addEventListener('change',readCandidate);
@@ -721,10 +685,17 @@
             const value=room();if(!value||active||committing)return;
             E.ensure(value).sceneDraft={id:'manual_'+Date.now(),content:'',instruction:el('roomSceneInstruction').value,state:E.clone(E.ensure(value).scene),stamp:E.stamp(value),createdAt:Date.now()};persist();renderScene(value);renderBusy();
         };
-        el('roomSceneEnvironment').onchange=readCandidate;
-        el('roomSceneAccept').onclick=()=>{
-            if(!el('roomSceneDesire').hidden&&!el('roomSceneElapsed').validity.valid)return message('请填写有效的剧情经过分钟数。',true);
-            readCandidate();commit(current=>E.acceptScene(current,E.ensure(current).sceneDraft),()=>{refreshComposer(true);message('情景已采纳，已回到对话推进。');});
+        el('roomSceneAccept').onclick=async()=>{
+            readCandidate();
+            let turnId;
+            const saved=await commit(current=>{
+                E.acceptScene(current,E.ensure(current).sceneDraft);
+                turnId=current.messages.at(-1).turnId;
+            },()=>{
+                refreshComposer(true);
+                message('情景已采纳，已回到对话推进。');
+            });
+            if(saved)await reviewAccepted(turnId);
         };
         el('roomAuthorView').onchange=()=>{const value=room();if(value){E.ensure(value).authorView=el('roomAuthorView').checked;persist();renderRelations(value);refreshComposer();}};
         el('roomRelationMember').onchange=()=>{memberId=el('roomRelationMember').value;historyCount=30;renderRelations(room());};

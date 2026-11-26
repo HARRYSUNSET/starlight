@@ -71,9 +71,10 @@
 .relationship-score[data-dimension=familiarity] { --score-color:#c28a09; }
 .relationship-score[data-dimension=trust] { --score-color:#448ae8; }
 .relationship-score[data-dimension=affection] { --score-color:#db5266; }
-.relationship-score[data-dimension=desire] { --score-color:#a56cdf; }
+.relationship-score[data-dimension=customState] { --score-color:#a56cdf; }
 .relationship-score-label { display:flex; align-items:center; justify-content:space-between; gap:4px; font-size:.72rem; white-space:nowrap; }
-.relationship-score-label strong { font-variant-numeric:tabular-nums; }
+.relationship-score-label > span { min-width:0; overflow:hidden; text-overflow:ellipsis; }
+.relationship-score-label strong { flex-shrink:0; font-variant-numeric:tabular-nums; }
 .relationship-track { height:5px; border-radius:9px; background:var(--border); overflow:hidden; }
 .relationship-track > span { display:block; height:100%; border-radius:inherit; background:var(--score-color); }
 .relationship-event-editor { display:grid; gap:10px; padding:12px; margin:12px 0; border:1px solid var(--border); border-radius:12px; }
@@ -81,14 +82,9 @@
 .relationship-event-editor label { min-width:0; margin:0; font-size:.76rem; color:var(--text-secondary); }
 .relationship-event-editor :is(input,textarea) { width:100%; min-width:0; box-sizing:border-box; margin-top:6px; }
 .room-modal .room-optional-dimension { display:flex; align-items:center; gap:8px; }
-.room-desire-fields:not([hidden]) { display:grid; gap:12px; }
-.room-assessment-route .room-desire-base, .room-desire-rule .node-criteria { grid-template-columns:repeat(auto-fit,minmax(min(132px,100%),1fr)); }
-.room-desire-rule-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap; }
-.room-desire-rules { display:grid; gap:10px; }
-.room-desire-rule { min-width:0; display:grid; gap:10px; margin:0; padding:10px; border:1px solid var(--border); border-radius:12px; }
-.room-desire-rule legend { padding:0 5px; color:var(--text-secondary); font-size:.82rem; }
-.room-scene-desire { margin-top:14px; padding:10px; border:1px solid var(--border); border-radius:10px; }
-.room-scene-desire summary { cursor:pointer; }
+.room-assessment-route .room-state-values { grid-template-columns:repeat(auto-fit,minmax(min(132px,100%),1fr)); }
+.state-condition-row { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:end; gap:8px; margin-block:8px; }
+.room-assessment-route .state-condition-row label { margin:0; }
 .room-assessment-route .room-experience-header {
     padding-inline:max(16px,calc((100% - 760px)/2),var(--ui-safe-inline));
 }
@@ -125,7 +121,7 @@
 .assessment-switch input:checked { background:var(--accent); border-color:transparent; }
 .assessment-switch input:checked::after { transform:translateX(18px); background:white; }
 .assessment-switch input:disabled { cursor:default; opacity:.5; }
-.room-assessment-route .room-desire-base label, .room-assessment-route .room-desire-rule label { margin:0; }
+.room-assessment-route .room-state-values label { margin:0; }
 .room-assessment-route .relationship-event-editor { background:var(--card-bg); }
 .room-assessment-route .relationship-event-heading label { margin:0; }
 .room-assessment-route input[aria-invalid="true"], .room-assessment-route textarea[aria-invalid="true"] { border-color:var(--danger); }
@@ -137,9 +133,6 @@
 .room-standard small { color:var(--text-secondary); font-weight:400; }
 .room-review-dimensions { display:grid; gap:5px; padding-inline-start:20px; margin-block:8px; font-size:.79rem; }
 .room-review-dimensions span { margin-inline-start:8px; color:var(--text-secondary); }
-.room-effective-instruction { margin:6px 0; padding:8px; background:var(--bg); border-radius:8px; font:inherit; font-size:.78rem; white-space:pre-wrap; overflow-wrap:anywhere; }
-[data-add-step] { margin-top:8px; }
-.room-relationship-card.relationship-peak { border-color:color-mix(in srgb,#a56cdf 55%,var(--border)); }
 @media(prefers-reduced-motion:reduce) {
     .room-assessment-pane:not([hidden]) { animation:none; }
     .room-assessment-tabs button::after, .assessment-switch input::after { transition:none; }

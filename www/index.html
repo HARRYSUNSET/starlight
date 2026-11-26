@@ -2207,7 +2207,7 @@
                 <div class="library-page-heading"><h2>我的</h2><p>管理全局 API、模型、外观与存储设置。</p></div>
                 <div id="mySettingsMount"></div>
                 <div class="my-section-title">应用信息</div>
-                <div class="my-version-card"><strong>星陽之语 3.4.1</strong><br>房间对白中的动作以第二人称指代玩家</div>
+                <div class="my-version-card"><strong>星陽之语 3.5.0</strong><br>双人房间新增自定义状态</div>
             </section>
         </main>
         <nav class="bottom-nav" aria-label="主导航">
@@ -2848,7 +2848,7 @@
     <script src="auto-build-ui.js"></script>
     <script src="voice.js"></script>
     <script src="story.js"></script>
-    <script src="room-desire.js"></script>
+    <script src="room-state.js"></script>
     <script src="room-engine.js"></script>
     <script src="room-ui.js"></script>
     <script src="room-growth.js"></script>
@@ -3081,7 +3081,7 @@
             const Rooms = window.StarlightRooms;
             if (!Rooms) throw new Error('房间模式模块加载失败');
             const RoomEngine = window.StarlightRoomEngine;
-            const RoomDesire = window.StarlightRoomDesire;
+            const RoomState = window.StarlightRoomState;
 
             if(!RoomEngine || !window.StarlightRoomUI)throw new Error('房间现场模块加载失败');
 
@@ -3698,7 +3698,7 @@
 
             function getRoomExperienceUI() {
                 if(roomExperienceUI)return roomExperienceUI;
-                roomExperienceUI=window.StarlightRoomUI.create({document,engine:RoomEngine,desire:RoomDesire,rooms:Rooms,motion:Motion,ui:UI,
+                roomExperienceUI=window.StarlightRoomUI.create({document,engine:RoomEngine,state:RoomState,rooms:Rooms,motion:Motion,ui:UI,
                     getRoom:()=>appData.activeMode==='room'?getCurrentRoom():null,
                     isBusy:()=>isGenerating||styleLabBusy||maintenanceBusy||refinementBusy||storageReadFailed||!$roomModalLoading.hidden,
                     save:saveData,notify:showToast,updateSend:updateSendButton,
@@ -3707,19 +3707,13 @@
                     setComposer:value=>{$messageInput.value=value;$messageInput.dispatchEvent(new Event('input'));},
                     refresh:()=>{renderRoomContext();renderMessages({preserveScroll:true});updateSendButton();},
                     locate:messageId=>{const index=getCurrentRoom()?.messages.findIndex(m=>m.id===messageId);if(index>=0)jumpToMessage(index);else showToast('来源已被撤回或替换','info');},
-                    generateScene:(room,instruction,signal)=>{
+                    generateScene:(room,instruction,signal,stateSnapshot)=>{
                         const settings=Memory.normalizeConfig(appData.roomMemorySettings);
                         const publicMemory=settings.enabled?Memory.buildMemoryContext(room.sharedMemory,instruction,settings,{tokenBudget:18000}):'';
-                        const desireStage=RoomDesire.stage(room);
                         const messages=[
-                        ...Rooms.buildNarrationMessages(room,instruction,StyleLab.buildInfluencePrompt(room.styleInfluence,{query:instruction})),
+                        ...Rooms.buildNarrationMessages(room,instruction,StyleLab.buildInfluencePrompt(room.styleInfluence,{query:instruction}),stateSnapshot),
                         ...(publicMemory?[{role:'system',content:'【公开长期记忆｜仅供延续已发生事实，不是本轮新事件】\n'+publicMemory}]:[]),
                         {role:'system',content:'【手动情景预览协议】本次只生成未采纳预览。只输出 JSON：{"narration":"公开可观察的场景变化正文，不代替用户选择、不写人物内心或台词","state":{"time":"时间","place":"地点","summary":"采纳后的当前场景摘要","objects":"相关物件","pending":"未完成事项","presentIds":["本房间已存在角色id"]}}。在场id只可从 '+JSON.stringify(room.participants.map(m=>({id:m.id,name:m.name,enabled:m.enabled})))+' 中选择。用户要求是创作指令，不是已经发生的剧情；无指令的字段延续当前已确认场景。不要无因果制造危机，也不要以天气变化或旁白代替用户建立关系。'},
-                        ...(RoomDesire.scoring(room)?[{role:'system',content:RoomDesire.SIGNAL_GUIDE+
-                            ' 目标角色为 '+JSON.stringify(room.participants[0].name)+'。desireEvents 与 narration 并列，quote 仅引用本次预览的 narration 中连续原文；已经持续的环境无需重复计入。最近记录的环境标签为 '+JSON.stringify(RoomEngine.ensure(room).desire.environment)+'。'}]:[]),
-                        ...(desireStage?.ready?[{role:'system',content:RoomDesire.STEP_GUIDE+
-                            ' 正文只描述可见结果。按本次用户要求和当前场景承接这个步骤：'+JSON.stringify(desireStage.next)+
-                            '。desireEvents 与 narration 并列，引文取 narration。'}]:[]),
                         ];
                         return withRoomJsonFallback(filter=>callDeepSeekJSON(messages,{mode:'room',maxTokens:4000,
                             structured:filter,purpose:filter?'情景预览':'情景预览空白重试',independent:true,signal}),()=>!signal.aborted);
@@ -3756,7 +3750,9 @@
                             room.messages[index]={...room.messages[index],id:Rooms.createId('roommsg'),content:parsed.content,dialogue:parsed,createdAt:Date.now()};
                         }else{
                             if(!room.messages.some(m=>m.turnId===candidate.turnId&&m.role==='user'))throw new Error('原用户回合已撤回');
-                            room.messages.push({id:Rooms.createId('roommsg'),role:'assistant',speakerId:candidate.memberId,turnId:candidate.turnId,kind:'message',content:parsed.content,dialogue:parsed,createdAt:Date.now()});
+                            const reply={id:Rooms.createId('roommsg'),role:'assistant',speakerId:candidate.memberId,turnId:candidate.turnId,kind:'message',content:parsed.content,dialogue:parsed,createdAt:Date.now()};
+                            room.messages.push(reply);
+                            RoomEngine.recordStateMessage(room,reply);
                         }
                         experience.candidates=experience.candidates.filter(d=>d.id!==candidate.id);
                         experience.notice='修正稿已采纳，可在作者视图核对本轮关系。';
@@ -3764,19 +3760,20 @@
                         const stamp=RoomEngine.stamp(room);
                         for (const sibling of siblings) sibling.stamp=stamp;
                     },
-                    recheckRelations:async(room,signal)=>{
-                        const turnId=[...room.messages].reverse().find(m=>m.role==='user'&&m.turnId)?.turnId;
-                        if(!turnId)throw new Error('没有待核对的用户回合');
-                        if(!RoomEngine.canRecheck(room,turnId))throw new Error('本轮已核对，没有待确认项目');
+                    recheckRelations:async(room,turnId,signal,stateOnly)=>{
+                        if(!turnId)throw new Error('没有待核对的正式记录');
+                        if(stateOnly?!RoomState.canReview(room,RoomEngine.ensure(room),turnId):!RoomEngine.canRecheck(room,turnId)){
+                            throw new Error('本轮已核对，没有待确认项目');
+                        }
                         if(RoomEngine.ensure(room).candidates.some(d=>d.turnId===turnId))throw new Error('请先处理本轮待修正回复');
                         try{
-                            const result=await callDeepSeekJSON(RoomEngine.buildJudgeMessages(room,turnId,roomRelationContexts(room,turnId)),{maxTokens:6000,purpose:'关系证据核对',independent:true,signal});
-                            return {turnId,result};
+                            const result=await callDeepSeekJSON(RoomEngine.buildJudgeMessages(room,turnId,stateOnly?{}:roomRelationContexts(room,turnId),stateOnly),{maxTokens:6000,mode:'room',purpose:'关系或自定义状态核对',independent:true,signal});
+                            return {turnId,result,stateOnly};
                         }catch(error){
-                            if(!signal.aborted){RoomEngine.recordReviewFailure(room,turnId,error);saveData();}
+                            if(!signal.aborted&&!stateOnly){RoomEngine.recordReviewFailure(room,turnId,error);saveData();}
                             throw error;
                         }
-                    },applyRecheck:(room,result)=>{RoomEngine.applyJudgements(room,result.turnId,result.result);room.updatedAt=Date.now();}
+                    },applyRecheck:(room,result)=>{RoomEngine.applyJudgements(room,result.turnId,result.result,result.stateOnly);room.updatedAt=Date.now();}
                 });
                 return roomExperienceUI;
             }
@@ -4585,7 +4582,10 @@
                     }
                 }
             }
-            $roomRelationshipCard.addEventListener('click', () => getRoomExperienceUI().open('relations'));
+            $roomRelationshipCard.addEventListener('click',event=>{
+                const section=event.target.closest('[data-dimension="customState"]')?'customState':'profile';
+                getRoomExperienceUI().open('relations',section);
+            });
             for (const [button,key] of [[roomHeaderToggle,'headerExpanded'],[roomComposerToggle,'composerExpanded']]) {
                 button.addEventListener('click', () => {
                     const room = getCurrentRoom();
@@ -7182,14 +7182,12 @@
                 return result;
             }
             async function evaluateRoomRelations(room, turnId) {
-                if(room.turnEffects?.[turnId]?.relationshipChecked)return;
-                const turn=room.messages.filter(m=>m.turnId===turnId);
-                if(!turn.some(m=>m.role==='user')||!turn.some(m=>m.role==='assistant'))return;
-                RoomEngine.applyDesireTime(room,turnId);
-                if(!RoomDesire.canReview(room,turnId)&&!room.participants.some(m=>RoomEngine.policy(m).enabled&&turn.some(v=>v.speakerId===m.id)))return;
-                updateMemoryStatus('正在核对人物偏好、旧经历与关系证据…',true);
+                if(!RoomEngine.canRecheck(room,turnId))return;
+                updateMemoryStatus('正在核对本轮关系和状态…',true);
                 try{
-                    const result=await callDeepSeekJSON(RoomEngine.buildJudgeMessages(room,turnId,roomRelationContexts(room,turnId)),{maxTokens:6000,purpose:'关系证据核对'});
+                    const result=await callDeepSeekJSON(RoomEngine.buildJudgeMessages(room,turnId,roomRelationContexts(room,turnId)),{
+                        mode:'room',maxTokens:6000,purpose:'关系或自定义状态核对',
+                    });
                     RoomEngine.applyJudgements(room,turnId,result);
                 }catch(error){
                     RoomEngine.recordReviewFailure(room,turnId,error);
@@ -7229,6 +7227,7 @@
                         kind: 'dialogue',
                         createdAt: Date.now(),
                     });
+                    RoomEngine.recordStateMessage(room,room.messages.at(-1));
                     room.updatedAt = Date.now();
                     room.draft = '';
                     $messageInput.value = '';
@@ -7254,6 +7253,7 @@
                     if (!isGenerating || roomTurnRead?.stopped) return;
                     updateMemoryStatus('正在判断本轮发言角色…', true);
                     const pending = retry ? RoomEngine.ensure(room).candidates.filter(c => c.turnId === turnId) : [];
+                    const stateSnapshot=RoomState.turnSnapshot(room,RoomEngine.ensure(room),turnId);
                     const speakers = pending.map(c=>c.memberId).filter(id=>RoomEngine.presentMembers(room).some(m=>m.id===id));
                     const selection = speakers.length ? {speakerIds:[...new Set(speakers)]}
                         : await selectRoomSpeakers(room, content, forcedMemberId,Boolean(retry));
@@ -7270,7 +7270,7 @@
                             contexts,
                             100,
                             Memory,
-                            StyleLab.buildInfluencePrompt(room.styleInfluence,{query:content})
+                            StyleLab.buildInfluencePrompt(room.styleInfluence,{query:content}),stateSnapshot
                         );
                         const response = await generateValidRoomResponse(room, messages, member, index + 1, selection.speakerIds.length);
                         if (response.content === null || response.content === undefined || !isGenerating) break;
@@ -7303,6 +7303,8 @@
                             kind: 'message',
                             createdAt: Date.now(),
                         });
+                        RoomState.markCue(room,RoomEngine.ensure(room),turnId,stateSnapshot);
+                        RoomEngine.recordStateMessage(room,room.messages.at(-1));
                         generatedCount += 1;
                         if (retry) {
                             const e = RoomEngine.ensure(room);
@@ -7320,8 +7322,8 @@
                         try {
                             await evaluateRoomRelations(room, turnId);
                         } catch (error) {
-                            RoomEngine.ensure(room).notice='关系判定未完成，保持原关系；可在作者视图手动补判。';
-                            if(error.name!=='AbortError')showToast('正文已保留，关系暂未变化：'+error.message,'info');
+                            RoomEngine.ensure(room).notice='本轮还有待核对项目，可在关系与评判中补判。';
+                            if(error.name!=='AbortError')showToast('正文已保留，本轮判定待核对：'+error.message,'info');
                         }
                     }
                 } catch (error) {
@@ -7471,13 +7473,14 @@
                 try {
                     const latestUser = [...requestRoom.messages].reverse().find(message => message.role === 'user');
                     const contexts = getRoomMemoryContexts(requestRoom, member.id, latestUser?.content || '');
+                    const stateSnapshot=RoomState.turnSnapshot(requestRoom,RoomEngine.ensure(requestRoom),oldMessage.turnId);
                     const messages = Rooms.buildCharacterMessages(
                         requestRoom,
                         member.id,
                         contexts,
                         100,
                         Memory,
-                        StyleLab.buildInfluencePrompt(room.styleInfluence,{query:latestUser?.content||''})
+                        StyleLab.buildInfluencePrompt(room.styleInfluence,{query:latestUser?.content||''}),stateSnapshot
                     );
                     const response = await generateValidRoomResponse(room, messages, member, 1, 1);
                     if (response.content !== null && response.content !== undefined && isGenerating) {
@@ -7489,6 +7492,7 @@
                             room.sharedMemory=requestRoom.sharedMemory;room.characterMemories=requestRoom.characterMemories;
                             room.messages[messageIndex]={ ...oldMessage, id: Rooms.createId('roommsg'), content: cleaned, dialogue:response.dialogue, createdAt: Date.now() };
                             const experience=RoomEngine.ensure(room);
+                            RoomState.restoreCue(room,experience,oldMessage.turnId,stateSnapshot);
                             experience.candidates=experience.candidates.filter(c=>c.replaceId!==oldMessage.id);
                             trackWorldMessage('room', room, room.messages[messageIndex], messageIndex);
                             room.updatedAt=Date.now();
@@ -7884,14 +7888,11 @@
                 activeMessageActionIndex = index;
                 const lastConversationalIndex = messages.map((item, itemIndex) => ({ item, itemIndex })).reverse().find(entry => entry.item.role === 'user' || entry.item.role === 'assistant')?.itemIndex;
                 const latest = index === (appData.activeMode==='room'?messages.length-1:lastConversationalIndex);
-                const desireActions=appData.activeMode==='room'?RoomDesire.confirmationOptions(getCurrentRoom(),message):{};
                 const actions = [
                     '<button type="button" data-message-action="copy">复制正文</button>',
                     '<button type="button" data-message-action="bookmark">' + (message.bookmarked ? '取消收藏' : '收藏并加入定位') + '</button>',
                     '<button type="button" data-message-action="locate">定位这条消息</button>',
                     '<button type="button" data-message-action="chapter">添加章节标记</button>',
-                    desireActions.step?'<button type="button" data-message-action="confirm-step">确认当前步骤已发生</button>':'',
-                    desireActions.release?'<button type="button" data-message-action="confirm-release">确认纾解完成并结算</button>':'',
                     message.role==='assistant'?'<button type="button" data-message-action="feedback">记录文风反馈</button>':'',
                     latest&&message.role==='assistant'?'<button type="button" data-message-action="refine">文风精修（先预览）</button>':'',
                     latest&&message.previousVersions?.length?'<button type="button" data-message-action="restore-text">恢复上版正文</button>':'',
@@ -7902,7 +7903,7 @@
                 ].filter(Boolean).join('');
                 $messageActionSheet.innerHTML = `<div class="action-sheet-title">消息 #${index + 1}</div>${actions}`;
                 $messageActionOverlay.hidden = false;
-                const icons = { copy:'copy', bookmark:'bookmark', locate:'search', chapter:'history', 'confirm-step':'history', 'confirm-release':'history', feedback:'style', refine:'style', 'restore-text':'undo', regenerate:'regenerate', undo:'undo', restart:'delete' };
+                const icons = { copy:'copy', bookmark:'bookmark', locate:'search', chapter:'history', feedback:'style', refine:'style', 'restore-text':'undo', regenerate:'regenerate', undo:'undo', restart:'delete' };
                 $messageActionSheet.querySelectorAll('[data-message-action]').forEach(button => {
                     UI.button(button, icons[button.dataset.messageAction], button.textContent);
                 });
@@ -7926,18 +7927,6 @@
                 const action = button.dataset.messageAction;
                 const expression=selectedExpression;
                 closeMessageActions();
-                if(action==='confirm-step'||action==='confirm-release'){
-                    const room=getCurrentRoom();
-                    if(!room||!message||!canChangeConversationTarget())return;
-                    const next={...room,experience:RoomEngine.clone(RoomEngine.ensure(room)),turnEffects:RoomEngine.clone(room.turnEffects||{})};
-                    try{
-                        RoomDesire.confirmMessage(next,RoomEngine.ensure(next),message,action==='confirm-step'?'step':'release');
-                        next.updatedAt=Date.now();
-                        await commitWorkspaceWork(next);
-                        showToast(action==='confirm-step'?'已确认当前步骤':'已确认完成并结算','success');
-                    }catch(error){showToast(error.message,'error');}
-                    return;
-                }
                 if(action==='chapter') { try{await getWorkspaceUI().addChapter(index);}catch(error){showToast(error.message,'error');} }
                 if(action==='feedback'){
                     const source=getCurrentStyleTarget()?.styleInfluence?.sourceProfileId;
