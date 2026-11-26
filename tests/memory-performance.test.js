@@ -154,3 +154,16 @@ test('未用满的分节预算会回收给被截断的段落', () => {
     assert.ok(tokens > 3400, `未回收未用预算，实际仅 ${tokens}`);
     assert.ok((context.match(/事实\d+：/g) || []).length >= 20, '事实条目过少');
 });
+
+test('房间请求对已发送的相同记忆去重，仍保留不同角色的细节和锁定记录', () => {
+    const shown = new Set();
+    const shared = Memory.buildMemoryContext({core:'备用钥匙保管在蓝盒中。'},'钥匙',{}, {shown});
+    const personal = Memory.buildMemoryContext({
+        core:'备用钥匙保管在蓝盒中。\n林澈答应在闭馆前还钥匙。',
+        facts:[{text:'备用钥匙保管在蓝盒中。',locked:true,knowledgeScope:'private',observedBy:['alice']}],
+    },'钥匙',{}, {shown,characterId:'alice'});
+    assert.match(shared,/备用钥匙保管在蓝盒中/);
+    assert.doesNotMatch(personal,/【持续状态与关键事实】\n备用钥匙/);
+    assert.match(personal,/闭馆前还钥匙/);
+    assert.match(personal,/已锁定/);
+});

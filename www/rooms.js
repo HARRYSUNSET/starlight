@@ -389,8 +389,9 @@
         return JSON.stringify({ expression, speech });
     }
 
-    function roomMessagesForMemory(room) {
-        return (Array.isArray(room?.messages) ? room.messages : []).map(message => {
+    function roomMessagesForMemory(room, start = 0, end) {
+        const messages = Array.isArray(room?.messages) ? room.messages : [];
+        return messages.slice(start, end).map(message => {
             if (message.role === 'assistant') {
                 const member = getMember(room, message.speakerId);
                 const cleaned = cleanCharacterOutput(message.content, member?.name || '');
@@ -403,6 +404,53 @@
             }
             return { role: 'system', content: message.kind==='control'||message.kind==='intimacy-node' ? '（本条为操作或界面提示，没有可记忆的剧情事实。）' : `场景事件：${asString(message.content)}` };
         });
+    }
+
+    function isRoomTurnBoundary(messages, index) {
+        if (index === 0 || index === messages.length) return true;
+        const next = messages[index], previous = messages[index - 1];
+        if (next.turnId && previous.turnId) return next.turnId !== previous.turnId;
+        return next.role === 'user' || next.kind === 'narration' || previous.role === 'assistant';
+    }
+
+    function roomHistoryWindow(room, settings, memoryApi, fill = 1) {
+        const covered = Math.max(0, Math.min(room.messages.length, Number(room.sharedMemory?.summarizedUntil) || 0));
+        const expanded = settings.enabled === false || settings.roomContextProfile === 'expanded';
+        const liveBudget = settings.liveContextTokenBudget || 120000;
+        const select = (budget, limit) => {
+            const window = memoryApi.takeRecentMessages(room.messages, covered, budget, limit);
+            let startIndex = window.startIndex;
+            if (startIndex > covered && !isRoomTurnBoundary(room.messages,startIndex)) {
+                // Drop a partial oldest turn; keep the entire latest turn even
+                // when that turn alone needs more space than the soft target.
+                while (!isRoomTurnBoundary(room.messages,startIndex)) startIndex++;
+                if (startIndex === room.messages.length) {
+                    startIndex = window.startIndex;
+                    while (startIndex > covered && !isRoomTurnBoundary(room.messages,startIndex)) startIndex--;
+                }
+            }
+            return {startIndex, messages: startIndex === window.startIndex ? window.messages : room.messages.slice(startIndex)};
+        };
+        const target = select(Math.floor(Math.min(liveBudget, expanded ? liveBudget : 16000) * fill),
+            Math.floor((expanded ? 800 : 240) * fill));
+        const window = target.startIndex > covered && !expanded ? select(liveBudget, 800) : target;
+        return {...window, covered, targetStart: target.startIndex};
+    }
+
+    function findRoomMemoryChunk(room, settings, memoryApi) {
+        if (!settings.enabled) return null;
+        const {covered, targetStart} = roomHistoryWindow(room, settings, memoryApi);
+        if (targetStart <= covered) return null;
+        // Leave headroom so one overflow does not cause a request on every later turn.
+        const {targetStart: limit} = roomHistoryWindow(room, settings, memoryApi, 0.75);
+        let end = covered, tokens = 0;
+        for (let index = covered; index < limit; index++) {
+            const cost = memoryApi.estimateTokens(room.messages[index].content) + 6;
+            if (tokens + cost > settings.maxChunkTokens && end > covered) break;
+            tokens += cost;
+            if (isRoomTurnBoundary(room.messages, index + 1)) end = index + 1;
+        }
+        return end > covered ? {startIndex: covered, endIndex: end, messages: roomMessagesForMemory(room, covered, end)} : null;
     }
 
     function buildParticipantDirectory(room, currentMemberId) {
@@ -489,7 +537,9 @@
         if (!member) throw new Error('找不到待发言角色');
         const summarizedUntil = Number(room.sharedMemory?.summarizedUntil) || 0;
         const fallbackStart = Math.max(summarizedUntil, Math.max(0, room.messages.length - finiteInt(recentLimit, 100, 20, 1000)));
-        const window = memoryApi && typeof memoryApi.takeRecentMessages === 'function'
+        const window = contexts?.memorySettings && memoryApi
+            ? roomHistoryWindow(room, contexts.memorySettings, memoryApi)
+            : memoryApi && typeof memoryApi.takeRecentMessages === 'function'
             ? memoryApi.takeRecentMessages(
                 room.messages,
                 summarizedUntil,
@@ -514,7 +564,7 @@
         ];
     }
 
-    function buildDirectorMessages(room, latestUserText) {
+    function buildDirectorMessages(room, latestUserText, memoryApi) {
         const members = getActiveMembers(room);
         const directory = members.map(member => ({
             id: member.id,
@@ -527,7 +577,9 @@
             growth_notes: member.growthNotes,
             relationships: member.relationships,
         }));
-        const recent = room.messages.slice(-24).map(message => {
+        const history = memoryApi ? memoryApi.takeRecentMessages(room.messages, 0, 3200, 24).messages : room.messages.slice(-24);
+        const recent = history.filter(message => memoryApi ? message !== room.messages.at(-1) ||
+            message.role !== 'user' || message.content !== latestUserText : true).map(message => {
             if (message.role === 'assistant') {
                 return `${getMember(room, message.speakerId)?.name || '角色'}：${message.content}`;
             }
@@ -552,7 +604,7 @@
                     '【用户角色设定】\n' + (room.userPersona || '（未设定）'),
                     '【场景】\n' + ((Experience && Experience.currentScenePrompt(room)) || room.scenePrompt || '延续当前场景'),
                     '【剧情补充】\n' + (room.otherInfo || '（无）'),
-                    '【最近对话】\n' + (recent || '（尚无）'),
+                    '【最近对话】\n' + ((memoryApi ? memoryApi.clipTextToTokenBudget(recent, 3400) : recent) || '（尚无）'),
                     '【用户最新消息】\n' + latestUserText,
                 ].join('\n\n'),
             },
@@ -670,6 +722,8 @@
         sanitizeSpeakerIds,
         roomMessageForModel,
         roomMessagesForMemory,
+        roomHistoryWindow,
+        findRoomMemoryChunk,
         cleanCharacterOutput,
         hasSubstantiveContent,
         hasSubstantiveRoomContent,

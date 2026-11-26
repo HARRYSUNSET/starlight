@@ -173,12 +173,64 @@ test('有实质新了解的对话只许可熟悉度增加，零分与实计原�
     assert.equal(audit.applied.familiarity,1);
     assert.equal(audit.requested.trust,2);
     assert.equal(audit.applied.trust,0);
-    assert.equal(audit.causes.trust,'criteria');
+    assert.equal(audit.causes.trust,'builtinKind');
     assert.equal(audit.reasons.familiarity,'首次了解日常习惯');
     turn(value,'好的','neutral');
     E.applyJudgements(value,'neutral',{judgements:[{memberId:'a',sources:[],familiarity:0,trust:0,affection:0}]});
     assert.equal(value.turnEffects.neutral.relationshipAudit.records[0].applied.affection,0);
     assert.equal(value.turnEffects.neutral.relationshipAudit.records[0].causes.affection,'steady');
+});
+
+test('完全自定义规则进入模型判定并决定实际入账，规则与限幅可随旧房间保存',()=>{
+    const initial=room();
+    E.calibrate(initial,'a',{trust:10,policy:{
+        criteria:{affection:{increase:'每次主动问候，好感加 4 分。'}},
+        scoring:{mode:'custom',rules:'每个回合都按自己的互动判断，允许重复问候计分。',
+            limits:{familiarity:{gain:0},trust:{loss:4},affection:{gain:3}}},
+    }});
+    const value=Rooms.normalizeRoom(JSON.parse(JSON.stringify(initial)),Memory);
+    turn(value,'你好','hello');
+    const messages=E.buildJudgeMessages(value,'hello');
+    const {characters}=JSON.parse(messages[1].content);
+    assert.equal(characters[0].scoring.mode,'custom');
+    assert.equal(characters[0].scoring.standards,undefined);
+    assert.equal(characters[0].policy.criteria.affection.increase,'每次主动问候，好感加 4 分。');
+    assert.match(characters[0].scoring.rules,/允许重复问候计分/);
+    assert.deepEqual(characters[0].scoring.limits.trust,{gain:100,loss:4});
+    assert.doesNotMatch(messages[0].content,/内置结算|大多数变化0/);
+    const judge=id=>E.applyJudgements(value,id,judgement(id,'你好',{kind:'greeting',familiarity:1,trust:-6,affection:4}));
+    judge('hello');
+    const audit=value.turnEffects.hello.relationshipAudit.records[0];
+    assert.equal(audit.mode,'custom');
+    assert.deepEqual(audit.applied,{familiarity:0,trust:-4,affection:3});
+    assert.deepEqual(audit.causes,{familiarity:'limit',trust:'limit',affection:'limit'});
+    assert.equal(judge('hello').duplicate,true);
+    turn(value,'你好','again');
+    judge('again');
+    assert.equal(E.ensure(value).relations.a.affection,6);
+    E.revertRelations(value,'again');
+    assert.equal(E.ensure(value).relations.a.affection,3);
+});
+
+test('自定义评分仍要求本轮真实原文，混合规则按角色分别生效',()=>{
+    const value=room({roomType:'group',participants:[{id:'a',name:'小夏'},{id:'b',name:'小秋'}]});
+    E.calibrate(value,'a',{policy:{scoring:{mode:'custom',rules:'收到问候时增加好感。'}}});
+    turn(value,'早','greeting');
+    value.messages.push({id:'greeting-b',turnId:'greeting',role:'assistant',kind:'message',speakerId:'b',content:'早安。'});
+    const [,payload]=E.buildJudgeMessages(value,'greeting');
+    const [a,b]=JSON.parse(payload.content).characters;
+    assert.equal(a.scoring.mode,'custom');
+    assert.equal(b.scoring.mode,'standard');
+    assert.ok(b.scoring.standards.affection);
+    const aJudgement=judgement('greeting','早',{kind:'greeting',familiarity:0,trust:0,affection:3}).judgements[0];
+    const bJudgement={memberId:'b',familiarity:0,trust:0,affection:0};
+    assert.throws(()=>E.applyJudgements(value,'greeting',{judgements:[
+        {...aJudgement,sources:[{id:'greeting-b',quote:'早'}]},bJudgement,
+    ]}),/来源/);
+    assert.equal(E.canRecheck(value,'greeting'),true);
+    E.applyJudgements(value,'greeting',{judgements:[aJudgement,bJudgement]});
+    assert.equal(E.ensure(value).relations.a.affection,3);
+    assert.equal(E.ensure(value).relations.b.affection,0);
 });
 
 function withState(config={},extra={}){

@@ -85,6 +85,7 @@
             naturalStyle: value.naturalStyle !== false,
             maxOutputTokens: toFiniteInt(value.maxOutputTokens, DEFAULT_CONFIG.maxOutputTokens, 1000, 384000),
             thinkingMode: value.thinkingMode === 'enabled' ? 'enabled' : 'disabled',
+            ...(value.roomContextProfile === 'expanded' ? { roomContextProfile: 'expanded' } : {}),
         };
     }
 
@@ -719,6 +720,9 @@
         const timeline = Timeline.selectEvents(state.timeline, recallOptions).sort(function (a, b) {
             return rankFact(b, queryTokens, Date.now()) - rankFact(a, queryTokens, Date.now());
         });
+        const shown = recallOptions.shown;
+        const rowKey = text => text.trim().replace(/\s+/g, ' ');
+        if (shown) facts.sort((a, b) => Number(b.locked) - Number(a.locked));
         const sections = [];
         // Cumulative prose has no historical provenance: never put today's core
         // into a request that explicitly asks what was known in an earlier turn.
@@ -753,6 +757,17 @@
                 section.rows = selectCoreItems(state.core, queryTokens, Math.floor(available * section.weight / weight));
             }
         }
+        if (shown) {
+            for (const section of sections) {
+                const seen = new Set(shown);
+                section.rows = section.rows.filter(row => {
+                    const key = rowKey(row);
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                });
+            }
+        }
         const parts = [header];
         const packed = sections.map(function (section) {
             return packMemorySection(section, Math.floor(available * section.weight / weight));
@@ -768,9 +783,25 @@
             packed[index] = expanded;
             leftover -= gained;
         }
-        packed.forEach(function (item) { if (item.text) parts.push(item.text); });
+        const emitted = new Set(shown);
+        packed.forEach(function (item) {
+            if (!item.text) return;
+            if (!shown) { parts.push(item.text); return; }
+            const [heading, ...lines] = item.text.split('\n');
+            const unique = lines.filter(line => {
+                // Preserve the provenance and complete text of retrieved episodes.
+                if (heading.includes('篇章') || line.includes('[已锁定]')) return true;
+                const key = rowKey(line);
+                if (emitted.has(key)) return false;
+                emitted.add(key);
+                return true;
+            });
+            if (unique.length) parts.push([heading, ...unique].join('\n'));
+        });
         const result = parts.join('\n\n');
-        return parts.length > 1 ? clipTextToTokenBudget(result, totalBudget) : '';
+        const context = parts.length > 1 ? clipTextToTokenBudget(result, totalBudget) : '';
+        if (shown) context.split('\n').filter(line => line && !line.startsWith('【')).forEach(line => shown.add(rowKey(line)));
+        return context;
     }
 
     function clipForReminder(input, limit) {

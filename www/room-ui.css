@@ -131,6 +131,8 @@
 .room-review-card p { margin:8px 0; line-height:1.5; }
 .room-standard { margin-top:12px; }
 .room-standard small { color:var(--text-secondary); font-weight:400; }
+.room-criteria-limits:not([hidden]) { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.room-criteria-text { white-space:pre-wrap; overflow-wrap:anywhere; }
 .room-review-dimensions { display:grid; gap:5px; padding-inline-start:20px; margin-block:8px; font-size:.79rem; }
 .room-review-dimensions span { margin-inline-start:8px; color:var(--text-secondary); }
 @media(prefers-reduced-motion:reduce) {

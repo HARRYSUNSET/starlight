@@ -10,7 +10,7 @@ module.exports=async function roomBrowserChecks(){
     const read=()=>window.__qaReadState();
     const base=await read(),originalStory=JSON.stringify(base.agents.find(a=>a.id==='ui-story').conversations),originalRoom=JSON.stringify(base.rooms.find(r=>r.id==='ui-room').messages);
     const savedFetch=window.fetch;
-    const calls=[],requestBodies=[];let sceneMode='normal',dialogueMode='normal',judgeMode='normal',heldScene=null;
+    const calls=[],requestBodies=[];let sceneMode='normal',dialogueMode='normal',judgeMode='normal',heldScene=null,memoryMode='normal';
     let currentId=null, directorEmpty=false;
     const work=async()=>{const state=await read();return state.rooms.find(r=>r.id===currentId);};
     const reply=(value,status=200)=>new Response(JSON.stringify(status===200?{choices:[{message:{content:JSON.stringify(value)},finish_reason:'stop'}],usage:{prompt_tokens:12,completion_tokens:6}}:{error:{message:'模拟失败，旧内容应保留'}}),{status,headers:{'Content-Type':'application/json'}});
@@ -31,6 +31,14 @@ module.exports=async function roomBrowserChecks(){
                 else{controller.enqueue(encoder.encode('data: '+JSON.stringify({choices:[{delta:{},finish_reason:dialogueMode==='reasoning-only'?'length':'stop'}],usage:{prompt_tokens:30,completion_tokens:dialogueMode==='reasoning-only'?16000:20,completion_tokens_details:{reasoning_tokens:dialogueMode==='reasoning-only'?16000:0}}})+'\n\ndata: [DONE]\n\n'));controller.close();}
             }}),{headers:{'Content-Type':'text/event-stream'}});
         }
+        if(all.includes('多人房间的长期记忆整理器')){
+            calls.push('memory');
+            if(memoryMode==='fail')return reply(null,503);
+            return reply({
+                shared_core:'备用钥匙放在蓝盒。',episode_title:'钥匙的约定',episode_summary:'两人商定把备用钥匙收进蓝盒。',
+                shared_facts:[{category:'伏笔目标',text:'闭馆前归还蓝盒中的备用钥匙。',keywords:['钥匙']}],
+            });
+        }
         if(all.includes('手动情景预览协议')){
             calls.push('scene');
             if(sceneMode==='recover')return new Response(JSON.stringify({choices:[{message:{content:body.response_format?'  ':JSON.stringify({...sceneResult(),narration:'灯亮了一盏。'})},finish_reason:'stop'}]}));
@@ -47,6 +55,9 @@ module.exports=async function roomBrowserChecks(){
             calls.push('judge');if(judgeMode==='fail')return reply(null,503);
             const payload=JSON.parse(body.messages.at(-1).content),source=payload.records.findLast(m=>m.turnId===payload.turnId&&m.role==='user');
             const judgements=payload.characters.map(m=>({memberId:m.id,sources:[{id:source.id,quote:source.content}],kind:'action',tag:'兑现约定',familiarity:1,trust:2,affection:1,reason:'本轮实际行动符合人物重视守约的设定。',significant:false}));
+            if(judgeMode==='greeting')for(const judgement of judgements)Object.assign(judgement,{
+                kind:'greeting',tag:'问候',familiarity:0,trust:0,affection:4,reason:'主动问候符合作者判据。',
+            });
             let customState;
             if(payload.customStateContext?.reviewPlot){
                 const narration=payload.records.findLast(m=>m.turnId===payload.turnId&&m.kind==='narration'&&m.content.includes('门锁被撬开了'));
@@ -153,6 +164,27 @@ module.exports=async function roomBrowserChecks(){
         await click('#roomExperienceClose');await click('#roomRelationshipCard');dialogueMode='normal';await click('#roomRelationRecheck');await wait(()=>node('#roomRelationRecheck').disabled&&StarlightMotion.isOpen(node('#roomExperienceOverlay')),'关系补判完成');
         await wait(async()=>(await work()).experience.relations[a].trust===26,'按来源补判');assert(node('#roomRelationRecheck').disabled,'已核对回合不可重复请求');
         await click('#roomExperienceClose');await actionLast('undo');await wait(async()=>(await work()).messages.length===beforeInvalid,'撤回用户回合');assert((await work()).experience.relations[a].trust===24,'撤回同步恢复关系维度');
+
+        await click('#roomRelationshipCard');
+        if(!node('#roomEffectiveCriteria').open)await click('#roomEffectiveCriteria summary');
+        node('#roomCriteriaMode').value='custom';node('#roomCriteriaMode').dispatchEvent(new Event('change'));
+        assert(node('#roomCriteriaRules').closest('[data-custom-scoring]').hidden===false&&node('[data-standard-scoring]').hidden,'完全自定义模式显示自定义上限并收起内置标准');
+        input('#roomCriteriaRules','每个回合的主动问候都可以计分。');
+        input('[data-criteria-dimension="affection"][data-criteria-kind="increase"]','主动问候时好感加 4 分');
+        const limit='[data-limit-dimension="affection"][data-limit-kind="gain"]';
+        input(limit,'101');await click('#roomRelationSave');
+        assert(node(limit).getAttribute('aria-invalid')==='true','校验单轮上限');
+        input(limit,'3');await click('#roomRelationSave');
+        await wait(async()=>(await work()).participants[0].relationshipPolicy.scoring?.limits.affection.gain===3&&!node('#roomRelationSave').disabled,'保存自定义模式和上限');
+        await click('#roomExperienceClose');
+        const affection=(await work()).experience.relations[a].affection;
+        judgeMode='greeting';await send('你好');value=await work();
+        assert(value.experience.relations[a].affection===affection+3,'寒暄按自定义规则计分并应用自定义上限');
+        const customRequest=JSON.parse(requestBodies.at(-1).messages.at(-1).content);
+        assert(customRequest.characters[0].scoring.mode==='custom'&&customRequest.characters[0].scoring.rules.includes('主动问候'),'评分模式和通用规则进入模型请求');
+        await click('#roomRelationshipCard');
+        assert(node('.room-review-dimensions').textContent.includes('模型建议 +4')&&node('.room-review-dimensions').textContent.includes('受单轮分值上限限制'),'评分明细说明建议分数与实际入账差异');
+        await click('#roomExperienceClose');judgeMode='normal';
 
         await newRoom('group','房间2.4回归 · 多人');
         directorEmpty=true;judgeMode='fail';
@@ -329,6 +361,33 @@ module.exports=async function roomBrowserChecks(){
         assert(requestBodies.filter(b=>b.stream).at(-1).messages.some(m=>m.content.includes('优先退进安全区')),'真实对白请求包含当前峰值反应');
         await actionLast('undo');
         await wait(async()=>(await work()).experience.customState.value===100,'撤回完成事件恢复原峰值');
+
+        await newRoom('double','房间3.6回归 · 记忆连续性');
+        dialogueMode='normal';
+        const memoryToggle=node('#longMemoryToggle'),wasEnabled=memoryToggle.checked;
+        memoryToggle.checked=true;memoryToggle.dispatchEvent(new Event('change'));
+        const firstRecord='备用钥匙放在蓝盒。'+'旧资料。'.repeat(2400);
+        await send(firstRecord);
+        memoryMode='fail';
+        await send('接下来整理书目。'+'新资料。'.repeat(2400));
+        assert(calls.includes('memory')&&(await work()).sharedMemory.summarizedUntil===0,'整理失败保留摘要进度');
+        const fallback=requestBodies.findLast(body=>body.stream);
+        assert(fallback.messages.some(message=>message.content===firstRecord),'整理失败用旧原文承接本轮');
+        assert(node('#memoryStatus').textContent.includes('待整理'),'显示待整理范围');
+        const beforeRetry=calls.filter(call=>call==='memory').length;
+        await send('书目我已经记下了。');
+        assert(calls.filter(call=>call==='memory').length===beforeRetry,'失败准入退避避免每轮重复调用');
+        memoryMode='normal';
+        const now=Date.now;
+        try{
+            Date.now=()=>now()+61000;
+            await send('之前的备用钥匙在哪里？');
+        }finally{Date.now=now;}
+        const recovered=await work(),compacted=requestBodies.findLast(body=>body.stream);
+        assert(recovered.sharedMemory.summarizedUntil===2&&recovered.messages[0].content===firstRecord,'摘要保存后才推进进度，完整原文留在本地');
+        assert(compacted.messages.some(message=>message.role==='system'&&message.content.includes('备用钥匙放在蓝盒'))&&
+            !compacted.messages.some(message=>message.content===firstRecord),'摘要补位后省去原文，角色仍获得旧事项');
+        memoryToggle.checked=wasEnabled;memoryToggle.dispatchEvent(new Event('change'));
         return {checks,roomId:currentId};
     }finally{if(heldScene)heldScene();window.fetch=savedFetch;document.activeElement?.blur();}
 };

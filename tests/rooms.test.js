@@ -55,6 +55,63 @@ test('房间记忆转换保持与原消息一一对应', () => {
     assert.deepEqual(converted[3], { role: 'assistant', content: '顾言的发言或行动：我在。' });
 });
 
+test('短对白由实际窗口触发整理，摘要只跨过完整回合，失败时仍用原文承接', () => {
+    const room = createGroupRoom();
+    room.messages = Array.from({length:300}, (_,index) => ({
+        id: 'm'+index, turnId:'t'+Math.floor(index/3), role:index%3?'assistant':'user',
+        speakerId:index%3===1?'alice':'bob', content:index?'明天照常。':'备用钥匙放在蓝盒。',
+    }));
+    const settings = Memory.normalizeConfig();
+    assert.equal(Memory.findSummaryChunk(Rooms.roomMessagesForMemory(room),room.sharedMemory,settings),null);
+    const before = Rooms.roomHistoryWindow(room,settings,Memory);
+    assert.equal(before.targetStart,60);
+    assert.equal(before.startIndex,0);
+    assert.equal(Rooms.findRoomMemoryChunk(room,{...settings,enabled:false},Memory),null);
+    assert.equal(Rooms.findRoomMemoryChunk(room,{...settings,roomContextProfile:'expanded'},Memory),null);
+    const chunk = Rooms.findRoomMemoryChunk(room,settings,Memory);
+    assert.equal(chunk.startIndex,0);
+    assert.equal(chunk.endIndex,120);
+    assert.match(chunk.messages[0].content,/蓝盒/);
+    const original = room.messages.slice();
+    room.sharedMemory.summarizedUntil = chunk.endIndex;
+    const after = Rooms.roomHistoryWindow(room,settings,Memory);
+    assert.equal(after.startIndex,chunk.endIndex);
+    assert.equal(Rooms.findRoomMemoryChunk(room,settings,Memory),null);
+    assert.deepEqual(room.messages,original);
+});
+
+test('超长新输入保留完整本轮，较老未整理原文在窗口满时可定位', () => {
+    const room = createGroupRoom();
+    room.messages = Array.from({length:1000}, (_,index) => ({
+        turnId:'t'+Math.floor(index/2), role:index%2?'assistant':'user',
+        speakerId:'alice', content:'一百年前的旅程。',
+    }));
+    const settings = Memory.normalizeConfig();
+    const window = Rooms.roomHistoryWindow(room,settings,Memory);
+    assert.equal(window.startIndex,200);
+    assert.equal(window.covered,0);
+    room.messages.push({role:'user',content:'长'.repeat(17000),turnId:'pending'});
+    const next = Rooms.roomHistoryWindow(room,settings,Memory);
+    assert.equal(next.messages.at(-1),room.messages.at(-1));
+    const chunk = Rooms.findRoomMemoryChunk(room,settings,Memory);
+    assert.ok(chunk.endIndex < room.messages.length);
+    assert.notEqual(room.messages[chunk.endIndex].turnId,room.messages[chunk.endIndex-1].turnId);
+});
+
+test('长玩家输入和短角色回复跨过预算时整理整轮', () => {
+    const room=createGroupRoom();
+    room.messages = [
+        {turnId:'first',role:'user',content:'一'.repeat(8000)},
+        {turnId:'first',role:'assistant',speakerId:'alice',content:'我记住了。'},
+        {turnId:'second',role:'user',content:'二'.repeat(8000)},
+    ];
+    const settings=Memory.normalizeConfig();
+    assert.equal(Rooms.roomHistoryWindow(room,settings,Memory).targetStart,2);
+    assert.equal(Rooms.roomHistoryWindow(room,settings,Memory).startIndex,0);
+    const chunk=Rooms.findRoomMemoryChunk(room,settings,Memory);
+    assert.deepEqual([chunk.startIndex,chunk.endIndex],[0,2]);
+});
+
 test('为单个角色构建历史时不会把其他角色伪装成当前助手', () => {
     const room = createGroupRoom();
     room.messages = [

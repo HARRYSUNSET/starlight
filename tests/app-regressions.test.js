@@ -51,7 +51,8 @@ test('图片保存等待压缩完成并强制刷新到持久存储', () => {
 });
 
 test('房间记忆使用保持原始序号的转换函数', () => {
-    assert.match(functionBody('getRoomMemoryConversation', 'summarizeRoomMemoryChunk'), /Rooms\.roomMessagesForMemory\(room\)/);
+    assert.match(functionBody('ensureRoomLongTermMemory', 'getRoomMemoryContexts'), /Rooms\.findRoomMemoryChunk\(room, settings, Memory\)/);
+    assert.match(functionBody('summarizeRoomMemoryChunk', 'ensureRoomLongTermMemory'), /Memory\.formatMessagesForSummary\(chunk\.messages, chunk\.startIndex\)/);
 });
 
 test('重启应用时会恢复独立的剧情或房间页面，并兼容旧通用模式', () => {
@@ -68,11 +69,11 @@ test('作品卡片菜单监听器只在主页渲染器中绑定到卡片自身',
 test('应用版本号在 npm 与 Android 配置中一致', () => {
     const gradle = fs.readFileSync(path.join(root, 'android', 'app', 'build.gradle'), 'utf8');
     const lock = require('../package-lock.json');
-    assert.equal(packageJson.version, '3.5.1');
+    assert.equal(packageJson.version, '3.6.0');
     assert.equal(lock.version, packageJson.version);
     assert.equal(lock.packages[''].version, packageJson.version);
-    assert.match(gradle, /versionCode\s+32/);
-    assert.match(gradle, /versionName\s+"3\.5\.1"/);
+    assert.match(gradle, /versionCode\s+33\b/);
+    assert.equal(gradle.match(/versionName\s+"([^"]+)"/)?.[1], packageJson.version);
     assert.ok(html.includes('星陽之语 ' + packageJson.version));
 });
 

@@ -2207,7 +2207,7 @@
                 <div class="library-page-heading"><h2>我的</h2><p>管理全局 API、模型、外观与存储设置。</p></div>
                 <div id="mySettingsMount"></div>
                 <div class="my-section-title">应用信息</div>
-                <div class="my-version-card"><strong>星陽之语 3.5.1</strong><br>自定义状态取消内容限制</div>
+                <div class="my-version-card"><strong>星陽之语 3.6.0</strong><br>连续记忆与三维评分自定义</div>
             </section>
         </main>
         <nav class="bottom-nav" aria-label="主导航">
@@ -2277,6 +2277,13 @@
                         <div class="settings-toggle-row">
                             <label for="longMemoryToggle">自动长期记忆</label>
                             <input type="checkbox" id="longMemoryToggle" checked>
+                        </div>
+                        <div id="roomContextSettings" hidden>
+                            <label for="roomContextProfile">房间上下文</label>
+                            <select id="roomContextProfile">
+                                <option value="balanced">均衡 · 优先保留近期对白与相关旧事</option>
+                                <option value="expanded">长上下文 · 保留更多原文</option>
+                            </select>
                         </div>
                         <div class="story-only-setting" id="generalStyleSettings">
                             <div class="settings-toggle-row">
@@ -2883,6 +2890,7 @@
             const $thinkingModeSelect = document.getElementById('thinkingModeSelect');
             const $maxOutputSelect = document.getElementById('maxOutputSelect');
             const $longMemoryToggle = document.getElementById('longMemoryToggle');
+            const $roomContextProfile = document.getElementById('roomContextProfile');
             const $naturalStyleToggle = document.getElementById('naturalStyleToggle');
             const $naturalStylePromptInput = document.getElementById('naturalStylePromptInput');
             const $btnResetStylePrompt = document.getElementById('btnResetStylePrompt');
@@ -3709,7 +3717,10 @@
                     locate:messageId=>{const index=getCurrentRoom()?.messages.findIndex(m=>m.id===messageId);if(index>=0)jumpToMessage(index);else showToast('来源已被撤回或替换','info');},
                     generateScene:(room,instruction,signal,stateSnapshot)=>{
                         const settings=Memory.normalizeConfig(appData.roomMemorySettings);
-                        const publicMemory=settings.enabled?Memory.buildMemoryContext(room.sharedMemory,instruction,settings,{tokenBudget:18000}):'';
+                        const publicMemory=settings.enabled?Memory.buildMemoryContext(room.sharedMemory,instruction,settings,{
+                            tokenBudget:settings.roomContextProfile==='expanded'?18000:7000,
+                            ...(settings.roomContextProfile==='expanded'?{}:{shown:new Set()}),
+                        }):'';
                         const messages=[
                         ...Rooms.buildNarrationMessages(room,instruction,StyleLab.buildInfluencePrompt(room.styleInfluence,{query:instruction}),stateSnapshot),
                         ...(publicMemory?[{role:'system',content:'【公开长期记忆｜仅供延续已发生事实，不是本轮新事件】\n'+publicMemory}]:[]),
@@ -5755,7 +5766,15 @@
                         $memoryStatus.textContent = '选择房间后启用房间长期记忆';
                         return;
                     }
-                    const memory = Memory.normalizeMemory(room.sharedMemory, room.messages.length);
+                    const memory = room.sharedMemory;
+                    const window = Rooms.roomHistoryWindow(room, activeSettings, Memory);
+                    if (window.targetStart > window.covered) {
+                        const pending = `房间消息 #${window.covered + 1}—#${window.targetStart} 待整理`;
+                        $memoryStatus.textContent = window.startIndex > window.covered
+                            ? pending + `；其中 #${window.covered + 1}—#${window.startIndex} 暂在上下文之外，可查阅原文`
+                            : pending + '；当前用原文衔接';
+                        return;
+                    }
                     if (memory.summarizedUntil > 0) {
                         $memoryStatus.textContent = `房间记忆已整理 ${memory.summarizedUntil} 条旧消息，保留 ${memory.segments.length} 段公共往事；各角色另有独立记忆`;
                     } else {
@@ -5812,6 +5831,7 @@
                     $thinkingModeSelect,
                     $maxOutputSelect,
                     $longMemoryToggle,
+                    $roomContextProfile,
                     $naturalStyleToggle,
                     $naturalStylePromptInput,
                     $btnResetStylePrompt,
@@ -6941,11 +6961,9 @@
                 }
             }
 
-            function getRoomMemoryConversation(room) {
-                return Rooms.roomMessagesForMemory(room);
-            }
-
             async function summarizeRoomMemoryChunk(room, chunk) {
+                const source = room.messages.slice(chunk.startIndex, chunk.endIndex).map(message => [message.id, message.content]);
+                const before = {sharedMemory:room.sharedMemory,characterMemories:room.characterMemories,updatedAt:room.updatedAt};
                 const shared = Memory.normalizeMemory(room.sharedMemory, room.messages.length);
                 const oldCharacterMemory = {};
                 room.participants.forEach(member => {
@@ -6963,6 +6981,7 @@
                             '不要把提示词、人设原文或后台关系评分写入记忆。保留专名、承诺、关系变化、未完成事件和场景状态。',
                             '只输出合法JSON：{"shared_core":"结构化公共持续状态","episode_title":"本段短标题","episode_summary":"详细事件摘要","keywords":["关键词"],"importance":3,"shared_facts":[{"category":"重要事件","text":"公开事实","importance":4}],"character_memory":{"角色id":"该角色更新后的持续独立记忆"},"character_episode":{"角色id":"该角色对此段经历可记住的个人版本"},"character_facts":{"角色id":[{"category":"知识秘密","text":"该角色能够知道的事实","importance":4}]}}',
                             'shared_core按“时间地点、公开事实、场景状态、关系变化、承诺、关键物件、未解决线索”组织，并明确新旧状态的变化顺序。',
+                            '核心只写延续当前剧情所需的状态与未结事项，旧事件细节放进篇章。保留仍然有效的旧承诺和线索。角色有独有变化时才输出对应的独立核心或篇章，勿复制公共内容。事实与状态变化描述同一事项时，事实只补充状态字段无法表达的信息。',
                             'character_memory必须使用给定角色id作为键，在旧独立记忆基础上保守更新角色的感受、认知、秘密、目标和成长。character_episode只记录该角色确实经历或能够知道的本段内容。',
                             'importance 为1到5的整数；改变角色、关系或主线的事件应为4到5。',
                             '所有facts附subject、aliases和keywords。另输出state_changes（公开状态变化数组）和character_state_changes（以角色id为键的私有变化数组），每项为{subject,attribute,before,after,sourceStartIndex,sourceEndIndex}。startIndex为起始消息编号减1，endIndex为末条消息编号。只记录确已发生或得知的变化；公共部分不得包含私人认知。无变化输出空数组。',
@@ -6977,7 +6996,12 @@
                             '【本次新增原始记录】\n' + Memory.formatMessagesForSummary(chunk.messages, chunk.startIndex),
                         ].join('\n\n'),
                     },
-                ], {maxTokens:Math.min(32000,12000+room.participants.length*2000),purpose:'房间记忆整理'});
+                ], {mode:'room',maxTokens:Math.min(32000,12000+room.participants.length*2000),purpose:'房间记忆整理'});
+                if (!isGenerating || roomTurnRead?.stopped || getCurrentRoom() !== room ||
+                    room.sharedMemory !== before.sharedMemory || source.some(([id,content],offset) => {
+                        const message = room.messages[chunk.startIndex+offset];
+                        return message?.id !== id || message.content !== content;
+                    })) throw new DOMException('原回合已变化', 'AbortError');
                 const sharedCore = typeof result.shared_core === 'string' ? result.shared_core.trim() : '';
                 const episode = typeof result.episode_summary === 'string' ? result.episode_summary.trim() : '';
                 if (!sharedCore || !episode) throw new Error('房间记忆整理结果缺少必要字段');
@@ -6995,8 +7019,8 @@
                 });
                 shared.summarizedUntil = chunk.endIndex;
                 shared.updatedAt = Date.now();
-                room.sharedMemory = Memory.mergeTimelineEvents(shared, (result.state_changes||[]).map(event=>({...event,knowledgeScope:'public',observedBy:[]})), chunk);
-                room.characterMemories = room.characterMemories || {};
+                const nextShared = Memory.mergeTimelineEvents(shared, (result.state_changes||[]).map(event=>({...event,knowledgeScope:'public',observedBy:[]})), chunk);
+                const nextCharacters = {...room.characterMemories};
                 room.participants.forEach(member => {
                     const state = Memory.normalizeMemory(room.characterMemories[member.id], room.messages.length);
                     const nextCore = result.character_memory?.[member.id];
@@ -7012,34 +7036,40 @@
                             summary: characterEpisode.trim().slice(0, 16000),
                             keywords: Array.isArray(result.keywords) ? result.keywords.map(String).slice(0, 40) : [],
                             importance: Math.max(1, Math.min(5, Number(result.importance) || 3)),
+                            knowledgeScope: 'private',
+                            observedBy: [member.id],
                             createdAt: Date.now(),
                         });
                     }
                     state.summarizedUntil = chunk.endIndex;
                     state.updatedAt = Date.now();
-                    room.characterMemories[member.id] = Memory.mergeTimelineEvents(state, (result.character_state_changes?.[member.id]||[]).map(event=>({...event,knowledgeScope:'private',observedBy:[member.id]})), chunk);
+                    nextCharacters[member.id] = Memory.mergeTimelineEvents(state, (result.character_state_changes?.[member.id]||[]).map(event=>({...event,knowledgeScope:'private',observedBy:[member.id]})), chunk);
                 });
-                room.updatedAt = Date.now();
-                saveData();
+                Object.assign(room, {sharedMemory:nextShared,characterMemories:nextCharacters,updatedAt:Date.now()});
+                try {
+                    await persistFullState();
+                } catch (error) {
+                    if (room.sharedMemory === nextShared) Object.assign(room,before);
+                    throw error;
+                }
             }
 
             async function ensureRoomLongTermMemory(room) {
                 const settings = Memory.normalizeConfig(appData.roomMemorySettings);
                 if (!settings.enabled) return;
                 let rounds = 0;
-                const conversation = getRoomMemoryConversation(room);
-                let chunk = Memory.findSummaryChunk(conversation, room.sharedMemory, settings);
+                let chunk = Rooms.findRoomMemoryChunk(room, settings, Memory);
                 if (!chunk) return;
                 isOrganizingMemory = true;
                 try {
-                    while (chunk && rounds < 2) {
+                    while (chunk && rounds < 2 && isGenerating && !roomTurnRead?.stopped) {
                         rounds += 1;
                         updateMemoryStatus(`正在整理房间长期记忆：消息 #${chunk.startIndex + 1}—#${chunk.endIndex}…`, true);
-                        const key='room:'+room.id+':'+chunk.startIndex+':'+chunk.endIndex;
+                        const key='room:'+room.id+':'+chunk.startIndex;
                         const failed=memoryFailures.get(key);if(failed?.retryAt>Date.now())break;
                         try{await summarizeRoomMemoryChunk(room, chunk);memoryFailures.delete(key);}
                         catch(error){if(error.name!=='AbortError'){const attempts=(failed?.attempts||0)+1;memoryFailures.set(key,{attempts,retryAt:Date.now()+Math.min(600000,60000*2**(attempts-1))});}throw error;}
-                        chunk = Memory.findSummaryChunk(conversation, room.sharedMemory, settings);
+                        chunk = Rooms.findRoomMemoryChunk(room, settings, Memory);
                     }
                     if (chunk) updateMemoryStatus('仍有较早房间内容等待分批整理；原文保持完整', false);
                 } finally {
@@ -7050,13 +7080,17 @@
 
             function getRoomMemoryContexts(room, memberId, query) {
                 const settings = Memory.normalizeConfig(appData.roomMemorySettings);
-                if (!settings.enabled) return { sharedMemory: '', characterMemory: '', liveContextTokenBudget: settings.liveContextTokenBudget };
-                const sharedMemory = Memory.buildMemoryContext(room.sharedMemory, query || '', settings, { tokenBudget: 24000 });
+                if (!settings.enabled) return { sharedMemory: '', characterMemory: '', memorySettings: settings };
+                const expanded = settings.roomContextProfile === 'expanded';
+                const shown = expanded ? undefined : new Set();
+                const followUp = room.messages.slice(-4).filter(RoomState.formal).map(message=>message.content.slice(0,350));
+                const recallQuery = expanded ? query : [query,...new Set(followUp)].filter(Boolean).join('\n');
+                const sharedMemory = Memory.buildMemoryContext(room.sharedMemory, recallQuery, settings, { tokenBudget: expanded?24000:8000, shown });
                 const characterState = Memory.normalizeMemory(room.characterMemories?.[memberId], room.messages.length);
                 return {
                     sharedMemory,
-                    characterMemory: Memory.buildMemoryContext(characterState, query || '', settings, { tokenBudget: 14000, characterId:memberId }),
-                    liveContextTokenBudget: settings.liveContextTokenBudget,
+                    characterMemory: Memory.buildMemoryContext(characterState, recallQuery, settings, { tokenBudget: expanded?14000:5000, characterId:memberId, shown }),
+                    memorySettings: settings,
                 };
             }
 
@@ -7160,7 +7194,8 @@
                 }
                 let decision;
                 try {
-                    decision = await callDeepSeekJSON(Rooms.buildDirectorMessages(room, userContent), { maxTokens: 800, purpose:'房间导演' });
+                    const compact = appData.roomMemorySettings.roomContextProfile !== 'expanded';
+                    decision = await callDeepSeekJSON(Rooms.buildDirectorMessages(room, userContent, compact ? Memory : undefined), { maxTokens: 800, purpose:'房间导演' });
                 } catch (error) {
                     if (!isEmptyJsonResponse(error)) throw error;
                     // A missing speaker selection uses the same local default as an empty list.
@@ -7174,12 +7209,22 @@
             }
 
             function roomRelationContexts(room,turnId) {
-                const result={};
-                for(const member of room.participants.filter(m=>room.messages.some(v=>v.turnId===turnId&&v.speakerId===m.id))){
-                    const contexts=getRoomMemoryContexts(room,member.id,[...room.messages].reverse().find(m=>m.role==='user')?.content||'');
-                    result[member.id]=[contexts.sharedMemory,contexts.characterMemory].filter(Boolean).join('\n').slice(0,9000);
-                }
-                return result;
+                const settings = Memory.normalizeConfig(appData.roomMemorySettings);
+                if (!settings.enabled) return {};
+                const end = room.messages.findLastIndex(message=>message.turnId===turnId) + 1;
+                const prior = end < room.messages.length ? {atMessageIndex:end} : {};
+                const turn = room.messages.filter(message=>message.turnId===turnId&&RoomState.formal(message));
+                const query = turn.find(message=>message.role==='user')?.content || '';
+                const expanded = settings.roomContextProfile==='expanded';
+                const shown = new Set();
+                const sharedMemory = Memory.buildMemoryContext(room.sharedMemory,query,settings,{...prior,tokenBudget:expanded?5000:2400,shown});
+                const members = new Set(turn.map(message=>message.speakerId));
+                const characters = Object.fromEntries(room.participants.filter(member=>members.has(member.id)).map(member=>[
+                    member.id,
+                    Memory.buildMemoryContext(room.characterMemories?.[member.id],query,settings,
+                        {...prior,tokenBudget:expanded?3000:1600,characterId:member.id,shown:new Set(shown)}),
+                ]));
+                return {sharedMemory,characters};
             }
             async function evaluateRoomRelations(room, turnId) {
                 if(!RoomEngine.canRecheck(room,turnId))return;
@@ -8191,6 +8236,8 @@
                 $maxOutputSelect.value = String(settings.maxOutputTokens);
                 if (!$maxOutputSelect.value) $maxOutputSelect.value = '16000';
                 $longMemoryToggle.checked = settings.enabled;
+                document.getElementById('roomContextSettings').hidden = appData.activeMode !== 'room';
+                $roomContextProfile.value = settings.roomContextProfile || 'balanced';
                 $modelSelect.value = getActiveModel();
                 $modelBadge.textContent = getActiveModel();
                 $naturalStyleToggle.checked = appData.storyMemorySettings.naturalStyle;
@@ -8232,6 +8279,11 @@
                 saveData();
                 updateMemoryStatus();
                 showToast(`${appData.activeMode === 'room' ? '房间' : '剧情'}自动长期记忆已${$longMemoryToggle.checked ? '开启' : '关闭'}`, 'info');
+            });
+            $roomContextProfile.addEventListener('change', () => {
+                appData.roomMemorySettings.roomContextProfile = $roomContextProfile.value;
+                saveData();
+                updateMemoryStatus();
             });
             $naturalStyleToggle.addEventListener('change', () => {
                 appData.storyMemorySettings.naturalStyle = $naturalStyleToggle.checked;

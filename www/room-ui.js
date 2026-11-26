@@ -391,8 +391,11 @@
             catch(error){message('保存失败：'+error.message,true);return false;}
             finally{committing=false;render();options.refresh();}
         }
-        const resultLabels={steady:'本轮无变化',source:'原文依据不匹配',duplicate:'该证据已计入',criteria:'未满足加分条件',
-            bound:'受 0–100 数值边界限制',limit:'按单轮限幅结算',applied:'已计入'};
+        const resultLabels={steady:'模型判定保持',source:'原文依据不匹配',duplicate:'内置规则已计过相同原文',
+            criteria:'旧版内置规则拦截',builtinKind:'内置规则限制此类行为加分',builtinTrivial:'内置规则将这段原文视为普通寒暄或赞美',
+            bound:'受 0–100 数值边界限制',limit:'受单轮分值上限限制',applied:'已计入'};
+        const kindLabels={greeting:'寒暄',praise:'赞美',promise:'承诺',action:'行动',shared_event:'共同经历',
+            repair:'修复关系',disclosure:'坦诚分享',boundary:'边界相关',conversation:'交谈'};
         const formatDelta=value=>value>0?'+'+value:String(value??0);
         const sourceLink=(id,caption)=>id?`<button type="button" class="room-source" data-room-source="${escape(id)}">${escape(caption)}</button>`:'';
         function relationshipDiagnostics(value,member){
@@ -416,7 +419,11 @@
                         return `<li><strong>${E.RELATION_LABELS[key]} ${formatDelta(row.applied?.[key])}</strong>
                             <span>模型建议 ${formatDelta(row.requested?.[key])}${why?' · '+escape(why):''}</span></li>`;
                     }).join(''):'';
+                    const rule=row?.mode==='custom'?'完全自定义':row?.mode==='standard'?'内置标准':'';
+                    const classification=Object.hasOwn(kindLabels,row?.kind)?kindLabels[row.kind]:'';
+                    const context=[rule,classification&&'模型分类为'+classification].filter(Boolean).join(' · ');
                     return '<article><strong>'+status+'</strong>'+
+                        (context?'<p>'+context+'</p>':'')+
                         (row?.reason||audit?.reason?'<p>'+escape(row?.reason||audit.reason)+'</p>':'')+
                         (details?'<ul class="room-review-dimensions">'+details+'</ul>':'')+
                         (row?.sources?.length?row.sources.map(ref=>sourceLink(ref.id,ref.quote)).join(''):sourceLink(message.id,'定位这轮消息'))+'</article>';
@@ -483,20 +490,45 @@
             }
         }
         const criteriaLabels={increase:'增加',decrease:'降低',steady:'保持'};
-        function standardsMarkup(values,editable){
-            return '<details id="roomEffectiveCriteria" class="room-review-card"><summary>三维评判标准与生效规则</summary>'+
+        function standardsMarkup(p,editable,expanded){
+            const custom=p.scoring?.mode==='custom';
+            const showStandard=custom?' hidden':'',showCustom=custom?'':' hidden';
+            const mode=editable?`<label>评分模式<select id="roomCriteriaMode">
+                <option value="standard"${custom?'':' selected'}>内置标准与补充判据</option>
+                <option value="custom"${custom?' selected':''}>完全自定义</option>
+            </select></label>`:`<p>${custom?'完全自定义':'内置标准与补充判据'}</p>`;
+            const limits={gain:'每轮最多加分',loss:'每轮最多扣分'};
+            const authorRules=editable?`<label>通用评分规则<textarea id="roomCriteriaRules" rows="3"
+                placeholder="例如：每次主动问候，好感 +2。重复问候每个场景只计一次。">${escape(p.scoring?.rules)}</textarea></label>`:
+                p.scoring?.rules?`<p class="room-criteria-text">${escape(p.scoring.rules)}</p>`:'';
+            return '<details id="roomEffectiveCriteria" class="room-review-card"'+(expanded?' open':'')+'><summary>三维评判标准与生效规则</summary>'+mode+
+                `<div data-custom-scoring${showCustom}><p class="room-note">按下方判据和通用规则评分。可写明每种情形加减几分，以及重复互动如何处理。未覆盖的情形计 0 分。</p>${authorRules}</div>`+
                 Object.entries(E.RELATION_STANDARDS).map(([key,standard])=>`<section class="room-standard">
-                    <h4>${E.RELATION_LABELS[key]} <small>${standard.range}</small></h4>
-                    ${Object.entries(criteriaLabels).map(([kind,label])=>`<p><strong>${label}</strong> ${escape(standard[kind])}</p>
-                        ${editable?`<label>自定义${label}标准<textarea data-criteria-dimension="${key}" data-criteria-kind="${kind}" maxlength="1200" rows="2">${escape(values?.[key]?.[kind])}</textarea></label>`:
-                        values?.[key]?.[kind]?`<p>自定义规则 · ${escape(values[key][kind])}</p>`:''}`).join('')}</section>`).join('')+'</details>';
+                    <h4>${E.RELATION_LABELS[key]} <small data-standard-scoring${showStandard}>${standard.range}</small></h4>
+                    ${Object.entries(criteriaLabels).map(([kind,label])=>`<p data-standard-scoring${showStandard}><strong>${label}</strong> ${escape(standard[kind])}</p>
+                        ${editable?`<label>${label}判据<textarea data-criteria-dimension="${key}" data-criteria-kind="${kind}" rows="2">${escape(p.criteria?.[key]?.[kind])}</textarea></label>`:
+                        p.criteria?.[key]?.[kind]?`<p class="room-criteria-text"><strong>${label}判据</strong> ${escape(p.criteria[key][kind])}</p>`:''}`).join('')}
+                    <div data-custom-scoring${showCustom} class="room-criteria-limits">${Object.entries(limits).map(([kind,label])=>{
+                        const limit=p.scoring?.limits?.[key]?.[kind]??100;
+                        return editable?`<label>${label}<input type="number" min="0" max="100" step="1" placeholder="100"
+                            data-limit-dimension="${key}" data-limit-kind="${kind}" value="${escape(limit)}"></label>`:
+                            `<p>${label} ${escape(limit)}</p>`;
+                    }).join('')}</div></section>`).join('')+'</details>';
         }
-        function readCriteria(body){
-            const result={};
+        function readScoring(body,validate=false){
+            const mode=el('roomCriteriaMode').value,criteria={},limits={};
             for(const input of body.querySelectorAll('[data-criteria-dimension]')){
-                (result[input.dataset.criteriaDimension]??={})[input.dataset.criteriaKind]=input.value;
+                (criteria[input.dataset.criteriaDimension]??={})[input.dataset.criteriaKind]=input.value;
             }
-            return result;
+            for(const input of body.querySelectorAll('[data-limit-dimension]')){
+                const value=input.value===''&&!input.validity.badInput?100:input.valueAsNumber;
+                if(validate&&mode==='custom'&&(!input.validity.valid||!Number.isInteger(value))){
+                    input.closest('details').open=true;
+                    invalidField(input,'每轮分值上限须为 0–100 的整数');
+                }
+                (limits[input.dataset.limitDimension]??={})[input.dataset.limitKind]=validate?value:input.value;
+            }
+            return {criteria,scoring:{mode,rules:el('roomCriteriaRules').value,limits}};
         }
         function renderRelations(value){
             const e=E.ensure(value);el('roomAuthorView').checked=e.authorView;
@@ -504,7 +536,7 @@
             el('roomRelationMember').closest('label').hidden=value.roomType==='double';
             el('roomRelationMember').innerHTML=value.participants.map(m=>`<option value="${escape(m.id)}" ${m.id===memberId?'selected':''}>${escape(m.name)}</option>`).join('');
             const member=value.participants.find(m=>m.id===memberId),body=el('roomRelationContent');if(!member){body.textContent='尚无角色。';return;}
-            const pending=e.profileDrafts[memberId];
+            const pending=e.authorView?e.profileDrafts[memberId]:null;
             const r={...e.relations[memberId],...pending},p={...E.policy(member),...pending?.policy};
             const visibleKeys=E.dimensions(value);
             const keys=Object.keys(E.RELATION_LABELS);
@@ -519,7 +551,7 @@
             const last=e.relationHistory.findLast(event=>event.memberId===memberId&&event.kind!=='desire-scene');
             const overview='<p class="room-note">'+(r.known?'进度依据正式互动更新。':'关系分数待评估；已确立的关系继续有效。')+'</p>'+
                 (last?.reason?'<p class="room-note">最近一次核对 · '+escape(last.reason)+'</p>':'');
-            const diagnostics=relationshipDiagnostics(value,member)+standardsMarkup(p.criteria,e.authorView);
+            const diagnostics=relationshipDiagnostics(value,member)+standardsMarkup(p,e.authorView,el('roomEffectiveCriteria')?.open);
             if(!e.authorView){
                 body.innerHTML=overview+diagnostics+eventList;
                 body.querySelectorAll('[data-room-source]').forEach(button=>button.onclick=()=>{if(close())options.locate(button.dataset.roomSource);});
@@ -530,8 +562,15 @@
                 delta:event.delta&&typeof event.delta==='object'?Object.fromEntries(Object.entries(event.delta).filter(([key])=>keys.includes(key)).map(([key,n])=>[key,Number.isFinite(Number(n))?Number(n):0])):null}));
             body.innerHTML=overview+diagnostics+eventList+`<button type="button" class="mini-action-btn" id="roomRelationRecheck">核对上一轮关系（一次请求）</button><div class="room-field-grid room-stats">${keys.map(key=>`<label>${E.RELATION_LABELS[key]}（0–100）<input type="number" min="0" max="100" placeholder="待评估" data-relation-value="${key}" value="${escape(Object.hasOwn(pending||{},key)?pending[key]:r.knownDimensions.includes(key)?r[key]:'')}"></label>`).join('')}</div><label>当前情绪<input id="roomRelationEmotion" value="${escape(r.emotion)}" maxlength="200"></label><label>既有关系／作者确认的基线<textarea id="roomRelationBaseline" rows="3">${escape(r.baseline||p.baseline)}</textarea></label><label>这个人物重视什么<textarea id="roomRelationPreferences" rows="3">${escape(p.preferences)}</textarea></label><label>这个人物的界限／顾虑<textarea id="roomRelationBoundaries" rows="3">${escape(p.boundaries)}</textarea></label><label>关键关系转折需要什么经历<textarea id="roomRelationConditions" rows="3">${escape(p.conditions)}</textarea></label><label class="room-check"><input id="roomRelationEnabled" type="checkbox" ${p.enabled?'checked':''}>为此角色核对关系证据</label><button type="button" class="btn-confirm" id="roomRelationSave">保存作者校准与规则</button><p class="room-note">手动校准会留在关系档案中，不编造成剧情事件。既有自定义关系节点仍在房间设定中编辑。</p><h4>关系依据与来源</h4><div class="room-evidence-list">${history.slice(0,historyCount).map(event=>`<article><strong>${escape(event.kind==='author'?'作者校准':event.tag||'本轮判定')}</strong><p>${escape(event.reason||'无额外说明')}</p>${event.delta?`<small>${Object.entries(event.delta).map(([key,n])=>`${E.RELATION_LABELS[key]} ${n>0?'+':''}${n}`).join(' · ')}</small>`:''}${(event.sources||[]).map(ref=>`<button type="button" class="room-source" data-room-source="${escape(ref.id)}">${escape(ref.quote)}</button>`).join('')}</article>`).join('')||'<p class="room-note">还没有来源判定。普通交流可以保持原关系；API 判定失败不会凭空改变状态。</p>'}</div>${history.length>historyCount?'<button type="button" id="roomRelationMore" class="mini-action-btn">查看更多依据</button>':''}`;
             el('roomRelationRecheck').onclick=()=>recheck(value);
+            const readValues=validate=>({
+                emotion:el('roomRelationEmotion').value,baseline:el('roomRelationBaseline').value,
+                policy:{enabled:el('roomRelationEnabled').checked,baseline:el('roomRelationBaseline').value,preferences:el('roomRelationPreferences').value,
+                    boundaries:el('roomRelationBoundaries').value,conditions:el('roomRelationConditions').value,...readScoring(body,validate)},
+            });
             el('roomRelationSave').onclick=()=>{
-                const values={emotion:el('roomRelationEmotion').value,policy:{enabled:el('roomRelationEnabled').checked,baseline:el('roomRelationBaseline').value,preferences:el('roomRelationPreferences').value,boundaries:el('roomRelationBoundaries').value,conditions:el('roomRelationConditions').value,criteria:readCriteria(body)}};
+                let values;
+                try{values=readValues(true);}
+                catch(error){error.field?.focus();return message(error.message,true);}
                 for(const input of body.querySelectorAll('[data-relation-value]')){
                     if(input.value==='')continue;
                     const n=input.valueAsNumber;if(!Number.isInteger(n)||n<0||n>100)return message('关系数值必须在 0—100 之间。',true);values[input.dataset.relationValue]=n;
@@ -539,11 +578,24 @@
                 commit(current=>{E.calibrate(current,memberId,values);delete E.ensure(current).profileDrafts[memberId];});
             };
             const keepDraft=()=>{
-                const values={emotion:el('roomRelationEmotion').value,baseline:el('roomRelationBaseline').value,policy:{enabled:el('roomRelationEnabled').checked,baseline:el('roomRelationBaseline').value,preferences:el('roomRelationPreferences').value,boundaries:el('roomRelationBoundaries').value,conditions:el('roomRelationConditions').value,criteria:readCriteria(body)}};
+                const values=readValues(false);
                 for(const input of body.querySelectorAll('[data-relation-value]'))values[input.dataset.relationValue]=input.value;
                 e.profileDrafts[memberId]=values;persist();
             };
-            for(const input of body.querySelectorAll('input,textarea')){input.addEventListener('input',keepDraft);input.addEventListener('change',keepDraft);}
+            for(const input of body.querySelectorAll('input,textarea')){
+                input.addEventListener('input',()=>{
+                    input.removeAttribute('aria-invalid');
+                    input.parentElement.querySelector('.assessment-field-error')?.remove();
+                    keepDraft();
+                });
+                input.addEventListener('change',keepDraft);
+            }
+            el('roomCriteriaMode').onchange=event=>{
+                const custom=event.target.value==='custom';
+                body.querySelectorAll('[data-custom-scoring]').forEach(item=>item.hidden=!custom);
+                body.querySelectorAll('[data-standard-scoring]').forEach(item=>item.hidden=custom);
+                keepDraft();
+            };
             body.querySelectorAll('[data-room-source]').forEach(button=>button.onclick=()=>{if(close())options.locate(button.dataset.roomSource);});
             if(el('roomRelationMore'))el('roomRelationMore').onclick=()=>{historyCount+=30;renderRelations(value);};
         }
